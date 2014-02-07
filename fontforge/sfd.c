@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "pfaedit.h"
+#include "fontforge.h"
 #include "splinefont.h"
 #include "baseviews.h"
 #include <gdraw.h>
@@ -316,9 +316,10 @@ return( NULL );
 return( ret );
 }
 
-    /* Long lines can be broken by inserting \\\n (backslash newline) */
-    /*  into the line. I don't think this is ever ambiguous as I don't */
-    /*  think a line can end with backslash */
+/* Long lines can be broken by inserting \\\n (backslash newline) */
+/*  into the line. I don't think this is ever ambiguous as I don't */
+/*  think a line can end with backslash */
+/* UPDATE: it can... that's handled in getquotedeol() below. */
 static int nlgetc(FILE *sfd) {
     int ch, ch2;
 
@@ -350,7 +351,7 @@ return( NULL );
 	    if ( ch1=='+' ) {
 		ch1 = nlgetc(sfd);
 		if ( ch1=='-' ) {
-		    if ( pt<end ) *pt++ = '+';
+		    ch1 = '+';
 		    done = true;
 		} else {
 		    in = true;
@@ -1192,14 +1193,14 @@ static void SFDDumpGradient(FILE *sfd, char *keyword, struct gradient *gradient)
 
     /* Use ";" as a coord separator because we treat "," as a potential decimal point */
     fprintf( sfd, "%s %g;%g %g;%g %g %s %d ", keyword,
-	    gradient->start.x, gradient->start.y,
-	    gradient->stop.x, gradient->stop.y,
-	    gradient->radius,
+	    (double) gradient->start.x, (double) gradient->start.y,
+	    (double) gradient->stop.x, (double) gradient->stop.y,
+	    (double) gradient->radius,
 	    spreads[gradient->sm],
 	    gradient->stop_cnt );
     for ( i=0 ; i<gradient->stop_cnt; ++i ) {
-	fprintf( sfd, "{%g #%06x %g} ", gradient->grad_stops[i].offset,
-		gradient->grad_stops[i].col, gradient->grad_stops[i].opacity );
+	fprintf( sfd, "{%g #%06x %g} ", (double) gradient->grad_stops[i].offset,
+		gradient->grad_stops[i].col, (double) gradient->grad_stops[i].opacity );
     }
     putc('\n',sfd);
 }
@@ -1208,10 +1209,10 @@ static void SFDDumpPattern(FILE *sfd, char *keyword, struct pattern *pattern) {
 
     fprintf( sfd, "%s %s %g;%g [%g %g %g %g %g %g]\n", keyword,
 	    pattern->pattern,
-	    pattern->width, pattern->height,
-	    pattern->transform[0], pattern->transform[1],
-	    pattern->transform[2], pattern->transform[3],
-	    pattern->transform[4], pattern->transform[5] );
+	    (double) pattern->width, (double) pattern->height,
+	    (double) pattern->transform[0], (double) pattern->transform[1],
+	    (double) pattern->transform[2], (double) pattern->transform[3],
+	    (double) pattern->transform[4], (double) pattern->transform[5] );
 }
 #endif
 
@@ -1303,8 +1304,8 @@ static void SFDDumpChar(FILE *sfd,SplineChar *sc,EncMap *map,int *newgids) {
 		    sc->layers[i].fill_brush.col, sc->layers[i].fill_brush.opacity,
 		    sc->layers[i].stroke_pen.brush.col, sc->layers[i].stroke_pen.brush.opacity,
 		     sc->layers[i].stroke_pen.width, joins[sc->layers[i].stroke_pen.linejoin], caps[sc->layers[i].stroke_pen.linecap],
-		    sc->layers[i].stroke_pen.trans[0], sc->layers[i].stroke_pen.trans[1],
-		    sc->layers[i].stroke_pen.trans[2], sc->layers[i].stroke_pen.trans[3] );
+		    (double) sc->layers[i].stroke_pen.trans[0], (double) sc->layers[i].stroke_pen.trans[1],
+		    (double) sc->layers[i].stroke_pen.trans[2], (double) sc->layers[i].stroke_pen.trans[3] );
 	    if ( sc->layers[i].stroke_pen.dashes[0]==0 && sc->layers[i].stroke_pen.dashes[1]==DASH_INHERITED )
 		fprintf(sfd,"0 %d]\n", DASH_INHERITED);
 	    else { int j;
@@ -1555,7 +1556,7 @@ static int SFDDumpBitmapFont(FILE *sfd,BDFFont *bdf,EncMap *encm,int *newgids,
 	    fprintf(sfd, "BDFRefChar: %d %d %d %d %c\n",
 		newgids!=NULL ? newgids[bc->orig_pos] : bc->orig_pos,
 		newgids!=NULL ? newgids[ref->bdfc->orig_pos] : ref->bdfc->orig_pos,
-		ref->xoff,ref->yoff,ref->selected?'S':'N' );    	    
+		ref->xoff,ref->yoff,ref->selected?'S':'N' );
     }
     fprintf( sfd, "EndBitmapFont\n" );
 return( err );
@@ -1594,6 +1595,7 @@ return;
     fprintf( sfd, "GaspTable: %d", sf->gasp_cnt );
     for ( i=0; i<sf->gasp_cnt; ++i )
 	fprintf( sfd, " %d %d", sf->gasp[i].ppem, sf->gasp[i].flags );
+    fprintf( sfd, " %d", sf->gasp_version);
     putc('\n',sfd);
 }
 
@@ -1625,11 +1627,11 @@ static void SFDDumpOtfFeatNames(FILE *sfd, SplineFont *sf) {
 	fprintf( sfd, "OtfFeatName: '%c%c%c%c' ",
 		fn->tag>>24, fn->tag>>16, fn->tag>>8, fn->tag );
 	for ( on=fn->names; on!=NULL; on=on->next ) {
-	    fprintf( sfd, " %d ", on->lang );
+	    fprintf( sfd, "%d ", on->lang );
 	    SFDDumpUTF7Str(sfd, on->name);
 	}
+	putc('\n',sfd);
     }
-    putc('\n',sfd);
 }
 
 static void putstring(FILE *sfd, char *header, char *body) {
@@ -1751,7 +1753,7 @@ return;
     }
     putc('\n',sfd);
 }
-	
+
 static void SFDDumpJustify(FILE *sfd,SplineFont *sf) {
     Justify *jscript;
     struct jstf_lang *jlang;
@@ -1784,6 +1786,24 @@ static void SFDDumpJustify(FILE *sfd,SplineFont *sf) {
     }
     if ( sf->justify!=NULL )
 	fprintf( sfd, "EndJustify\n" );
+}
+
+static void SFDFpstClassNamesOut(FILE *sfd,int class_cnt,char **classnames,char *keyword) {
+    char buffer[20];
+    int i;
+
+    if ( class_cnt>0 && classnames!=NULL ) {
+	fprintf( sfd, "  %s: ", keyword );
+	for ( i=0; i<class_cnt; ++i ) {
+	    if ( classnames[i]==NULL ) {
+		sprintf( buffer,"%d", i );
+		SFDDumpUTF7Str(sfd,buffer );
+	    } else
+		SFDDumpUTF7Str(sfd,classnames[i] );
+	    putc(' ',sfd);
+	}
+	putc('\n',sfd);
+    }
 }
 
 static int SFD_Dump(FILE *sfd,SplineFont *sf,EncMap *map,EncMap *normal,
@@ -1850,6 +1870,10 @@ static int SFD_Dump(FILE *sfd,SplineFont *sf,EncMap *map,EncMap *normal,
 	SFDDumpUTF7Str(sfd,sf->woffMetadata);
 	putc('\n',sfd);
     }
+    if ( sf->ufo_ascent!=0 )
+	fprintf(sfd, "UFOAscent: %g\n", (double) sf->ufo_ascent );
+    if ( sf->ufo_descent!=0 )
+	fprintf(sfd, "UFODescent: %g\n", (double) sf->ufo_descent );
     fprintf(sfd, "LayerCount: %d\n", sf->layer_cnt );
     for ( i=0; i<sf->layer_cnt; ++i ) {
 	fprintf( sfd, "Layer: %d %d ", i, sf->layers[i].order2/*, sf->layers[i].background*/ );
@@ -1860,7 +1884,7 @@ static int SFD_Dump(FILE *sfd,SplineFont *sf,EncMap *map,EncMap *normal,
 	fprintf(sfd, "StrokedFont: %d\n", sf->strokedfont );
     else if ( sf->multilayer )
 	fprintf(sfd, "MultiLayer: %d\n", sf->multilayer );
-    if ( sf->changed_since_xuidchanged )
+    if ( sf->use_xuid && sf->changed_since_xuidchanged )
 	fprintf(sfd, "NeedsXUIDChange: 1\n" );
     if ( sf->xuid!=NULL )
 	fprintf(sfd, "XUID: %s\n", sf->xuid );
@@ -1956,7 +1980,7 @@ static int SFD_Dump(FILE *sfd,SplineFont *sf,EncMap *map,EncMap *normal,
 		} else if ( otl->lookup_type==gpos_pair && sub->vertical_kerning )
 		    fprintf(sfd,"(1)");
 		if ( otl->lookup_type==gpos_pair && (sub->separation!=0 || sub->kerning_by_touch))
-		    fprintf(sfd,"[%d,%d,%d]", sub->separation, sub->minkern, sub->kerning_by_touch+2*sub->onlyCloser );
+		    fprintf(sfd,"[%d,%d,%d]", sub->separation, sub->minkern, sub->kerning_by_touch+2*sub->onlyCloser+4*sub->dontautokern );
 		putc(' ',sfd);
 	    }
 	    fprintf( sfd, "} [" );
@@ -2124,6 +2148,13 @@ static int SFD_Dump(FILE *sfd,SplineFont *sf,EncMap *map,EncMap *normal,
 	      break;
 	    }
 	}
+	/* It would make more sense to output these up near the classes */
+	/*  but that would break backwards compatibility (old parsers will */
+	/*  ignore these entries if they are at the end, new parsers will */
+	/*  read them */
+	SFDFpstClassNamesOut(sfd,fpst->nccnt,fpst->nclassnames,"ClassNames");
+	SFDFpstClassNamesOut(sfd,fpst->bccnt,fpst->bclassnames,"BClassNames");
+	SFDFpstClassNamesOut(sfd,fpst->fccnt,fpst->fclassnames,"FClassNames");
 	fprintf( sfd, "EndFPST\n" );
     }
     for ( sm=sf->sm; sm!=NULL; sm=sm->next ) {
@@ -2215,7 +2246,7 @@ static int SFD_Dump(FILE *sfd,SplineFont *sf,EncMap *map,EncMap *normal,
 	fprintf(sfd, "Compacted: 1\n" );
     fprintf( sfd, "UnicodeInterp: %s\n", unicode_interp_names[sf->uni_interp]);
     fprintf( sfd, "NameList: %s\n", sf->for_new_glyphs->title );
-	
+
     if ( map->remap!=NULL ) {
 	struct remap *remap;
 	int n;
@@ -2568,10 +2599,10 @@ return;
     free(markerfile);
     closedir(dir);
 }
-    
+
 int SFDWrite(char *filename,SplineFont *sf,EncMap *map,EncMap *normal,int todir) {
     FILE *sfd;
-    char *oldloc;
+    char oldloc[24];
     int i, gc;
     char *tempfilename = filename;
     int err = false;
@@ -2590,8 +2621,9 @@ int SFDWrite(char *filename,SplineFont *sf,EncMap *map,EncMap *normal,int todir)
     if ( tempfilename!=filename ) free(tempfilename);
     if ( sfd==NULL )
 return( 0 );
-    
-    oldloc = setlocale(LC_NUMERIC,"C");
+
+    strcpy( oldloc,setlocale(LC_NUMERIC,NULL) );
+    setlocale(LC_NUMERIC,"C");
     if ( sf->cidmaster!=NULL ) {
 	sf=sf->cidmaster;
 	gc = 1;
@@ -2675,8 +2707,15 @@ static char *getquotedeol(FILE *sfd) {
     while ( isspace(ch = nlgetc(sfd)) && ch!='\r' && ch!='\n' );
     while ( ch!='\n' && ch!='\r' && ch!=EOF ) {
 	if ( ch=='\\' ) {
-	    ch = nlgetc(sfd);
+	    /* We can't use nlgetc() here, because it would misinterpret */
+	    /* double backslash at the end of line. Multiline strings,   */
+	    /* broken with backslash + newline, are just handled above.  */
+	    ch = getc(sfd);
 	    if ( ch=='n' ) ch='\n';
+	    /* else if ( ch=='\\' ) ch=='\\'; */ /* second backslash of '\\' */
+
+	    /* FontForge doesn't write other escape sequences in this context. */
+	    /* So any other value of ch is assumed impossible. */
 	}
 	if ( pt>=end ) {
 	    pt = grealloc(str,end-str+101);
@@ -3600,22 +3639,22 @@ static DStemInfo *SFDReadDHints( SplineFont *sf,FILE *sfd,int old ) {
 	        getreal( sfd,&bp[2].x ) && getreal( sfd,&bp[2].y ) &&
 	        getreal( sfd,&bp[3].x ) && getreal( sfd,&bp[3].y )) {
 
-            /* Ensure point coordinates specified in the sfd file do
+            /* Ensure point coordinates specified in the sfd file do */
             /* form a diagonal line */
             if ( PointsDiagonalable( sf,bpref,&unit )) {
 	        cur = chunkalloc( sizeof( DStemInfo ));
 	        cur->left = *bpref[0];
 	        cur->right = *bpref[1];
                 cur->unit = unit;
-                /* Generate a temporary hint instance, so that the hint can
-                /* be visible in charview even if subsequent rebuilding instances
+                /* Generate a temporary hint instance, so that the hint can */
+                /* be visible in charview even if subsequent rebuilding instances */
                 /* fails (e. g. for composite characters) */
                 cur->where = chunkalloc( sizeof( HintInstance ));
-                rstartoff = ( cur->right.x - cur->left.x ) * cur->unit.x + 
+                rstartoff = ( cur->right.x - cur->left.x ) * cur->unit.x +
                             ( cur->right.y - cur->left.y ) * cur->unit.y;
-                rendoff =   ( bpref[2]->x - cur->left.x ) * cur->unit.x + 
+                rendoff =   ( bpref[2]->x - cur->left.x ) * cur->unit.x +
                             ( bpref[2]->y - cur->left.y ) * cur->unit.y;
-                lendoff =   ( bpref[3]->x - cur->left.x ) * cur->unit.x + 
+                lendoff =   ( bpref[3]->x - cur->left.x ) * cur->unit.x +
                             ( bpref[3]->y - cur->left.y ) * cur->unit.y;
                 cur->where->begin = ( rstartoff > 0 ) ? rstartoff : 0;
                 cur->where->end   = ( rendoff > lendoff ) ? lendoff : rendoff;
@@ -4735,8 +4774,8 @@ exit(1);
 		sc = NULL;
 	    }
 #endif
-            /* Recalculating hint active zones may be needed for old .sfd files.
-            /* Do this when we have finished with other glyph components,
+            /* Recalculating hint active zones may be needed for old .sfd files. */
+            /* Do this when we have finished with other glyph components, */
             /* so that splines are already available */
 	    if ( sf->sfd_version<2 )
                 SCGuessHintInstancesList( sc,ly_fore,sc->hstem,sc->vstem,sc->dstem,false,false );
@@ -4792,7 +4831,7 @@ static int SFDGetBitmapChar(FILE *sfd,BDFFont *bdf) {
     bfc = chunkalloc(sizeof(BDFChar));
     memset( bfc,'\0',sizeof( BDFChar ));
     map = bdf->sf->map;
-    
+
     if ( getint(sfd,&orig)!=1 || orig<0 )
 return( 0 );
     if ( getint(sfd,&enc)!=1 )
@@ -4873,9 +4912,9 @@ static int SFDGetBitmapReference(FILE *sfd,BDFFont *bdf) {
     BDFRefChar *ref, *head;
     int gid, rgid, xoff, yoff;
     char ch;
-    
-    /* 'BDFRefChar:' elements should not occur in the file before the corresponding 
-    /* 'BDFChar:'. However it is possible that the glyphs they refer to are not yet
+
+    /* 'BDFRefChar:' elements should not occur in the file before the corresponding */
+    /* 'BDFChar:'. However it is possible that the glyphs they refer to are not yet */
     /* available. So we will find them later */
     if ( getint(sfd,&gid)!=1 || gid<=0 || gid >= bdf->glyphcnt || ( bc = bdf->glyphs[gid] ) == NULL )
 return( 0 );
@@ -4900,7 +4939,7 @@ static void SFDFixupBitmapRefs( BDFFont *bdf ) {
     BDFChar *bc, *rbc;
     BDFRefChar *head, *next, *prev;
     int i;
-    
+
     for ( i=0; i<bdf->glyphcnt; i++ ) if (( bc = bdf->glyphs[i] ) != NULL ) {
 	prev = NULL;
 	for ( head = bc->refs; head != NULL; head = next ) {
@@ -4917,7 +4956,7 @@ static void SFDFixupBitmapRefs( BDFFont *bdf ) {
 	    }
 	}
     }
-    
+
 }
 
 static int SFDGetBitmapFont(FILE *sfd,SplineFont *sf,int fromdir,char *dirname) {
@@ -5009,7 +5048,22 @@ return( 1 );
 
 static void SFDFixupRef(SplineChar *sc,RefChar *ref,int layer) {
     RefChar *rf;
+#ifdef FONTFORGE_CONFIG_TYPE3
+    int ly;
 
+    if ( sc->parent->multilayer ) {
+	for ( ly=ly_fore; ly<ref->sc->layer_cnt; ++ly ) {
+	    for ( rf = ref->sc->layers[ly].refs; rf!=NULL; rf=rf->next ) {
+		if ( rf->sc==sc ) {	/* Huh? */
+		    ref->sc->layers[ly].refs = NULL;
+	    break;
+		}
+		if ( rf->layers[0].splines==NULL )
+		    SFDFixupRef(ref->sc,rf,layer);
+	    }
+	}
+    } else {
+#endif
     for ( rf = ref->sc->layers[layer].refs; rf!=NULL; rf=rf->next ) {
 	if ( rf->sc==sc ) {	/* Huh? */
 	    ref->sc->layers[layer].refs = NULL;
@@ -5018,6 +5072,9 @@ static void SFDFixupRef(SplineChar *sc,RefChar *ref,int layer) {
 	if ( rf->layers[0].splines==NULL )
 	    SFDFixupRef(ref->sc,rf,layer);
     }
+#ifdef FONTFORGE_CONFIG_TYPE3
+    }
+#endif
     SCReinstanciateRefChar(sc,ref,layer);
     SCMakeDependent(sc,ref->sc);
 }
@@ -5038,7 +5095,7 @@ return( sc );
 
     while ( sc->layers[ly_fore].refs!=NULL &&
 	    sc->layers[ly_fore].refs->sc!=NULL &&	/* Can happen if we are called during font loading before references are fixed up */
-	    sc->layers[ly_fore].refs->next==NULL && 
+	    sc->layers[ly_fore].refs->next==NULL &&
 	    sc->layers[ly_fore].refs->transform[0]==1 && sc->layers[ly_fore].refs->transform[1]==0 &&
 	    sc->layers[ly_fore].refs->transform[2]==0 && sc->layers[ly_fore].refs->transform[3]==1 &&
 	    sc->layers[ly_fore].refs->transform[4]==0 && sc->layers[ly_fore].refs->transform[5]==0 ) {
@@ -5123,6 +5180,7 @@ static void SFDFixupRefs(SplineFont *sf) {
 			else
 			    index = map->map[index];
 		    }
+		    kp->kcid = false;
 		    ksf = sf;
 		    if ( cidmaster!=sf ) {
 			for ( l=0; l<cidmaster->subfontcnt; ++l ) {
@@ -5269,6 +5327,7 @@ static void SFDGetGasp(FILE *sfd,SplineFont *sf) {
 	getsint(sfd,(int16 *) &sf->gasp[i].ppem);
 	getsint(sfd,(int16 *) &sf->gasp[i].flags);
     }
+    getsint(sfd,(int16 *) &sf->gasp_version);
 }
 
 static void SFDGetDesignSize(FILE *sfd,SplineFont *sf) {
@@ -5456,11 +5515,14 @@ static void SFDParseChainContext(FILE *sfd,SplineFont *sf,FPST *fpst, char *tok,
     fscanf(sfd, "%hu %hu %hu %hu", &fpst->nccnt, &fpst->bccnt, &fpst->fccnt, &fpst->rule_cnt );
     if ( fpst->nccnt!=0 || fpst->bccnt!=0 || fpst->fccnt!=0 ) {
 	fpst->nclass = galloc(fpst->nccnt*sizeof(char *));
+	fpst->nclassnames = gcalloc(fpst->nccnt,sizeof(char *));
 	if ( fpst->nccnt!=0 ) fpst->nclass[0] = NULL;
 	if ( fpst->bccnt!=0 || fpst->fccnt!=0 ) {
 	    fpst->bclass = galloc(fpst->bccnt*sizeof(char *));
+	    fpst->bclassnames = gcalloc(fpst->bccnt,sizeof(char *));
 	    if (fpst->bccnt!=0 ) fpst->bclass[0] = NULL;
 	    fpst->fclass = galloc(fpst->fccnt*sizeof(char *));
+	    fpst->fclassnames = gcalloc(fpst->fccnt,sizeof(char *));
 	    if (fpst->fccnt!=0 ) fpst->fclass[0] = NULL;
 	}
     }
@@ -5541,7 +5603,20 @@ static void SFDParseChainContext(FILE *sfd,SplineFont *sf,FPST *fpst, char *tok,
 	  break;
 	}
     }
-    getname(sfd,tok);
+    getname(sfd,tok);	/* EndFPST, or one of the ClassName tokens (in newer sfds) */
+    while ( strcmp(tok,"ClassNames:")==0 || strcmp(tok,"BClassNames:")==0 ||
+	    strcmp(tok,"FClassNames:")==0 ) {
+	int which = strcmp(tok,"ClassNames:")==0 ? 0 :
+		    strcmp(tok,"BClassNames:")==0 ? 1 : 2;
+	int cnt = (&fpst->nccnt)[which];
+	char **classnames = (&fpst->nclassnames)[which];
+	int i;
+
+	for ( i=0; i<cnt; ++i )
+	    classnames[i] = SFDReadUTF7Str(sfd);
+	getname(sfd,tok);	/* EndFPST, or one of the ClassName tokens (in newer sfds) */
+    }
+
 }
 
 static void SFDParseStateMachine(FILE *sfd,SplineFont *sf,ASM *sm, char *tok,int old) {
@@ -5632,7 +5707,7 @@ static struct macname *SFDParseMacNames(FILE *sfd, char *tok) {
 	cur->enc = enc;
 	cur->lang = lang;
 	cur->name = pt = galloc(len+1);
-	
+
 	while ( (ch=nlgetc(sfd))==' ');
 	if ( ch=='"' )
 	    ch = nlgetc(sfd);
@@ -5707,12 +5782,6 @@ static char *SFDParseMMSubroutine(FILE *sfd) {
     if ( len>0 && sofar[len-1]=='\n' )
 	sofar[len-1] = '\0';
 return( sofar );
-}
-
-static void SFDCleanupFont(SplineFont *sf) {
-    if ( sf->sfd_version<2 )
-	SFD_AssignLookups((SplineFont1 *) sf);
-    AltUniFigure(sf,sf->map);
 }
 
 static void MMInferStuff(MMSet *mm) {
@@ -5972,6 +6041,7 @@ static void SFDParseLookup(FILE *sfd,SplineFont *sf,OTLookup *otl) {
 		    ch = nlgetc(sfd);
 		    sub->kerning_by_touch = ((ch-'0')&1)?1:0;
 		    sub->onlyCloser       = ((ch-'0')&2)?1:0;
+		    sub->dontautokern     = ((ch-'0')&4)?1:0;
 		    nlgetc(sfd);	/* slurp final bracket */
 		} else {
 		    ungetc(ch,sfd);
@@ -6519,6 +6589,10 @@ static SplineFont *SFD_GetFont(FILE *sfd,SplineFont *cidmaster,char *tok,
 	    getint(sfd,&sf->woffMinor);
 	} else if ( strmatch(tok,"woffMetadata:")==0 ) {
 	    sf->woffMetadata = SFDReadUTF7Str(sfd);
+	} else if ( strmatch(tok,"UFOAscent:")==0 ) {
+	    getreal(sfd,&sf->ufo_ascent);
+	} else if ( strmatch(tok,"UFODescent:")==0 ) {
+	    getreal(sfd,&sf->ufo_descent);
 	} else if ( strmatch(tok,"sfntRevision:")==0 ) {
 	    gethex(sfd,&sf->sfntRevision);
 	} else if ( strmatch(tok,"Order2:")==0 ) {
@@ -7196,10 +7270,13 @@ exit( 1 );
     }
     if ( sf->cidmaster==NULL )
 	SFDFixupRefs(sf);
-    
+
     if ( !haddupenc )
 	SFD_DoAltUnis(sf);
-    SFDCleanupFont(sf);
+    else
+	AltUniFigure(sf,sf->map,true);
+    if ( sf->sfd_version<2 )
+	SFD_AssignLookups((SplineFont1 *) sf);
     if ( !hadtimes )
 	SFTimesFromFile(sf,sfd);
 return( sf );
@@ -7243,8 +7320,7 @@ return( dval );
 
 static SplineFont *SFD_Read(char *filename,FILE *sfd, int fromdir) {
     SplineFont *sf=NULL;
-    char *oldloc;
-    char tok[2000];
+    char oldloc[24], tok[2000];
     double version;
 
     if ( sfd==NULL ) {
@@ -7256,7 +7332,8 @@ static SplineFont *SFD_Read(char *filename,FILE *sfd, int fromdir) {
     }
     if ( sfd==NULL )
 return( NULL );
-    oldloc = setlocale(LC_NUMERIC,"C");
+    strcpy( oldloc,setlocale(LC_NUMERIC,NULL) );
+    setlocale(LC_NUMERIC,"C");
     ff_progress_change_stages(2);
     if ( (version = SFDStartsCorrectly(sfd,tok))!=-1 )
 	sf = SFD_GetFont(sfd,NULL,tok,fromdir,filename,version);
@@ -7302,8 +7379,7 @@ return( SFD_Read(filename,NULL,true));
 SplineChar *SFDReadOneChar(SplineFont *cur_sf,const char *name) {
     FILE *sfd;
     SplineChar *sc=NULL;
-    char *oldloc;
-    char tok[2000];
+    char oldloc[24], tok[2000];
     uint32 pos;
     SplineFont sf;
     LayerInfo layers[2];
@@ -7318,7 +7394,8 @@ SplineChar *SFDReadOneChar(SplineFont *cur_sf,const char *name) {
 	sfd = fopen(cur_sf->filename,"r");
     if ( sfd==NULL )
 return( NULL );
-    oldloc = setlocale(LC_NUMERIC,"C");
+    strcpy( oldloc,setlocale(LC_NUMERIC,NULL) );
+    setlocale(LC_NUMERIC,"C");
 
     memset(&sf,0,sizeof(sf));
     memset(&layers,0,sizeof(layers));
@@ -7587,8 +7664,7 @@ return( true );
 SplineFont *SFRecoverFile(char *autosavename,int inquire,int *state) {
     FILE *asfd = fopen( autosavename,"r");
     SplineFont *ret;
-    char *oldloc;
-    char tok[1025];
+    char oldloc[24], tok[1025];
 
     if ( asfd==NULL )
 return(NULL);
@@ -7596,7 +7672,8 @@ return(NULL);
 	fclose( asfd );
 return( NULL );
     }
-    oldloc = setlocale(LC_NUMERIC,"C");
+    strcpy( oldloc,setlocale(LC_NUMERIC,NULL) );
+    setlocale(LC_NUMERIC,"C");
     ret = SlurpRecovery(asfd,tok,sizeof(tok));
     if ( ret==NULL ) {
 	char *buts[3];
@@ -7614,7 +7691,7 @@ return( ret );
 void SFAutoSave(SplineFont *sf,EncMap *map) {
     int i, k, max;
     FILE *asfd;
-    char *oldloc;
+    char oldloc[24];
     SplineFont *ssf;
     extern struct compressors compressors[];
 
@@ -7630,7 +7707,8 @@ return;
     for ( i=0; i<sf->subfontcnt; ++i )
 	if ( sf->subfonts[i]->glyphcnt>max ) max = sf->subfonts[i]->glyphcnt;
 
-    oldloc = setlocale(LC_NUMERIC,"C");
+    strcpy( oldloc,setlocale(LC_NUMERIC,NULL) );
+    setlocale(LC_NUMERIC,"C");
     if ( !sf->new && sf->origname!=NULL )	/* might be a new file */
 	fprintf( asfd, "Base: %s%s\n", sf->origname,
 		sf->compression==0?"":compressors[sf->compression-1].ext );
@@ -7688,14 +7766,14 @@ return;
 
 char **NamesReadSFD(char *filename) {
     FILE *sfd = fopen(filename,"r");
-    char *oldloc;
-    char tok[2000];
+    char oldloc[24],tok[2000];
     char **ret = NULL;
     int eof;
 
     if ( sfd==NULL )
 return( NULL );
-    oldloc = setlocale(LC_NUMERIC,"C");
+    strcpy( oldloc,setlocale(LC_NUMERIC,NULL) );
+    setlocale(LC_NUMERIC,"C");
     if ( SFDStartsCorrectly(sfd,tok)!=-1 ) {
 	while ( !feof(sfd)) {
 	    if ( (eof = getname(sfd,tok))!=1 ) {

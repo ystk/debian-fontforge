@@ -1,4 +1,4 @@
-/* Copyright (C) 2004-2010 by George Williams */
+/* Copyright (C) 2004-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -36,6 +36,7 @@ typedef struct monotonic {
     uint8 yup;
     unsigned int isneeded : 1;
     unsigned int isunneeded : 1;
+    unsigned int mutual_collapse : 1;
     unsigned int exclude : 1;
     struct intersection *start;
     struct intersection *end;
@@ -44,6 +45,7 @@ typedef struct monotonic {
     struct monotonic *linked;		/* singly linked list of all monotonic*/
     					/*  segments, no contour indication */
     double when_set;			/* Debugging */
+    struct preintersection *pending;
 } Monotonic;
 
 extern void FreeMonotonics(Monotonic *m);

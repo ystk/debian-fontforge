@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "pfaeditui.h"
+#include "fontforgeui.h"
 #include "groups.h"
 #include "plugins.h"
 #include <charset.h>
@@ -53,7 +53,6 @@ extern int splash;
 extern int adjustwidth;
 extern int adjustlbearing;
 extern Encoding *default_encoding;
-extern int autohint_before_rasterize;
 extern int autohint_before_generate;
 extern int use_freetype_to_rasterize_fv;
 extern int OpenCharsInNewWindow;
@@ -76,6 +75,8 @@ extern char *TTFFoundry;
 extern char *xuid;
 extern char *SaveTablesPref;
 extern char *RecentFiles[RECENT_MAX];
+static char *LastFonts[2*RECENT_MAX];
+static int LastFontIndex=0, LastFontsPreserving=0;
 /*struct cvshows CVShows = { 1, 1, 1, 1, 1, 0, 1 };*/ /* in charview */
 /* int default_fv_font_size = 24; */	/* in fontview */
 /* int default_fv_antialias = false */	/* in fontview */
@@ -139,12 +140,14 @@ static char *othersubrsfile = NULL;
 extern MacFeat *default_mac_feature_map,	/* from macenc.c */
 		*user_mac_feature_map;
 extern int updateflex;				/* in charview.c */
+extern int default_autokern_dlg;		/* in lookupui.c */
 extern int allow_utf8_glyphnames;		/* in lookupui.c */
 extern int add_char_to_name_list;		/* in charinfo.c */
 extern int clear_tt_instructions_when_needed;	/* in cvundoes.c */
 extern int export_clipboard;			/* in cvundoes.c */
 extern int default_cv_width;			/* in charview.c */
 extern int default_cv_height;			/* in charview.c */
+extern int interpCPsOnMotion;			/* in charview.c */
 extern int mv_width;				/* in metricsview.c */
 extern int mv_height;				/* in metricsview.c */
 extern int bv_width;				/* in bitmapview.c */
@@ -274,7 +277,6 @@ static struct prefs_list {
 	{ N_("HelpDir"), pr_file, &helpdir, NULL, NULL, 'H', NULL, 0, N_("The directory on your local system in which FontForge will search for help\nfiles.  If a file is not found there, then FontForge will look for it on the net.") },
 	{ N_("OtherSubrsFile"), pr_file, &othersubrsfile, NULL, NULL, 'O', NULL, 0, N_("If you wish to replace Adobe's OtherSubrs array (for Type1 fonts)\nwith an array of your own, set this to point to a file containing\na list of up to 14 PostScript subroutines. Each subroutine must\nbe preceded by a line starting with '%%%%' (any text before the\nfirst '%%%%' line will be treated as an initial copyright notice).\nThe first three subroutines are for flex hints, the next for hint\nsubstitution (this MUST be present), the 14th (or 13 as the\nnumbering actually starts with 0) is for counter hints.\nThe subroutines should not be enclosed in a [ ] pair.") },
 	{ N_("FreeTypeInFontView"), pr_bool, &use_freetype_to_rasterize_fv, NULL, NULL, 'O', NULL, 0, N_("Use the FreeType rasterizer (when available)\nto rasterize glyphs in the font view.\nThis generally results in better quality.") },
-	{ N_("AutoHint"), pr_bool, &autohint_before_rasterize, NULL, NULL, 'A', NULL, 0, N_("AutoHint before rasterizing") },
 	{ N_("SplashScreen"), pr_bool, &splash, NULL, NULL, 'S', NULL, 0, N_("Show splash screen on start-up") },
 #ifndef _NO_LIBCAIRO
 	{ N_("UseCairoDrawing"), pr_bool, &prefs_usecairo, NULL, NULL, '\0', NULL, 0, N_("Use the cairo library for drawing (if available)\nThis makes for prettier (anti-aliased) but slower drawing\nThis applies to any windows created AFTER this is set.\nAlready existing windows will continue as they are.") },
@@ -309,6 +311,7 @@ static struct prefs_list {
 	{ N_("ItalicConstrained"), pr_bool, &ItalicConstrained, NULL, NULL, '\0', NULL, 0, N_("In the Outline View, the Shift key constrains motion to be parallel to the ItalicAngle rather than constraining it to be vertical.") },
 	{ N_("ArrowMoveSize"), pr_real, &arrowAmount, NULL, NULL, '\0', NULL, 0, N_("The number of em-units by which an arrow key will move a selected point") },
 	{ N_("ArrowAccelFactor"), pr_real, &arrowAccelFactor, NULL, NULL, '\0', NULL, 0, N_("Holding down the Alt (or Meta) key will speed up arrow key motion by this factor") },
+	{ N_("InterpolateCPsOnMotion"), pr_bool, &interpCPsOnMotion, NULL, NULL, '\0', NULL, 0, N_("When moving one end point of a spline but not the other\ninterpolate the control points between the two.") },
 	{ N_("SnapDistance"), pr_real, &snapdistance, NULL, NULL, '\0', NULL, 0, N_("When the mouse pointer is within this many pixels\nof one of the various interesting features (baseline,\nwidth, grid splines, etc.) the pointer will snap\nto that feature.") },
 	{ N_("SnapToInt"), pr_bool, &snaptoint, NULL, NULL, '\0', NULL, 0, N_("When the user clicks in the editing window, round the location to the nearest integers.") },
 	{ N_("JoinSnap"), pr_real, &joinsnap, NULL, NULL, '\0', NULL, 0, N_("The Edit->Join command will join points which are this close together\nA value of 0 means they must be coincident") },
@@ -316,6 +319,7 @@ static struct prefs_list {
 	{ N_("CopyMetaData"), pr_bool, &copymetadata, NULL, NULL, '\0', NULL, 0, N_("When copying glyphs from the font view, also copy the\nglyphs' metadata (name, encoding, comment, etc).") },
 	{ N_("UndoDepth"), pr_int, &maxundoes, NULL, NULL, '\0', NULL, 0, N_("The maximum number of Undoes/Redoes stored in a glyph") },
 	{ N_("UpdateFlex"), pr_bool, &updateflex, NULL, NULL, '\0', NULL, 0, N_("Figure out flex hints after every change") },
+	{ N_("AutoKernDialog"), pr_bool, &default_autokern_dlg, NULL, NULL, '\0', NULL, 0, N_("Open AutoKern dialog for new kerning subtables") },
 	{ NULL }
 },
   sync_list[] = {
@@ -356,7 +360,7 @@ static struct prefs_list {
 },
  generate_list[] = {
 	{ N_("AskBDFResolution"), pr_bool, &ask_user_for_resolution, NULL, NULL, 'B', NULL, 0, N_("When generating a set of BDF fonts ask the user\nto specify the screen resolution of the fonts\notherwise FontForge will guess depending on the pixel size.") },
-	{ N_("HintForGen"), pr_bool, &autohint_before_generate, NULL, NULL, 'H', NULL, 0, N_("AutoHint changed glyphs before generating a font") },
+	{ N_("AutoHint"), pr_bool, &autohint_before_generate, NULL, NULL, 'H', NULL, 0, N_("AutoHint changed glyphs before generating a font") },
 	{ NULL }
 },
  hints_list[] = {
@@ -2412,7 +2416,7 @@ void DoPrefs(void) {
 }
 
 void RecentFilesRemember(char *filename) {
-    int i;
+    int i,j;
 
     for ( i=0; i<RECENT_MAX && RecentFiles[i]!=NULL; ++i )
 	if ( strcmp(RecentFiles[i],filename)==0 )
@@ -2421,7 +2425,8 @@ void RecentFilesRemember(char *filename) {
     if ( i<RECENT_MAX && RecentFiles[i]!=NULL ) {
 	if ( i!=0 ) {
 	    filename = RecentFiles[i];
-	    RecentFiles[i] = RecentFiles[0];
+	    for ( j=i; j>0; --j )
+		RecentFiles[j] = RecentFiles[j-1];
 	    RecentFiles[0] = filename;
 	}
     } else {
@@ -2431,7 +2436,42 @@ void RecentFilesRemember(char *filename) {
 	    RecentFiles[i] = RecentFiles[i-1];
 	RecentFiles[0] = copy(filename);
     }
+
+    if ( LastFontsPreserving ) {
+	for ( i=0; i<LastFontIndex ; ++i )
+	    if ( strcmp(filename,LastFonts[i])==0 )
+	break;
+	if ( LastFontIndex<RECENT_MAX && i==LastFontIndex )
+	    LastFonts[LastFontIndex++] = copy(filename);
+    }
     PrefsUI_SavePrefs(true);
+}
+
+void LastFonts_Activate() {
+    LastFontsPreserving = true;
+    for ( ; LastFontIndex>0; --LastFontIndex )
+	free(LastFonts[LastFontIndex-1]);
+    LastFontIndex = 0;
+}
+
+void LastFonts_End(int success) {
+    char buffer[1024];
+    char *ffdir = getPfaEditDir(buffer);
+    FILE *preserve;
+    int i;
+
+    LastFontsPreserving = false;
+    if ( !success )
+return;
+    if ( ffdir==NULL )
+return;
+    sprintf( buffer, "%s/FontsOpenAtLastQuit", ffdir );
+    preserve = fopen(buffer,"w");
+    if ( preserve==NULL )
+return;
+    for ( i=0; i<LastFontIndex; ++i )
+	fprintf( preserve, "%s\n", LastFonts[i]);
+    fclose(preserve);
 }
 
 struct prefs_interface gdraw_prefs_interface = {

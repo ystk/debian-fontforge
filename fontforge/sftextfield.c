@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2010 by George Williams */
+/* Copyright (C) 2002-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "pfaeditui.h"
+#include "fontforgeui.h"
 #include <gkeysym.h>
 #include <math.h>
 
@@ -1497,9 +1497,16 @@ return( false );
     if ( event->type == et_crossing )
 return( false );
     if (( event->type==et_mouseup || event->type==et_mousedown ) &&
-	    (event->u.mouse.button==4 || event->u.mouse.button==5) &&
-	    st->vsb!=NULL )
+	    (event->u.mouse.button>=4 && event->u.mouse.button<=7)) {
+	int isv = event->u.mouse.button<=5;
+	if ( event->u.mouse.state&ksm_shift ) isv = !isv;
+	if ( isv && st->vsb!=NULL )
 return( GGadgetDispatchEvent(&st->vsb->g,event));
+	else if ( !isv && st->hsb!=NULL )
+return( GGadgetDispatchEvent(&st->hsb->g,event));
+	else
+return( true );
+    }
 
     if ( st->pressed==NULL && event->type == et_mousemove && g->popup_msg!=NULL &&
 	    GGadgetWithin(g,event->u.mouse.x,event->u.mouse.y))

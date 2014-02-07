@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2010 by George Williams */
+/* Copyright (C) 2007-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -25,7 +25,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "pfaeditui.h"
+#include "fontforgeui.h"
 #include <math.h>
 #include <stddef.h>
 #include <gkeysym.h>
@@ -168,7 +168,7 @@ static char *cornernames[] = {
     N_("Top Right"),
     N_("Top Left"),
     N_("Bottom Right"),
-    N_("Bottom Right"),
+    N_("Bottom Left"),
     NULL
 };
 

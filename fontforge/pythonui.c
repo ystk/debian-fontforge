@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2010 by George Williams */
+/* Copyright (C) 2007-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -34,7 +34,7 @@
 #include "Python.h"
 #include "structmember.h"
 
-#include "pfaeditui.h"
+#include "fontforgeui.h"
 #include "ttf.h"
 #include "plugins.h"
 #include "ustring.h"
@@ -296,7 +296,7 @@ return( NULL );
 	}
 	if (PyTuple_GetItem(args,1)!=Py_None &&
 		!PyCallable_Check(PyTuple_GetItem(args,1))) {
-	    PyErr_Format(PyExc_TypeError, "First argument is not callable" );
+	    PyErr_Format(PyExc_TypeError, "Second argument is not callable" );
 return( NULL );
 	}
 	flags = FlagsFromTuple(PyTuple_GetItem(args,3), menuviews );

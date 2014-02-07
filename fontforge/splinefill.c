@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "pfaedit.h"
+#include "fontforge.h"
 #include <stdio.h>
 #include <string.h>
 #include <ustring.h>
@@ -69,54 +69,11 @@ void FreeEdges(EdgeList *es) {
     HintsFree(es->vhints);
 }
 
-extended IterateSplineSolve(const Spline1D *sp, extended tmin, extended tmax,
-	extended sought,double err) {
-    extended t, low, high, test;
-    Spline1D temp;
-    int cnt;
-
-    /* Now the closed form CubicSolver can have rounding errors so if we know */
-    /*  the spline to be monotonic, an iterative approach is more accurate */
-
-    temp = *sp;
-    temp.d -= sought;
-
-    if ( temp.a==0 && temp.b==0 && temp.c!=0 ) {
-	t = -temp.d/(extended) temp.c;
-	if ( t<0 || t>1 )
-return( -1 );
-return( t );
-    }
-
-    low = ((temp.a*tmin+temp.b)*tmin+temp.c)*tmin+temp.d;
-    high = ((temp.a*tmax+temp.b)*tmax+temp.c)*tmax+temp.d;
-    if ( low<err && low>-err )
-return(tmin);
-    if ( high<err && high>-err )
-return(tmax);
-    if (( low<0 && high>0 ) ||
-	    ( low>0 && high<0 )) {
-	
-	for ( cnt=0; cnt<1000; ++cnt ) {	/* Avoid impossible error limits */
-	    t = (tmax+tmin)/2;
-	    test = ((temp.a*t+temp.b)*t+temp.c)*t+temp.d;
-	    if ( test>-err && test<err )
-return( t );
-	    if ( (low<0 && test<0) || (low>0 && test>0) )
-		tmin=t;
-	    else
-		tmax = t;
-	}
-return( (tmax+tmin)/2 );	
-    }
-return( -1 );
-}
-
-double TOfNextMajor(Edge *e, EdgeList *es, double sought_m ) {
+bigreal TOfNextMajor(Edge *e, EdgeList *es, bigreal sought_m ) {
     /* We want to find t so that Mspline(t) = sought_m */
     /*  the curve is monotonic */
     Spline1D *msp = &e->spline->splines[es->major];
-    double new_t;
+    bigreal new_t;
 
     if ( es->is_overlap ) {
 
@@ -128,7 +85,7 @@ double TOfNextMajor(Edge *e, EdgeList *es, double sought_m ) {
 return( e->up?1.0:0.0 );
 	}
 
-	new_t = IterateSplineSolve(msp,e->t_mmin,e->t_mmax,(sought_m+es->mmin)/es->scale,.001);
+	new_t = IterateSplineSolve(msp,e->t_mmin,e->t_mmax,(sought_m+es->mmin)/es->scale);
 	if ( new_t==-1 )
 	    IError( "No Solution");
 	e->m_cur = (((msp->a*new_t + msp->b)*new_t+msp->c)*new_t + msp->d)*es->scale - es->mmin;
@@ -156,7 +113,7 @@ return( e->t_mmax );
 	    e->m_cur = sought_m;
 return( e->up?1.0:0.0 );
 	}
-	new_t = IterateSplineSolve(msp,e->t_mmin,e->t_mmax,(sought_m+es->mmin)/es->scale,.001);
+	new_t = IterateSplineSolve(msp,e->t_mmin,e->t_mmax,(sought_m+es->mmin)/es->scale);
 	if ( new_t==-1 )
 	    IError( "No Solution");
 	e->m_cur = (((msp->a*new_t + msp->b)*new_t+msp->c)*new_t + msp->d)*es->scale - es->mmin;
@@ -362,8 +319,10 @@ static void AddSpline(EdgeList *es, Spline *sp ) {
 	b2_fourac = 4*msp->b*msp->b - 12*msp->a*msp->c;
 	if ( b2_fourac>=0 ) {
 	    b2_fourac = sqrt(b2_fourac);
-	    t1 = CheckExtremaForSingleBitErrors(msp,(-2*msp->b - b2_fourac) / (6*msp->a));
-	    t2 = CheckExtremaForSingleBitErrors(msp,(-2*msp->b + b2_fourac) / (6*msp->a));
+	    t1 = (-2*msp->b - b2_fourac) / (6*msp->a);
+	    t2 = (-2*msp->b + b2_fourac) / (6*msp->a);
+	    t1 = CheckExtremaForSingleBitErrors(msp,t1,t2);
+	    t2 = CheckExtremaForSingleBitErrors(msp,t2,t1);
 	    if ( t1>t2 ) { real temp = t1; t1 = t2; t2 = temp; }
 	    else if ( t1==t2 ) t2 = 2.0;
 
@@ -1034,7 +993,7 @@ static void StrokeLine(uint8 *bytemap,IPoint *from, IPoint *to,EdgeList *es,int 
     int x1, x2, y1, y2;
     int dx, dy;
     BasePoint vector;
-    double len;
+    bigreal len;
     int xoff, yoff;
 
     x1 = from->x - es->omin;
@@ -1180,7 +1139,7 @@ static void StrokePaths(uint8 *bytemap,EdgeList *es,Layer *layer,Layer *alt,
     StrokeSS(bytemap,es,width,grey,layer->splines,clipmask);
 }
 
-static int PatternHere(double scale,DBounds *bbox,int iy,int ix,
+static int PatternHere(bigreal scale,DBounds *bbox,int iy,int ix,
 	struct pattern *pat) {
     real x,y,tempx;
     int grey;
@@ -1208,12 +1167,12 @@ return( 0 );
 return( grey );
 }
 
-int GradientHere(double scale,DBounds *bbox,int iy,int ix,
+int GradientHere(bigreal scale,DBounds *bbox,int iy,int ix,
 	struct gradient *grad, struct pattern *pat,
 	int defgrey) {
     real x,y;
     BasePoint unit, offset;
-    double len, relpos;
+    bigreal len, relpos;
     int i, col, grey;
 
     if ( grad==NULL ) {
@@ -1262,7 +1221,7 @@ return ( defgrey );
     else if ( relpos==grad->grad_stops[i].offset || i==0 )
 	col = grad->grad_stops[i].col;
     else {
-	double percent = (relpos-grad->grad_stops[i-1].offset)/ (grad->grad_stops[i].offset-grad->grad_stops[i-1].offset);
+	bigreal percent = (relpos-grad->grad_stops[i-1].offset)/ (grad->grad_stops[i].offset-grad->grad_stops[i-1].offset);
 	uint32 col1 = grad->grad_stops[i-1].col;
 	uint32 col2 = grad->grad_stops[i  ].col;
 	if ( col1==COLOR_INHERITED ) col1 = 0x000000;
@@ -1278,7 +1237,7 @@ return ( defgrey );
 return( 255-grey );
 }
 	
-void PatternPrep(SplineChar *sc,struct brush *brush,double scale) {
+void PatternPrep(SplineChar *sc,struct brush *brush,bigreal scale) {
     SplineChar *psc;
     int pixelsize;
     SplineFont *sf;
@@ -1471,7 +1430,7 @@ return( 0 );
 /*  integer value there are a few cases (fill pattern for charview) where */
 /*  I need more precision and the pixelsize itself is largely irrelevant */
 /*  (I care about the scale though) */
-static BDFChar *_SplineCharRasterize(SplineChar *sc, int layer, double pixelsize, int is_aa) {
+static BDFChar *_SplineCharRasterize(SplineChar *sc, int layer, bigreal pixelsize, int is_aa) {
     EdgeList es;
     BDFChar *bdfc;
     int depth = 0;
@@ -1569,7 +1528,7 @@ return( NULL );
 return( bdfc );
 }
 
-BDFChar *SplineCharRasterize(SplineChar *sc, int layer, double pixelsize) {
+BDFChar *SplineCharRasterize(SplineChar *sc, int layer, bigreal pixelsize) {
 return( _SplineCharRasterize(sc,layer,pixelsize,false));
 }
 

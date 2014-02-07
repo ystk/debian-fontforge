@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -26,7 +26,7 @@
  */
 
 /* Routines to handle bdf properties, and a dialog to set them */
-#include "pfaeditui.h"
+#include "fontforgeui.h"
 #include "splinefont.h"
 #include <string.h>
 #include <ustring.h>

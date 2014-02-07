@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -79,7 +79,7 @@ typedef struct edgelist {
 } EdgeList;
 
 extern void FreeEdges(EdgeList *es);
-extern double TOfNextMajor(Edge *e, EdgeList *es, double sought_y );
+extern bigreal TOfNextMajor(Edge *e, EdgeList *es, bigreal sought_y );
 extern void FindEdgesSplineSet(SplinePointList *spl, EdgeList *es, int ignore_clip);
 extern Edge *ActiveEdgesInsertNew(EdgeList *es, Edge *active,int i);
 extern Edge *ActiveEdgesRefigure(EdgeList *es, Edge *active,real i);

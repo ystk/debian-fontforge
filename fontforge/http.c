@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2010 by George Williams */
+/* Copyright (C) 2007-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -645,7 +645,7 @@ static int HowIDidIt(char *databuf, int datalen,
     fprintf(formdata,"classname\r\n" );
     fprintf(formdata,"--%s--\r\n", boundary );
 
-    sprintf( databuf, _("Transmitting Meta Data...") );
+    sprintf( databuf, "%s", _("Transmitting Meta Data...") );
     ChangeLine2_8(databuf);
     soc = makeConnection(addr);
     if ( soc==-1 ) {

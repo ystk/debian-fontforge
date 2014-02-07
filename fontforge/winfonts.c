@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2010 by George Williams */
+/* Copyright (C) 2002-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "pfaedit.h"
+#include "fontforge.h"
 #include <stdio.h>
 #include <math.h>
 #include "splinefont.h"
@@ -510,7 +510,7 @@ return( false );
 		font->pixelsize, font->glyphs[badch]->sc->name );
     SFDefaultOS2Info(&pfminfo,font->sf,font->sf->fontname);
     widbytes = avgwid+spacesize;
-    if ( cnt!=0 ) avgwid = rint(avgwid/(double) cnt);
+    if ( cnt!=0 ) avgwid = rint(avgwid/(bigreal) cnt);
     gid = map->map['X'];
     if ( font->glyphs[gid]!=NULL && font->glyphs[gid]->sc!=NULL &&
 	    font->glyphs[gid]->sc->unicodeenc == 'X' )
@@ -545,7 +545,7 @@ return( false );
     lputshort(file,maxy+1);				/* ascent */
     lputshort(file,0);					/* internal_leading */
     lputshort(file,					/* external_leading */
-		    rint(pfminfo.linegap*font->pixelsize/(double)(font->sf->ascent+font->sf->descent)) );
+		    rint(pfminfo.linegap*font->pixelsize/(bigreal)(font->sf->ascent+font->sf->descent)) );
     if ( font->sf->italicangle!=0 ||
 	    strstrmatch(font->sf->fontname,"ital")!=NULL ||
 	    strstrmatch(font->sf->fontname,"kurs")!=NULL ||

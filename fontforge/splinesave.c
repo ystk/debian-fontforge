@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "pfaedit.h"
+#include "fontforge.h"
 #include <stdio.h>
 #include <math.h>
 #include "splinefont.h"
@@ -86,12 +86,6 @@ int autohint_before_generate = 1;
 
 /* Then, on top of that I tried generating some full glyph subroutines, and   */
 /*  to my surprise, it just made things worse.                                */
-
-typedef struct growbuf {
-    unsigned char *pt;
-    unsigned char *base;
-    unsigned char *end;
-} GrowBuf;
 
 #define HSH_SIZE	511
 /* In type2 charstrings we divide every character into bits where a bit is */
@@ -203,19 +197,6 @@ static void GIFree(GlyphInfo *gi,SplineChar *dummynotdef) {
     free(gi->gb);
     free(gi->psubrs);
     free(gi->bits);
-}
-
-static void GrowBuffer(GrowBuf *gb) {
-    if ( gb->base==NULL ) {
-	gb->base = gb->pt = galloc(200);
-	gb->end = gb->base + 200;
-    } else {
-	int len = (gb->end-gb->base) + 400;
-	int off = gb->pt-gb->base;
-	gb->base = grealloc(gb->base,len);
-	gb->end = gb->base + len;
-	gb->pt = gb->base+off;
-    }
 }
 
 static void StartNextSubroutine(GrowBuf *gb,struct hintdb *hdb) {
@@ -2778,7 +2759,7 @@ return;
     while ( h!=NULL && h->hintnumber!=-1 ) {
 	/* Type2 hints do not support negative widths except in the case of */
 	/*  ghost (now called edge) hints */
-	if ( cnt>24-1 ) {	/* stack max = 48 numbers, => 24 hints, leave a bit of slop for the width */
+	if ( cnt>24-2 ) {	/* stack max = 48 numbers, => 24 hints, leave a bit of slop for the width */
 	    if ( gb->pt+1>=gb->end )
 		GrowBuffer(gb);
 	    *gb->pt++ = midoper;

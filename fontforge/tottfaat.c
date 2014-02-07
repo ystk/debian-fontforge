@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "pfaedit.h"
+#include "fontforge.h"
 #include <utype.h>
 
 #include "ttf.h"
@@ -88,12 +88,14 @@ static int CountKerns(struct alltabs *at, SplineFont *sf, struct kerncounts *kcn
     for ( i=0; i<at->gi.gcnt; ++i ) if ( at->gi.bygid[i]!=-1 ) {
 	j = 0;
 	for ( kp = sf->glyphs[at->gi.bygid[i]]->kerns; kp!=NULL; kp=kp->next )
-	    if ( kp->off!=0 && LookupHasDefault(kp->subtable->lookup ))
+	    if ( kp->off!=0 && kp->sc->ttf_glyph!=-1 &&
+		    LookupHasDefault(kp->subtable->lookup ))
 		++cnt, ++j;
 	if ( j>mh ) mh=j;
 	j=0;
 	for ( kp = sf->glyphs[at->gi.bygid[i]]->vkerns; kp!=NULL; kp=kp->next )
-	    if ( kp->off!=0 && LookupHasDefault(kp->subtable->lookup ))
+	    if ( kp->off!=0 && kp->sc->ttf_glyph!=-1 &&
+		    LookupHasDefault(kp->subtable->lookup ))
 		++vcnt, ++j;
 	if ( j>mv ) mv=j;
     }
@@ -218,7 +220,8 @@ return;
 		    SplineChar *sc = sf->glyphs[at->gi.bygid[gid]];
 		    m = 0;
 		    for ( kp = isv ? sc->vkerns : sc->kerns; kp!=NULL; kp=kp->next ) {
-			if ( kp->off!=0 && LookupHasDefault(kp->subtable->lookup)) {
+			if ( kp->off!=0 && kp->sc->ttf_glyph!=-1 &&
+				LookupHasDefault(kp->subtable->lookup)) {
 			    /* order the pairs */
 			    for ( j=0; j<m; ++j )
 				if ( kp->sc->ttf_glyph<glnum[j] )
@@ -255,7 +258,7 @@ return;
     if( winfail > 0 )
 	ff_post_error(_("Kerning is likely to fail on Windows"),_(
 		"On Windows many apps will have problems with this font's "
-		"kerning, because because %d of its glyph kern pairs cannot "
+		"kerning, because %d of its glyph kern pairs cannot "
 		"be mapped to unicode-BMP kern pairs"),
 	    winfail);
 
@@ -983,7 +986,7 @@ static void morx_dumpnestedsubs(FILE *temp,SplineFont *sf,OTLookup *otl,struct g
 		    (sc=SFGetChar(sf,-1,pst->u.subs.variant))!=NULL &&
 		    sc->ttf_glyph!=-1 ) {
 		if ( j ) {
-		    glyphs[gcnt] = sf->glyphs[i];
+		    glyphs[gcnt] = sf->glyphs[gi->bygid[i]];
 		    map[gcnt] = sc->ttf_glyph;
 		}
 		++gcnt;
@@ -2431,6 +2434,12 @@ int OTTagToMacFeature(uint32 tag, int *featureType,int *featureSetting) {
 	    *featureSetting = msn[i].mac_feature_setting;
 return( true );
 	}
+    *featureType = (tag >> 16);
+    *featureSetting = (tag & 0xFFFF);
+	/* Ranges taken from Apple Font Registry. An OT tag without a 
+    corresponding mac feature should fail this test.*/
+    if (*featureType >= 0 && *featureType < 105 && *featureSetting < 16)
+        return ( true );
 
     *featureType = 0;
     *featureSetting = 0;
@@ -2438,27 +2447,20 @@ return( false );
 }
 
 static struct feature *featureFromTag(SplineFont *sf, uint32 tag ) {
-    int i;
+    int ft, fs;
     struct feature *feat;
-    struct macsettingname *msn = user_macfeat_otftag ? user_macfeat_otftag : macfeat_otftag;
-
-    for ( i=0; msn[i].otf_tag!=0; ++i )
-	if ( msn[i].otf_tag == tag )
-    break;
 
     feat = chunkalloc(sizeof(struct feature));
-    if ( msn[i].otf_tag!=0 ) {
-	feat->featureType = msn[i].mac_feature_type;
-	feat->featureSetting = msn[i].mac_feature_setting;
-    } else {
-	feat->featureType = tag>>16;
-	feat->featureSetting = tag & 0xffff;
+    if (OTTagToMacFeature(tag, &ft, &fs)) {
+        feat->featureType = ft;
+        feat->featureSetting = fs;
+        feat->mf = FindMacFeature(sf,feat->featureType,&feat->smf);
+        feat->ms = FindMacSetting(sf,feat->featureType,feat->featureSetting,&feat->sms);
+        feat->needsOff = feat->mf!=NULL && !feat->mf->ismutex;
+        feat->vertOnly = tag==CHR('v','r','t','2') || tag==CHR('v','k','n','a');    
     }
-    feat->mf = FindMacFeature(sf,feat->featureType,&feat->smf);
-    feat->ms = FindMacSetting(sf,feat->featureType,feat->featureSetting,&feat->sms);
-    feat->needsOff = feat->mf!=NULL && !feat->mf->ismutex;
-    feat->vertOnly = tag==CHR('v','r','t','2') || tag==CHR('v','k','n','a');
-return( feat );
+    
+    return( feat );
 }
 
 static struct feature *featureFromSubtable(SplineFont *sf, struct lookup_subtable *sub ) {
@@ -2474,10 +2476,12 @@ static struct feature *featureFromSubtable(SplineFont *sf, struct lookup_subtabl
 	    if ( OTTagToMacFeature(fl->featuretag,&ft,&fs) )
 	break;
 	}
-	if ( fl==NULL )
+	  if ( fl==NULL ) {
 	    IError("Could not find a mac feature");
+      return NULL;
     }
-return( featureFromTag(sf,fl->featuretag));
+  }
+  return( featureFromTag(sf,fl->featuretag));
 }
     
 static int PSTHasTag(PST *pst, uint32 tag) {

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "pfaeditui.h"
+#include "fontforgeui.h"
 #include <gkeysym.h>
 #include <gresource.h>
 #include <gresedit.h>
@@ -499,7 +499,7 @@ return;
 	r.x = mv->dwidth - r.x - r.width;
     GDrawRequestExpose(mv->v,&r,false);
     if ( mv->perchar[i].selected && i!=0 ) {
-	struct lookup_subtable *sub = mv->glyphs[i].kp!=NULL ? mv->glyphs[i].kp->subtable : mv->glyphs[i].kc!=NULL ? mv->glyphs[i].kc->subtable : NULL;
+	struct lookup_subtable *sub = mv->glyphs[i].kp!=NULL ? mv->glyphs[i].kp->subtable : mv->glyphs[i].kc!=NULL && mv->glyphs[i].kc->offsets[mv->glyphs[i].kc_index]!=0 ? mv->glyphs[i].kc->subtable : NULL;
 	if ( sub!=NULL )
 	    MVSelectSubtable(mv,sub);
     }
@@ -518,6 +518,11 @@ static void MVSelectSubtableForScript(MetricsView *mv,uint32 script) {
     GTextInfo **ti = GGadgetGetList(mv->subtable_list,&len);
     struct lookup_subtable *sub;
     int i;
+
+    if ( mv->cur_subtable != NULL && FeatureScriptTagInFeatureScriptList(
+	    mv->vertical?CHR('v','k','r','n') : CHR('k','e','r','n'),script,
+	    mv->cur_subtable->lookup->features ))
+return;
 
     sub = NULL;
     for ( i=0; i<len; ++i )
@@ -541,7 +546,7 @@ return;
 	GGadgetSetEnabled(mv->perchar[i].name,false);
     if ( mv->glyphs[i].kp!=NULL )
 	MVSelectSubtable(mv,mv->glyphs[i].kp->subtable);
-    else if ( mv->glyphs[i].kc!=NULL )
+    else if ( mv->glyphs[i].kc!=NULL && mv->glyphs[i].kc->offsets[mv->glyphs[i].kc_index]!=0 )
 	MVSelectSubtable(mv,mv->glyphs[i].kc->subtable);
     else
 	MVSelectSubtableForScript(mv,SCScriptFromUnicode(mv->glyphs[i].sc));
@@ -1012,13 +1017,15 @@ return( true );
 return( true );
 }
 
-static int AskNewKernClassEntry(SplineChar *fsc,SplineChar *lsc) {
+static int AskNewKernClassEntry(SplineChar *fsc,SplineChar *lsc,int first_is_0,int second_is_0) {
     char *yesno[3];
     yesno[0] = _("_Alter Class");
     yesno[1] = _("_Create Pair");
     yesno[2] = NULL;
-return( gwwv_ask(_("Use Kerning Class?"),(const char **) yesno,0,1,_("This kerning pair (%.20s and %.20s) is currently part of a kerning class with a 0 offset for this combination. Would you like to alter this kerning class entry (or create a kerning pair for just these two glyphs)?"),
-	fsc->name,lsc->name)==0 );
+return( gwwv_ask(_("Use Kerning Class?"),(const char **) yesno,0,1,
+	_("This kerning pair (%.20s and %.20s) is currently part of a kerning class with a 0 offset for this combination. Would you like to alter this kerning class entry (or create a kerning pair for just these two glyphs)?"),
+	first_is_0  ? _("{Everything Else}") : fsc->name,
+	second_is_0 ? _("{Everything Else}") : lsc->name)==0 );
 }
 
 static int MV_ChangeKerning(MetricsView *mv, int which, int offset, int is_diff) {
@@ -1036,10 +1043,13 @@ static int MV_ChangeKerning(MetricsView *mv, int which, int offset, int is_diff)
     if ( kc!=NULL ) {
 	if ( index==-1 )
 	    kc = NULL;
+	else if ( kp != NULL && kp->off != 0 )
+	    kc=NULL;
 	else if ( (!is_diff && offset==kc->offsets[index]) ||
 		  ( is_diff && offset==0))
 return( true );		/* No change, don't bother user */
-	else if ( kc->offsets[index]==0 && !AskNewKernClassEntry(psc,sc))
+	/* If there is already a kerning pair, then assume it takes the precedence over the kerning class */
+	else if ( kc->offsets[index]==0 && !AskNewKernClassEntry(psc,sc,mv->glyphs[which-1].prev_kc0,mv->glyphs[which-1].next_kc0))
 	    kc=NULL;
 	else
 	    offset = kc->offsets[index] = is_diff ? kc->offsets[index]+offset : offset;
@@ -1067,32 +1077,53 @@ return( false );
 	    MVSetFeatures(mv);
 	}
 
-	if ( kp==NULL ) {
-	    kp = chunkalloc(sizeof(KernPair));
-	    kp->sc = sc;
-	    if ( !mv->vertical ) {
-		kp->next = psc->kerns;
-		psc->kerns = kp;
-	    } else {
-		kp->next = psc->vkerns;
-		psc->vkerns = kp;
-	    }
-	    mv->glyphs[which-1].kp = kp;
-	}
-	if ( !mv->vertical )
-	    MMKern(sc->parent,psc,sc,kp==NULL?offset:is_diff?offset:offset-kp->off,
-		    sub,kp);
 #ifdef FONTFORGE_CONFIG_DEVICETABLES
 	/* If we change the kerning offset, then any pixel corrections*/
 	/*  will no longer apply (they only had meaning with the old  */
 	/*  offset) so free the device table, if any */
-	if ( (!is_diff && kp->off!=offset) || ( is_diff && offset!=0) ) {
+	if ( kp != NULL && ((!is_diff && kp->off!=offset) || ( is_diff && offset!=0)) ) {
 	    DeviceTableFree(kp->adjust);
 	    kp->adjust = NULL;
 	}
 #endif
-	offset = kp->off = is_diff ? kp->off+offset : offset;
-	kp->subtable = sub;
+
+	offset = is_diff && kp != NULL ? kp->off+offset : offset;
+	/* If kern offset has been set to zero by user, then cleanup this kerning pair */
+	if ( kp != NULL && offset == 0 ) {
+	    KernPair *kpcur, *kpprev;
+	    KernPair **kphead = mv->vertical ? &psc->vkerns : &psc->kerns;
+	    if ( kp == *kphead ) {
+		*kphead = kp->next;
+	    } else {
+		kpprev = *kphead;
+		for ( kpcur=kpprev->next; kpcur != NULL; kpcur = kpcur->next ) {
+		    if ( kpcur == kp ) {
+			kpprev->next = kp->next;
+		break;
+		    }
+		    kpprev = kpcur;
+		}
+	    }
+	    chunkfree( kp,sizeof(KernPair) );
+	    kp = mv->glyphs[which-1].kp = NULL;
+	} else if ( offset != 0 ) {
+	    if ( kp==NULL ) {
+		kp = chunkalloc(sizeof(KernPair));
+		kp->sc = sc;
+		if ( !mv->vertical ) {
+		    kp->next = psc->kerns;
+		    psc->kerns = kp;
+		} else {
+		    kp->next = psc->vkerns;
+		    psc->vkerns = kp;
+		}
+		mv->glyphs[which-1].kp = kp;
+	    }
+	    kp->off = offset;
+	    kp->subtable = sub;
+	    if ( !mv->vertical )
+		MMKern(sc->parent,psc,sc,is_diff?offset:offset-kp->off,sub,kp);
+	}
     }
     mv->perchar[which-1].kernafter = iscale * (offset*mv->pixelsize)/
 	    (mv->sf->ascent+mv->sf->descent);
@@ -1701,15 +1732,19 @@ static int MV_TextChanged(GGadget *g, GEvent *e) {
 
     if ( e->type==et_controlevent && e->u.control.subtype == et_textchanged ) {
 	MetricsView *mv = GGadgetGetUserData(g);
-	if ( e->u.control.u.tf_changed.from_pulldown!=-1 ) {
+	int pos = e->u.control.u.tf_changed.from_pulldown;
+	if ( pos!=-1 ) {
 	    int32 len;
 	    GTextInfo **ti = GGadgetGetList(g,&len);
-	    GTextInfo *cur = ti[e->u.control.u.tf_changed.from_pulldown];
+	    GTextInfo *cur = ti[pos];
 	    int type = (intpt) cur->userdata;
 	    if ( type < 0 )
 		MVLoadWordList(mv,type);
-	    else if ( cur->text!=NULL && cur->text[0]==0x200b ) 	/* Zero width space, flag for glyph names */
-		MVFigureGlyphNames(mv,cur->text+1);
+	    else if ( cur->text!=NULL ) {
+		mv->word_index = pos;
+		if ( cur->text[0]==0x200b )	/* Zero width space, flag for glyph names */
+		    MVFigureGlyphNames(mv,cur->text+1);
+	    }
 	}
 	MVTextChanged(mv);
     }
@@ -1866,6 +1901,7 @@ return( true );
 #define MID_Paste	2103
 #define MID_Clear	2104
 #define MID_SelAll	2106
+#define MID_ClearSel	2105
 #define MID_UnlinkRef	2108
 #define MID_Undo	2109
 #define MID_Redo	2110
@@ -2150,6 +2186,16 @@ return;
 static void MVSelectAll(GWindow gw,struct gmenuitem *mi,GEvent *e) {
     MetricsView *mv = (MetricsView *) GDrawGetUserData(gw);
     GGadgetActiveGadgetEditCmd(mv->gw,ec_selectall);
+}
+
+static void MVClearSelection(GWindow gw,struct gmenuitem *mi,GEvent *e) {
+    MetricsView *mv = (MetricsView *) GDrawGetUserData(gw);
+    int i;
+
+    GWindowClearFocusGadgetOfWindow(mv->gw);
+    for ( i=0; i<mv->glyphcnt; ++i )
+	if ( mv->perchar[i].selected )
+	    MVDeselectChar(mv,i);
 }
 
 static void MVMenuFontInfo(GWindow gw,struct gmenuitem *mi,GEvent *e) {
@@ -2517,7 +2563,8 @@ static void _MVMenuScale( MetricsView *mv, int mid ) {
 	if ( mv->bdf==NULL ) {
 	    BDFFontFree(mv->show);
 	    mv->show = SplineFontPieceMeal(mv->sf,mv->layer,mv->pixelsize,72,mv->antialias?(pf_antialias|pf_ft_recontext):pf_ft_recontext,NULL);
-	}
+	} else
+	    mv->pixelsize_set_by_window = false;
     }
     MVReKern(mv);
     MVSetVSb(mv);
@@ -2563,7 +2610,7 @@ return;
 	memset(mv->chars+oldmax,'\0',(mv->cmax-oldmax)*sizeof(SplineChar *));
     }
     for ( j=mv->clen; j>i; --j )
-	mv->chars[j] = mv->chars[j-1]; 
+	mv->chars[j] = mv->chars[j-1];
     mv->chars[i] = SFMakeChar(sf,mv->fv->b.map,pos);
     ++mv->clen;
     MVRemetric(mv);
@@ -3060,6 +3107,7 @@ static GMenuItem2 edlist[] = {
     { { (unichar_t *) N_("_Join"), (GImage *) "editjoin.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'J' }, H_("Join|Ctl+Shft+J"), NULL, NULL, MVMenuJoin, MID_Join },
     { { NULL, NULL, COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 1, 0, 0, }},
     { { (unichar_t *) N_("Select _All"), (GImage *) "editselect.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 1, 1, 0, 0, 0, 0, 1, 1, 0, 'A' }, H_("Select All|Ctl+A"), NULL, NULL, MVSelectAll, MID_SelAll },
+    { { (unichar_t *) N_("_Deselect All"), (GImage *) "menuempty.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'D' }, H_("Clear Selection|Escape"), NULL, NULL, MVClearSelection, MID_ClearSel },
     { { NULL, NULL, COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 1, 0, 0, }},
     { { (unichar_t *) N_("U_nlink Reference"), (GImage *) "editunlink.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'U' }, H_("Unlink Reference|Ctl+U"), NULL, NULL, MVUnlinkRef, MID_UnlinkRef },
     { NULL }
@@ -3223,7 +3271,7 @@ static void lylistcheck(GWindow gw,struct gmenuitem *mi, GEvent *e) {
     }
     GMenuItemArrayFree(mi->sub);
     mi->sub = sub;
-}	
+}
 
 static GMenuItem2 gdlist[] = {
     { { (unichar_t *) N_("_Show"), NULL, COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 1, 0, 0, 0, 1, 1, 0, 'C' }, H_("Show Grid|No Shortcut"), NULL, NULL, MVMenuShowGrid, MID_ShowGrid },
@@ -3389,6 +3437,8 @@ static void edlistcheck(GWindow gw,struct gmenuitem *mi,GEvent *e) {
 		    !GDrawSelectionHasType(mv->gw,sn_clipboard,"image/png") &&
 #endif
 #ifndef _NO_LIBXML
+		    !GDrawSelectionHasType(mv->gw,sn_clipboard,"image/svg+xml") &&
+		    !GDrawSelectionHasType(mv->gw,sn_clipboard,"image/svg-xml") &&
 		    !GDrawSelectionHasType(mv->gw,sn_clipboard,"image/svg") &&
 #endif
 		    !GDrawSelectionHasType(mv->gw,sn_clipboard,"image/bmp") &&
@@ -3776,7 +3826,7 @@ static void _MVSubVMouse(MetricsView *mv,GEvent *event) {
     if ( event->type == et_mousemove && !mv->pressed ) {
 	if ( sc==NULL && within!=-1 )
 	    sc = mv->glyphs[within].sc;
-	if ( sc!=NULL ) 
+	if ( sc!=NULL )
 	    SCPreparePopup(mv->gw,sc,mv->fv->b.map->remap,mv->fv->b.map->backmap[sc->orig_pos],sc->unicodeenc);
 /* Don't allow any editing when displaying a bitmap font */
     } else if ( event->type == et_mousedown && mv->bdf==NULL ) {
@@ -3967,7 +4017,7 @@ return;
 			event->u.mouse.x>mv->perchar[within+1].dx-3 ) {
 		    onkern = true;			/* subsequent char */
 		    ++within;
-		} else if ( within>0 && 
+		} else if ( within>0 &&
 			event->u.mouse.x<mv->perchar[within].dx+3 )
 		    onkern = true;
 	    } else if ( mv->type == mv_widthonly ) {
@@ -4061,7 +4111,7 @@ return;
     if ( event->type == et_mousemove && !mv->pressed ) {
 	if ( sc==NULL && within!=-1 )
 	    sc = mv->glyphs[within].sc;
-	if ( sc!=NULL ) 
+	if ( sc!=NULL )
 	    SCPreparePopup(mv->gw,sc,mv->fv->b.map->remap,mv->fv->b.map->backmap[sc->orig_pos],sc->unicodeenc);
 /* Don't allow any editing when displaying a bitmap font */
     } else if ( event->type == et_mousedown && mv->bdf==NULL ) {
@@ -4329,14 +4379,20 @@ static int mv_v_e_h(GWindow gw, GEvent *event) {
       break;
       case et_mouseup: case et_mousemove: case et_mousedown:
 	if (( event->type==et_mouseup || event->type==et_mousedown ) &&
-		(event->u.mouse.button==4 || event->u.mouse.button==5) ) {
-	    if ( !(event->u.mouse.state&(ksm_shift|ksm_control)) )	/* bind shift to magnify/minify */
+		(event->u.mouse.button>=4 && event->u.mouse.button<=7) ) {
+	    int ish = event->u.mouse.button>5;
+	    if ( event->u.mouse.state&ksm_shift ) ish = !ish;
+	    if ( event->u.mouse.state&ksm_control ) {	/* bind control to magnify/minify */
+		if ( event->type==et_mousedown ) {
+		    if ( event->u.mouse.button==4 || event->u.mouse.button==6 )
+			_MVMenuScale(mv,MID_ZoomIn);
+		    else
+			_MVMenuScale(mv,MID_ZoomOut);
+		}
+	    } else if ( ish ) {		/* bind shift to horizontal scroll */
+return( GGadgetDispatchEvent(mv->hsb,event));
+	    } else {
 return( GGadgetDispatchEvent(mv->vsb,event));
-	    if ( event->type==et_mousedown ) {
-		if ( event->u.mouse.button==4 )
-		    _MVMenuScale(mv,MID_ZoomIn);
-		else if ( event->u.mouse.button==5 )
-		    _MVMenuScale(mv,MID_ZoomOut);
 	    }
 return( true );
 	}
@@ -4372,8 +4428,22 @@ static int mv_e_h(GWindow gw, GEvent *event) {
       break;
       case et_mouseup: case et_mousemove: case et_mousedown:
 	if (( event->type==et_mouseup || event->type==et_mousedown ) &&
-		(event->u.mouse.button==4 || event->u.mouse.button==5) ) {
+		(event->u.mouse.button>=4 && event->u.mouse.button<=7) ) {
+	    int ish = event->u.mouse.button>5;
+	    if ( event->u.mouse.state&ksm_shift ) ish = !ish;
+	    if ( event->u.mouse.state&ksm_control ) {	/* bind control to magnify/minify */
+		if ( event->type==et_mousedown ) {
+		    if ( event->u.mouse.button==4 || event->u.mouse.button==6 )
+			_MVMenuScale(mv,MID_ZoomIn);
+		    else
+			_MVMenuScale(mv,MID_ZoomOut);
+		}
+	    } else if ( ish ) {	/* bind shift to horizontal scroll */
+return( GGadgetDispatchEvent(mv->hsb,event));
+	    } else {
 return( GGadgetDispatchEvent(mv->vsb,event));
+	    }
+return( true );
 	}
 	if ( mv->gwgic!=NULL && event->type==et_mousedown)
 	    GDrawSetGIC(mv->gw,mv->gwgic,0,20);
@@ -4531,7 +4601,7 @@ MetricsView *MetricsViewCreate(FontView *fv,SplineChar *sc,BDFFont *bdf) {
     mv->layer = fv->b.active_layer;
     mv->type = mv_type;
     mv->pixelsize_set_by_window = true;
-    mv->dpi = 72; 
+    mv->dpi = 72;
 
     memset(&wattrs,0,sizeof(wattrs));
     wattrs.mask = wam_events|wam_cursor|wam_utf8_wtitle|wam_icon;

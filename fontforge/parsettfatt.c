@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "pfaedit.h"
+#include "fontforge.h"
 #include <chardata.h>
 #include <utype.h>
 #include <ustring.h>
@@ -348,6 +348,7 @@ static uint16 *getClassDefTable(FILE *ttf, int classdef_offset, struct ttfinfo *
     } else {
 	LogError( _("Unknown class table format: %d\n"), format );
 	info->bad_ot = true;
+	/* Put everything in class 0 and return that */
     }
 
     /* Do another validity test */
@@ -555,8 +556,11 @@ return;
 	for ( i=0; i<cnt; ++i )
 	    ps_offsets[i]=getushort(ttf);
 	glyphs = getCoverageTable(ttf,stoffset+coverage,info);
-	if ( glyphs==NULL )
+	if ( glyphs==NULL ) {
+/* GT: This continues a multi-line error message, hence the leading space */
+	    LogError( _(" Bad pairwise kerning table, ignored\n") );
 return;
+	}
 	for ( i=0; i<cnt; ++i ) if ( glyphs[i]<info->glyph_cnt ) {
 	    fseek(ttf,stoffset+ps_offsets[i],SEEK_SET);
 	    pair_cnt = getushort(ttf);
@@ -595,6 +599,11 @@ return;
 	class1 = getClassDefTable(ttf, stoffset+cd1, info);
 	class2 = getClassDefTable(ttf, stoffset+cd2, info);
 	glyphs = getCoverageTable(ttf,stoffset+coverage,info);
+	if ( glyphs==NULL ) {
+/* GT: This continues a multi-line error message, hence the leading space */
+	    LogError( _(" Bad kerning class table, ignored\n") );
+return;
+	}
 	fseek(ttf, foffset, SEEK_SET);	/* come back */
 	c1_cnt = getushort(ttf);
 	c2_cnt = getushort(ttf);
@@ -728,6 +737,12 @@ return;
 	offsets[i].exit  = getushort(ttf);
     }
     glyphs = getCoverageTable(ttf,stoffset+coverage,info);
+    if ( glyphs==NULL ) {
+/* GT: This continues a multi-line error message, hence the leading space */
+	LogError( _(" Bad cursive alignment table, ignored\n") );
+	free(offsets);
+return;
+    }
 
     class = chunkalloc(sizeof(AnchorClass));
     snprintf(buf,sizeof(buf),_("Cursive-%d"),
@@ -907,6 +922,7 @@ static void gposMarkSubTable(FILE *ttf, uint32 stoffset,
     baseglyphs = getCoverageTable(ttf,stoffset+basecoverage,info);
     if ( baseglyphs==NULL || markglyphs==NULL ) {
 	free(baseglyphs); free(markglyphs);
+	LogError( _(" Bad mark attachment table, ignored\n") );
 return;
     }
 	/* as is the (first) mark table */
@@ -963,6 +979,7 @@ return;
     glyphs = getCoverageTable(ttf,stoffset+coverage,info);
     if ( glyphs==NULL ) {
 	free(vr);
+	LogError( _(" Bad simple positioning table, ignored\n") );
 return;
     }
     for ( i=0; glyphs[i]!=0xffff; ++i ) if ( glyphs[i]<info->glyph_cnt && info->chars[glyphs[i]]!=NULL ) {
@@ -1028,6 +1045,11 @@ static void g___ContextSubTable1(FILE *ttf, int stoffset,
     for ( i=0; i<rcnt; ++i )
 	rules[i].offsets = getushort(ttf)+stoffset;
     glyphs = getCoverageTable(ttf,stoffset+coverage,info);
+    if ( glyphs==NULL ) {
+/* GT: This continues a multi-line error message, hence the leading space */
+	LogError( _(" Bad contextual table, ignored\n") );
+return;
+    }
     cnt = 0;
     for ( i=0; i<rcnt; ++i ) {
 	fseek(ttf,rules[i].offsets,SEEK_SET);
@@ -1137,6 +1159,7 @@ static void g___ChainingSubTable1(FILE *ttf, int stoffset,
     glyphs = getCoverageTable(ttf,stoffset+coverage,info);
     if ( glyphs==NULL ) {
 	free(rules);
+	LogError( _(" Bad contextual chaining table, ignored\n") );
 return;
     }
     cnt = 0;
@@ -1353,9 +1376,15 @@ return;
 	class = getClassDefTable(ttf, stoffset+classoff, info);
 	fpst->nccnt = ClassFindCnt(class,info->glyph_cnt);
 	fpst->nclass = ClassToNames(info,fpst->nccnt,class,info->glyph_cnt);
+	fpst->nclassnames = gcalloc(fpst->nccnt,sizeof(char *));
 
 	/* Just in case they used the coverage table to redefine class 0 */
 	glyphs = getCoverageTable(ttf,stoffset+coverage,info);
+	if ( glyphs==NULL ) {
+/* GT: This continues a multi-line error message, hence the leading space */
+	    LogError( _(" Bad contextual substitution table, ignored\n") );
+return;
+	}
 	fpst->nclass[0] = CoverageMinusClasses(glyphs,class,info);
 	free(glyphs); free(class); class = NULL;
 
@@ -1502,9 +1531,15 @@ return;
 	class = getClassDefTable(ttf, stoffset+classoff, info);
 	fpst->nccnt = ClassFindCnt(class,info->glyph_cnt);
 	fpst->nclass = ClassToNames(info,fpst->nccnt,class,info->glyph_cnt);
+	fpst->nclassnames = gcalloc(fpst->nccnt,sizeof(char *));
 
 	/* Just in case they used the coverage table to redefine class 0 */
 	glyphs = getCoverageTable(ttf,stoffset+coverage,info);
+	if ( glyphs==NULL ) {
+/* GT: This continues a multi-line error message, hence the leading space */
+	    LogError( _(" Bad contextual chaining substitution table, ignored\n") );
+return;
+	}
 	fpst->nclass[0] = CoverageMinusClasses(glyphs,class,info);
 	free(glyphs); free(class); class = NULL;
 
@@ -1515,6 +1550,7 @@ return;
 	    class = gcalloc(info->glyph_cnt,sizeof(uint16));
 	fpst->bccnt = ClassFindCnt(class,info->glyph_cnt);
 	fpst->bclass = ClassToNames(info,fpst->bccnt,class,info->glyph_cnt);
+	fpst->bclassnames = gcalloc(fpst->bccnt,sizeof(char *));
 	free(class);
 	if ( fclassoff!=0 )
 	    class = getClassDefTable(ttf, stoffset+fclassoff, info);
@@ -1522,6 +1558,7 @@ return;
 	    class = gcalloc(info->glyph_cnt,sizeof(uint16));
 	fpst->fccnt = ClassFindCnt(class,info->glyph_cnt);
 	fpst->fclass = ClassToNames(info,fpst->fccnt,class,info->glyph_cnt);
+	fpst->fclassnames = gcalloc(fpst->fccnt,sizeof(char *));
 	free(class);
 
 	cnt = 0;
@@ -1789,6 +1826,7 @@ return;
     glyphs = getCoverageTable(ttf,stoffset+coverage,info);
     if ( glyphs==NULL ) {
 	free(glyph2s);
+	LogError( _(" Bad simple substitution table, ignored\n") );
 return;
     }
     if ( justinuse==git_findnames ) {
@@ -1883,6 +1921,7 @@ return;
     glyphs = getCoverageTable(ttf,stoffset+coverage,info);
     if ( glyphs==NULL ) {
 	free(offsets);
+	LogError( _(" Bad multiple substitution table, ignored\n") );
 return;
     }
     for ( i=0; glyphs[i]!=0xffff; ++i );
@@ -1979,8 +2018,10 @@ return;
     for ( i=0; i<cnt; ++i )
 	ls_offsets[i]=getushort(ttf);
     glyphs = getCoverageTable(ttf,stoffset+coverage,info);
-    if ( glyphs==NULL )
+    if ( glyphs==NULL ) {
+	LogError( _(" Bad ligature table, ignored\n") );
 return;
+    }
     for ( i=0; i<cnt; ++i ) {
 	fseek(ttf,stoffset+ls_offsets[i],SEEK_SET);
 	lig_cnt = getushort(ttf);
@@ -2245,16 +2286,25 @@ return;
 	nid = getushort(ttf);
 	info->design_range_bottom = getushort(ttf);
 	info->design_range_top = getushort(ttf);
-	if ( info->fontstyle_id == 0 && nid==0 &&
+	if ( info->fontstyle_id == 0 && nid==0 && info->design_size!=0 &&
 		info->design_range_bottom==0 && info->design_range_top==0 ) {
 	    /* Reasonable spec, only design size provided */
+	    LogError(_("This font contains a 'size' feature with a design size and design range but no stylename. That is technically an error, but we'll let it pass"));
 	    info->fontstyle_name = NULL;
     break;
 	}
-	if ( info->design_size < info->design_range_bottom ||
+	if ( info->design_size==0 ||
+		info->design_size < info->design_range_bottom ||
 		info->design_size > info->design_range_top ||
-		info->design_range_bottom > info->design_range_top ||
-		nid<256 || nid>32767 )
+		info->design_range_bottom > info->design_range_top )
+    continue;
+	if ( info->fontstyle_id == 0 && nid==0 ) {
+	    /* Not really allowed, but we'll accept it anyway */
+	    /* If a range is provided than a style name is expected */
+	    info->fontstyle_name = NULL;
+    break;
+	}
+	if ( nid<256 || nid>32767 )
     continue;
 	info->fontstyle_name = FindAllLangEntries(ttf,info,nid);
 	if ( info->fontstyle_name==NULL )
@@ -5096,13 +5146,14 @@ static void ttf_math_read_icta(FILE *ttf,struct ttfinfo *info, uint32 start, int
     if ( glyphs==NULL )
 return;
     fseek(ttf,start+4,SEEK_SET);
-    for ( i=0; i<cnt; ++i ) if ( glyphs[i]<info->glyph_cnt && info->chars[ glyphs[i]]!=NULL ) {
-	val = (int16) getushort(ttf);
+    for ( i=0; i<cnt; ++i ) {
+      val = (int16) getushort(ttf);
+      offset = getushort(ttf);
+      if ( glyphs[i]<info->glyph_cnt && info->chars[ glyphs[i]]!=NULL ) {
 	if ( is_ic )
 	    info->chars[ glyphs[i] ]->italic_correction = val;
 	else
 	    info->chars[ glyphs[i] ]->top_accent_horiz = val;
-	offset = getushort(ttf);
 #ifdef FONTFORGE_CONFIG_DEVICETABLES
 	if ( offset!=0 ) {
 	    DeviceTable *dv = chunkalloc(sizeof(DeviceTable));
@@ -5113,6 +5164,7 @@ return;
 		info->chars[ glyphs[i] ]->top_accent_adjusts = dv;
 	}
 #endif
+      }
     }
     free(glyphs);
 }

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -2001,9 +2001,16 @@ return( glistfield_mouse(ge,event));
 	    event->u.mouse.y<ge->buttonrect.y+ge->buttonrect.height )
 return( gnumericfield_mouse(gt,event));
     if (( event->type==et_mouseup || event->type==et_mousedown ) &&
-	    (event->u.mouse.button==4 || event->u.mouse.button==5) &&
-	    gt->vsb!=NULL )
+	    (event->u.mouse.button>=4 && event->u.mouse.button<=7)) {
+	int isv = event->u.mouse.button<=5;
+	if ( event->u.mouse.state&ksm_shift ) isv = !isv;
+	if ( isv && gt->vsb!=NULL )
 return( GGadgetDispatchEvent(&gt->vsb->g,event));
+	else if ( !isv && gt->hsb!=NULL )
+return( GGadgetDispatchEvent(&gt->hsb->g,event));
+	else
+return( true );
+    }
 
     if ( gt->pressed==NULL && event->type == et_mousemove && g->popup_msg!=NULL &&
 	    GGadgetWithin(g,event->u.mouse.x,event->u.mouse.y))
@@ -2366,7 +2373,7 @@ return;
 static void GTextFieldSetTitle(GGadget *g,const unichar_t *tit) {
     GTextField *gt = (GTextField *) g;
     unichar_t *old = gt->oldtext;
-    if ( u_strcmp(tit,gt->text)==0 )	/* If it doesn't change anything, then don't trash undoes or selection */
+    if ( tit==NULL || u_strcmp(tit,gt->text)==0 )	/* If it doesn't change anything, then don't trash undoes or selection */
 return;
     gt->oldtext = gt->text;
     gt->sel_oldstart = gt->sel_start; gt->sel_oldend = gt->sel_end; gt->sel_oldbase = gt->sel_base;
@@ -2434,7 +2441,7 @@ static void GListFSelectOne(GGadget *g, int32 pos) {
     int i;
 
     for ( i=0; i<gl->ltot; ++i )
-	gl->ti[pos]->selected = false;
+	gl->ti[i]->selected = false;
     if ( pos>=gl->ltot ) pos = gl->ltot-1;
     if ( pos<0 ) pos = 0;
     if ( gl->ltot>0 ) {

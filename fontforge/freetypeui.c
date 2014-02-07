@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "pfaeditui.h"
+#include "fontforgeui.h"
 #include "fffreetype.h"
 #include "edgelist2.h"
 #include <gwidget.h>
@@ -611,6 +611,9 @@ struct freetype_raster *DebuggerCurrentRaster(TT_ExecContext exc,int depth) {
       break;
     }
 #endif
+
+    if ( exc->metrics.y_ppem < 24 )
+       outline.flags |= FT_OUTLINE_HIGH_PRECISION;
 
     first = true;
     for ( k=0; k<outline.n_contours; ++k ) {

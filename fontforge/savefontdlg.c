@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,8 +24,9 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "pfaeditui.h"
+#include "fontforgeui.h"
 #include <ustring.h>
+#include <locale.h>
 #include <gfile.h>
 #include <gresource.h>
 #include <utype.h>
@@ -215,6 +216,10 @@ int32 *ParseBitmapSizes(GGadget *g,char *msg,int *err) {
     const unichar_t *val = _GGadgetGetTitle(g), *pt; unichar_t *end, *end2;
     int i;
     int32 *sizes;
+    char oldloc[24];
+
+    strcpy( oldloc,setlocale(LC_NUMERIC,NULL) );
+    setlocale(LC_NUMERIC,"C");
 
     *err = false;
     end2 = NULL;
@@ -241,11 +246,14 @@ int32 *ParseBitmapSizes(GGadget *g,char *msg,int *err) {
 	    free(sizes);
 	    GGadgetProtest8(msg);
 	    *err = true;
-return( NULL );
+    break;
 	}
 	while ( *end==' ' || *end==',' ) ++end;
 	pt = end;
     }
+    setlocale(LC_NUMERIC,oldloc);
+    if ( *err )
+return( NULL );
     sizes[i] = 0;
 return( sizes );
 }
@@ -2007,7 +2015,7 @@ return( false );
 return( false );
 	GFileChooserPopupCheck(d->gfc,event);
     } else if (( event->type==et_mouseup || event->type==et_mousedown ) &&
-	    (event->u.mouse.button==4 || event->u.mouse.button==5) ) {
+	    (event->u.mouse.button>=4 && event->u.mouse.button<=7) ) {
 	struct gfc_data *d = GDrawGetUserData(gw);
 return( GGadgetDispatchEvent((GGadget *) (d->gfc),event));
     }
@@ -3058,7 +3066,7 @@ return( 0 );
 		"also attempt to use the same space for tables in\n"
 		"different fonts which are bit by bit the same.\n\n"
 		"FontForge isn't always able to perform a merge, in\n"
-		"which case it falls back on generating independant\n"
+		"which case it falls back on generating independent\n"
 		"fonts within the ttc.\n"
 		" FontForge cannot merge if:\n"
 		"  * The fonts have different em-sizes\n"

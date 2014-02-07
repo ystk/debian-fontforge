@@ -1,4 +1,4 @@
-/* Copyright (C) 2003-2010 by George Williams */
+/* Copyright (C) 2003-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -216,6 +216,12 @@ static void DumpPyObject( FILE *file, PyObject *value ) {
 /* ************************************************************************** */
 /* ****************************   GLIF Output    **************************** */
 /* ************************************************************************** */
+static int refcomp(const void *_r1, const void *_r2) {
+    const RefChar *ref1 = *(RefChar * const *)_r1;
+    const RefChar *ref2 = *(RefChar * const *)_r2;
+return( strcmp( ref1->sc->name, ref2->sc->name) );
+}
+
 static int _GlifDump(FILE *glif,SplineChar *sc,int layer) {
     struct altuni *altuni;
     int isquad = sc->layers[layer].order2;
@@ -235,41 +241,56 @@ return( false );
     else
 	fprintf( glif, "  <advance width=\"%d\"/>\n", sc->width );
     if ( sc->unicodeenc!=-1 )
-	fprintf( glif, "  <unicode hex=\"%04x\"/>\n", sc->unicodeenc );
+	fprintf( glif, "  <unicode hex=\"%04X\"/>\n", sc->unicodeenc );
     for ( altuni = sc->altuni; altuni!=NULL; altuni = altuni->next )
 	if ( altuni->vs==-1 && altuni->fid==0 )
 	    fprintf( glif, "  <unicode hex=\"%04x\"/>\n", altuni->unienc );
 
     if ( sc->layers[layer].refs!=NULL || sc->layers[layer].splines!=NULL ) {
 	fprintf( glif, "  <outline>\n" );
-	for ( ref = sc->layers[layer].refs; ref!=NULL; ref=ref->next ) if ( SCWorthOutputting(ref->sc)) {
-	    fprintf( glif, "    <component base=\"%s\"", ref->sc->name );
-	    if ( ref->transform[0]!=1 )
-		fprintf( glif, " xScale=\"%g\"", (double) ref->transform[0] );
-	    if ( ref->transform[3]!=1 )
-		fprintf( glif, " yScale=\"%g\"", (double) ref->transform[3] );
-	    if ( ref->transform[1]!=0 )
-		fprintf( glif, " xyScale=\"%g\"", (double) ref->transform[1] );
-	    if ( ref->transform[2]!=0 )
-		fprintf( glif, " yxScale=\"%g\"", (double) ref->transform[2] );
-	    if ( ref->transform[4]!=0 )
-		fprintf( glif, " xOffset=\"%g\"", (double) ref->transform[4] );
-	    if ( ref->transform[5]!=0 )
-		fprintf( glif, " yOffset=\"%g\"", (double) ref->transform[5] );
-	    fprintf( glif, "/>\n" );
+	/* RoboFab outputs components in alphabetic (case sensitive) order */
+	/*  I've been asked to do that too */
+	if ( sc->layers[layer].refs!=NULL ) {
+	    RefChar **refs;
+	    int i, cnt;
+	    for ( cnt=0, ref = sc->layers[layer].refs; ref!=NULL; ref=ref->next ) if ( SCWorthOutputting(ref->sc))
+		++cnt;
+	    refs = galloc(cnt*sizeof(RefChar *));
+	    for ( cnt=0, ref = sc->layers[layer].refs; ref!=NULL; ref=ref->next ) if ( SCWorthOutputting(ref->sc))
+		refs[cnt++] = ref;
+	    if ( cnt>1 )
+		qsort(refs,cnt,sizeof(RefChar *),refcomp);
+	    for ( i=0; i<cnt; ++i ) {
+		ref = refs[i];
+		fprintf( glif, "    <component base=\"%s\"", ref->sc->name );
+		if ( ref->transform[0]!=1 )
+		    fprintf( glif, " xScale=\"%g\"", (double) ref->transform[0] );
+		if ( ref->transform[3]!=1 )
+		    fprintf( glif, " yScale=\"%g\"", (double) ref->transform[3] );
+		if ( ref->transform[1]!=0 )
+		    fprintf( glif, " xyScale=\"%g\"", (double) ref->transform[1] );
+		if ( ref->transform[2]!=0 )
+		    fprintf( glif, " yxScale=\"%g\"", (double) ref->transform[2] );
+		if ( ref->transform[4]!=0 )
+		    fprintf( glif, " xOffset=\"%g\"", (double) ref->transform[4] );
+		if ( ref->transform[5]!=0 )
+		    fprintf( glif, " yOffset=\"%g\"", (double) ref->transform[5] );
+		fprintf( glif, "/>\n" );
+	    }
+	    free(refs);
 	}
 	for ( spl=sc->layers[layer].splines; spl!=NULL; spl=spl->next ) {
 	    fprintf( glif, "    <contour>\n" );
 	    for ( sp=spl->first; sp!=NULL; ) {
 		/* Undocumented fact: If a contour contains a series of off-curve points with no on-curve then treat as quadratic even if no qcurve */
 		if ( !isquad || /*sp==spl->first ||*/ !SPInterpolate(sp) )
-		    fprintf( glif, "      <point x=\"%g\" y=\"%g\" type=\"%s\" smooth=\"%s\"/>\n",
+		    fprintf( glif, "      <point x=\"%g\" y=\"%g\" type=\"%s\"%s/>\n",
 			    (double) sp->me.x, (double) sp->me.y,
 			    sp->prev==NULL        ? "move"   :
 			    sp->prev->knownlinear ? "line"   :
 			    isquad 		      ? "qcurve" :
 						    "curve",
-			    sp->pointtype!=pt_corner?"yes":"no" );
+			    sp->pointtype!=pt_corner?" smooth=\"yes\"":"" );
 		if ( sp->next==NULL )
 	    break;
 		if ( !sp->next->knownlinear )
@@ -491,8 +512,18 @@ return( false );
     test = SFCapHeight(sf,layer,true);
     if ( test>0 )
 	PListOutputInteger(plist,"capHeight",(int) rint(test));
-    PListOutputInteger(plist,"ascender",sf->ascent);
-    PListOutputInteger(plist,"descender",-sf->descent);
+    if ( sf->ufo_ascent==0 )
+	PListOutputInteger(plist,"ascender",sf->ascent);
+    else if ( sf->ufo_ascent==floor(sf->ufo_ascent))
+	PListOutputInteger(plist,"ascender",sf->ufo_ascent);
+    else
+	PListOutputReal(plist,"ascender",sf->ufo_ascent);
+    if ( sf->ufo_descent==0 )
+	PListOutputInteger(plist,"descender",-sf->descent);
+    else if ( sf->ufo_descent==floor(sf->ufo_descent))
+	PListOutputInteger(plist,"descender",sf->ufo_descent);
+    else
+	PListOutputReal(plist,"descender",sf->ufo_descent);
     PListOutputReal(plist,"italicAngle",sf->italicangle);
 #ifdef Version_1
     PListOutputString(plist,"fullName",sf->fullname);
@@ -545,11 +576,11 @@ return( false );
 	{
 	    int fscnt,i;
 	    char fstype[16];
+	    /* Now the spec SAYS we should output bit >numbers<. */
+	    /* What is MEANT is that bit >values< should be output. */
 	    for ( i=fscnt=0; i<16; ++i )
-		if ( sf->pfminfo.fstype&(1<<i) )
-		    fstype[fscnt++] = i;
-	    if ( fscnt!=0 )
-		PListOutputIntArray(plist,"openTypeOS2Type",fstype,fscnt);
+		fstype[fscnt++] = sf->pfminfo.fstype&(1<<i) ? 1 : 0;
+	    PListOutputIntArray(plist,"openTypeOS2Type",fstype,fscnt);
 	}
 	if ( sf->pfminfo.typoascent_add )
 	    PListOutputInteger(plist,"openTypeOS2TypoAscender",sf->ascent+sf->pfminfo.os2_typoascent);
@@ -761,36 +792,37 @@ return( false );
     }
 
     for ( i=0; i<sf->glyphcnt; ++i ) if ( SCWorthOutputting(sc=sf->glyphs[i]) ) {
-	gfname = galloc(strlen(sc->name)+20);
-	if ( isupper(sc->name[0])) {
-	    char *pt;
-	    pt = strchr(sc->name,'.');
-	    if ( pt==NULL ) {
-		strcpy(gfname,sc->name);
-		strcat(gfname,"_");
-	    } else {
-		strncpy(gfname,sc->name,pt-sc->name);
-		gfname[pt-sc->name] = '_';
+	char *start, *gstart;
+	gstart = gfname = galloc(2*strlen(sc->name)+20);
+	start = sc->name;
+	if ( *start=='.' ) {
+	    *gstart++ = '_';
+	    ++start;
+	}
+	while ( *start ) {
+	    /* Now the spec has a very complicated algorithm for producing a */
+	    /*  filename, dividing the glyph name into chunks at every period*/
+	    /*  and then again at every underscore, and then adding an under-*/
+	    /*  score at the end of a chunk if the chunk begins with a capital*/
+	    /* BUT... */
+	    /* That's not what RoboFAB does. It simply adds an underscore after*/
+	    /*  every capital letter. Much easier. And since people have */
+	    /*  complained that I follow the spec, let's not. */
+	    if ( isupper( *start )) {
+		*gstart++ = tolower( *start );
+		*gstart++ = '_';
+	    } else
+		*gstart++ = *start;
+	    ++start;
+	}
 #ifdef __VMS
-		gfname[pt-sc->name+1] = '@';
-		strcpy(gfname + (pt-sc->name) + 2,pt+1);
-#else
-		strcpy(gfname + (pt-sc->name) + 1,pt);
+	*gstart ='\0';
+	for ( gstart=gfname; *gstart; ++gstart ) {
+	    if ( *gstart=='.' )
+		*gstart = '@';		/* VMS only allows one "." in a filename */
+	}
 #endif
-	    }
-	} else
-#ifdef __VMS
-	    {
-		char *pt;
-		strcpy(gfname,sc->name);
-		for ( pt=gfname; *pt; ++pt )
-		    if ( *pt=='.' )
-			*pt='@';
-	    }
-#else
-	    strcpy(gfname,sc->name);
-#endif
-	strcat(gfname,".glif");
+	strcpy(gstart,".glif");
 	PListOutputString(plist,sc->name,gfname);
 	err |= !GlifDump(glyphdir,gfname,sc,layer);
 	free(gfname);
@@ -1644,15 +1676,18 @@ return;
 
 static long UFOGetBits(xmlDocPtr doc,xmlNodePtr value) {
     xmlNodePtr kid;
-    long mask=0;
+    long mask=0, bit;
 
     if ( _xmlStrcmp(value->name,(const xmlChar *) "array")!=0 )
 return( 0 );
+    bit = 1;
     for ( kid = value->children; kid!=NULL; kid=kid->next ) {
 	if ( _xmlStrcmp(kid->name,(const xmlChar *) "integer")==0 ) {
 	    char *valName = (char *) _xmlNodeListGetString(doc,kid->children,true);
-	    mask |= 1<<strtol(valName,NULL,10);
+	    if ( strtol(valName,NULL,10))
+		mask |= bit;
 	    free(valName);
+	    bit<<=1;
 	}
     }
 return( mask );
@@ -1682,7 +1717,7 @@ SplineFont *SFReadUFO(char *basedir, int flags) {
     xmlChar *keyname, *valname;
     char *stylename=NULL;
     char *temp, *glyphlist, *glyphdir;
-    char *oldloc, *end;
+    char oldloc[24], *end;
     int as = -1, ds= -1, em= -1;
 
     if ( !libxml_init_base()) {
@@ -1715,7 +1750,8 @@ return( NULL );
     }
 
     sf = SplineFontEmpty();
-    oldloc = setlocale(LC_NUMERIC,"C");
+    strcpy( oldloc,setlocale(LC_NUMERIC,NULL) );
+    setlocale(LC_NUMERIC,"C");
     for ( keys=dict->children; keys!=NULL; keys=keys->next ) {
 	for ( value = keys->next; value!=NULL && _xmlStrcmp(value->name,(const xmlChar *) "text")==0;
 		value = value->next );
@@ -1897,12 +1933,14 @@ return( NULL );
 		if ( *end!='\0' ) em = -1;
 		free(valname);
 	    } else if ( _xmlStrcmp(keyname,(xmlChar *) "ascender")==0 ) {
-		as = strtol((char *) valname,&end,10);
+		as = strtod((char *) valname,&end);
 		if ( *end!='\0' ) as = -1;
+		else sf->ufo_ascent = as;
 		free(valname);
 	    } else if ( _xmlStrcmp(keyname,(xmlChar *) "descender")==0 ) {
-		ds = -strtol((char *) valname,&end,10);
+		ds = -strtod((char *) valname,&end);
 		if ( *end!='\0' ) ds = -1;
+		else sf->ufo_descent = -ds;
 		free(valname);
 	    } else if ( _xmlStrcmp(keyname,(xmlChar *) "italicAngle")==0 ||
 		    _xmlStrcmp(keyname,(xmlChar *) "postscriptSlantAngle")==0 ) {
@@ -2002,7 +2040,7 @@ return( sf );
 SplineSet *SplinePointListInterpretGlif(char *filename,char *memory, int memlen,
 	int em_size,int ascent,int is_stroked) {
     xmlDocPtr doc;
-    char *oldloc;
+    char oldloc[24];
     SplineChar *sc;
     SplineSet *ss;
 
@@ -2017,7 +2055,8 @@ return( NULL );
     if ( doc==NULL )
 return( NULL );
 
-    oldloc = setlocale(LC_NUMERIC,"C");
+    strcpy( oldloc,setlocale(LC_NUMERIC,NULL) );
+    setlocale(LC_NUMERIC,"C");
     sc = _UFOLoadGlyph(doc,filename);
     setlocale(LC_NUMERIC,oldloc);
 

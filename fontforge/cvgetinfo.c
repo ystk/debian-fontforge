@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "pfaeditui.h"
+#include "fontforgeui.h"
 #include <ustring.h>
 #include <math.h>
 #include <utype.h>
@@ -233,12 +233,12 @@ return( true );		/* Didn't really change */
     for ( i=0; i<6; ++i )
 	ref->transform[i] = trans[i];
     SplinePointListsFree(ref->layers[0].splines);
-    ref->layers[0].splines = SplinePointListTransform(SplinePointListCopy(ref->sc->layers[ly_fore].splines),trans,true);
+    ref->layers[0].splines = SplinePointListTransform(SplinePointListCopy(ref->sc->layers[ly_fore].splines),trans,tpt_AllPoints);
     spl = NULL;
     if ( ref->layers[0].splines!=NULL )
 	for ( spl = ref->layers[0].splines; spl->next!=NULL; spl = spl->next );
     for ( subref = ref->sc->layers[ly_fore].refs; subref!=NULL; subref=subref->next ) {
-	new = SplinePointListTransform(SplinePointListCopy(subref->layers[0].splines),trans,true);
+	new = SplinePointListTransform(SplinePointListCopy(subref->layers[0].splines),trans,tpt_AllPoints);
 	if ( spl==NULL )
 	    ref->layers[0].splines = new;
 	else
@@ -903,6 +903,11 @@ static void AI_Display(GIData *ci,AnchorPoint *ap) {
     unichar_t uval[40];
     AnchorPoint *aps;
 
+    if ( ap==NULL) {
+	SCUpdateAll(ci->sc);
+return;
+    }
+
     ci->ap = ap;
     for ( aps=ci->sc->anchor; aps!=NULL; aps=aps->next )
 	aps->selected = false;
@@ -964,7 +969,7 @@ static int AI_Ok(GGadget *g, GEvent *e);
 static int AI_Delete(GGadget *g, GEvent *e) {
     if ( e->type==et_controlevent && e->u.control.subtype == et_buttonactivate ) {
 	GIData *ci = GDrawGetUserData(GGadgetGetWindow(g));
-	AnchorPoint *ap, *prev;
+	AnchorPoint *ap, *prev, *delete_it;
 
 	prev=NULL;
 	for ( ap=ci->sc->anchor; ap!=ci->ap; ap=ap->next )
@@ -977,14 +982,34 @@ static int AI_Delete(GGadget *g, GEvent *e) {
 return( true );
 	    }
 	}
-	ap = ci->ap->next;
-	if ( prev==NULL )
-	    ci->sc->anchor = ap;
-	else
-	    prev->next = ap;
-	ci->ap->next = NULL;
-	AnchorPointsFree(ci->ap);
-	AI_Display(ci,ap);
+	
+	delete_it = ci->ap;
+	
+	if ((prev == NULL) && (ci->ap->next == NULL)) {
+	    ci->sc->anchor = NULL;
+	    AnchorPointsFree(delete_it);
+	    AI_Ok(g,e);
+	    SCUpdateAll(ci->sc);
+	}
+	else if (ci->ap->next == NULL) {
+	    prev->next = NULL;
+	    AnchorPointsFree(delete_it);
+	    AI_Display(ci,prev);
+	}
+	else if (prev == NULL) {
+	    ci->sc->anchor = delete_it->next;
+	    delete_it->next = NULL;
+	    AnchorPointsFree(delete_it);
+	    AI_Display(ci,ci->sc->anchor);
+	}
+	else {
+	    prev->next = delete_it->next;
+	    delete_it->next = NULL;
+	    AnchorPointsFree(delete_it);
+	    AI_Display(ci,prev->next);
+	}
+	
+	_CVCharChangedUpdate(&ci->cv->b,2);
     }
 return( true );
 }

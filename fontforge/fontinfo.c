@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,12 +24,13 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "pfaeditui.h"
+#include "fontforgeui.h"
 #include "ofl.h"
 #include <ustring.h>
 #include <chardata.h>
 #include <utype.h>
 #include "unicoderange.h"
+#include <locale.h>
 
 extern int _GScrollBar_Width;
 extern GBox _ggadget_Default_Box;
@@ -198,14 +199,32 @@ static GTextInfo gaspversions[] = {
 static GTextInfo panfamily[] = {
     { (unichar_t *) N_("PanoseFamily|Any"), NULL, 0, 0, (void *) 0, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("PanoseFamily|No Fit"), NULL, 0, 0, (void *) 1, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Text & Display"), NULL, 0, 0, (void *) 2, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Latin: Text & Display"), NULL, 0, 0, (void *) 2, NULL, 0, 0, 0, 0, 0, 0, 1},
 /* GT: See the long comment at "Property|New" */
 /* GT: The msgstr should contain a translation of "Script", ignore "cursive|" */
 /* GT: English uses "script" to me a general writing style (latin, greek, kanji) */
 /* GT: and the cursive handwriting style. Here we mean cursive handwriting. */
-    { (unichar_t *) N_("cursive|Script"), NULL, 0, 0, (void *) 3, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Decorative"), NULL, 0, 0, (void *) 4, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Pictorial"), NULL, 0, 0, (void *) 5, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("cursive|Latin: Handwritten"), NULL, 0, 0, (void *) 3, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Latin: Decorative"), NULL, 0, 0, (void *) 4, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Latin: Pictorial/Symbol"), NULL, 0, 0, (void *) 5, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "6", NULL, 0, 0, (void *) 6, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "7", NULL, 0, 0, (void *) 7, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "8", NULL, 0, 0, (void *) 8, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "9", NULL, 0, 0, (void *) 9, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "10", NULL, 0, 0, (void *) 10, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "11", NULL, 0, 0, (void *) 11, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "12", NULL, 0, 0, (void *) 12, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "13", NULL, 0, 0, (void *) 13, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "14", NULL, 0, 0, (void *) 14, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "15", NULL, 0, 0, (void *) 15, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { NULL }};
+static GTextInfo panunknown[] = {
+    { (unichar_t *) "Any", NULL, 0, 0, (void *) 0, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "No Fit", NULL, 0, 0, (void *) 1, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "2", NULL, 0, 0, (void *) 2, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "3", NULL, 0, 0, (void *) 3, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "4", NULL, 0, 0, (void *) 4, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "5", NULL, 0, 0, (void *) 5, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) "6", NULL, 0, 0, (void *) 6, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) "7", NULL, 0, 0, (void *) 7, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) "8", NULL, 0, 0, (void *) 8, NULL, 0, 0, 0, 0, 0, 0, 1},
@@ -231,7 +250,7 @@ static GTextInfo panserifs[] = {
     { (unichar_t *) N_("Triangle"), NULL, 0, 0, (void *) 10, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Normal Sans"), NULL, 0, 0, (void *) 11, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Obtuse Sans"), NULL, 0, 0, (void *) 12, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Perp Sans"), NULL, 0, 0, (void *) 13, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Perpendicular Sans"), NULL, 0, 0, (void *) 13, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Flared"), NULL, 0, 0, (void *) 14, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("PanoseSerivfs|Rounded"), NULL, 0, 0, (void *) 15, NULL, 0, 0, 0, 0, 0, 0, 1},
     { NULL }};
@@ -379,6 +398,347 @@ static GTextInfo panxheight[] = {
     { (unichar_t *) "14", NULL, 0, 0, (void *) 14, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) "15", NULL, 0, 0, (void *) 15, NULL, 0, 0, 0, 0, 0, 0, 1},
     { NULL }};
+/* Latin: Hand written */
+static GTextInfo pantool[] = {
+    { (unichar_t *) N_("PanoseTool|Any"), NULL, 0, 0, (void *) 0, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseTool|No Fit"), NULL, 0, 0, (void *) 1, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Flat Nib"), NULL, 0, 0, (void *) 2, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Pressure Point"), NULL, 0, 0, (void *) 3, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Engraved"), NULL, 0, 0, (void *) 4, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Ball (Round Cap)"), NULL, 0, 0, (void *) 5, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Brush"), NULL, 0, 0, (void *) 6, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Rough"), NULL, 0, 0, (void *) 7, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Felt Pen/Brush Tip"), NULL, 0, 0, (void *) 8, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Wild Brush - Drips a lot"), NULL, 0, 0, (void *) 9, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "10", NULL, 0, 0, (void *) 10, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "11", NULL, 0, 0, (void *) 11, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "12", NULL, 0, 0, (void *) 12, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "13", NULL, 0, 0, (void *) 13, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "14", NULL, 0, 0, (void *) 14, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "15", NULL, 0, 0, (void *) 15, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { NULL }};
+static GTextInfo panspacing[] = {
+    { (unichar_t *) N_("PanoseSpacing|Any"), NULL, 0, 0, (void *) 0, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseSpacing|No Fit"), NULL, 0, 0, (void *) 1, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Proportional Spaced"), NULL, 0, 0, (void *) 2, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Monospaced"), NULL, 0, 0, (void *) 3, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "4", NULL, 0, 0, (void *) 4, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "5", NULL, 0, 0, (void *) 5, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "6", NULL, 0, 0, (void *) 6, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "7", NULL, 0, 0, (void *) 7, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "8", NULL, 0, 0, (void *) 8, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "9", NULL, 0, 0, (void *) 9, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "10", NULL, 0, 0, (void *) 10, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "11", NULL, 0, 0, (void *) 11, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "12", NULL, 0, 0, (void *) 12, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "13", NULL, 0, 0, (void *) 13, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "14", NULL, 0, 0, (void *) 14, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "15", NULL, 0, 0, (void *) 15, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { NULL }};
+static GTextInfo panasprat[] = {
+    { (unichar_t *) N_("PanoseAspectRatio|Any"), NULL, 0, 0, (void *) 0, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseAspectRatio|No Fit"), NULL, 0, 0, (void *) 1, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Very Condensed"), NULL, 0, 0, (void *) 2, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Condensed"), NULL, 0, 0, (void *) 3, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Normal"), NULL, 0, 0, (void *) 4, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Expanded"), NULL, 0, 0, (void *) 5, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Very Expanded"), NULL, 0, 0, (void *) 6, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "7", NULL, 0, 0, (void *) 7, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "8", NULL, 0, 0, (void *) 8, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "9", NULL, 0, 0, (void *) 9, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "10", NULL, 0, 0, (void *) 10, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "11", NULL, 0, 0, (void *) 11, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "12", NULL, 0, 0, (void *) 12, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "13", NULL, 0, 0, (void *) 13, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "14", NULL, 0, 0, (void *) 14, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "15", NULL, 0, 0, (void *) 15, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { NULL }};
+static GTextInfo pancontrast2[] = {
+    { (unichar_t *) N_("PanoseContrast|Any"), NULL, 0, 0, (void *) 0, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseContrast|No Fit"), NULL, 0, 0, (void *) 1, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseContrast|None"), NULL, 0, 0, (void *) 2, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Very Low"), NULL, 0, 0, (void *) 3, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Low"), NULL, 0, 0, (void *) 4, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Medium Low"), NULL, 0, 0, (void *) 5, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Medium"), NULL, 0, 0, (void *) 6, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Medium High"), NULL, 0, 0, (void *) 7, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("High"), NULL, 0, 0, (void *) 8, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Very High"), NULL, 0, 0, (void *) 9, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "10", NULL, 0, 0, (void *) 10, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "11", NULL, 0, 0, (void *) 11, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "12", NULL, 0, 0, (void *) 12, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "13", NULL, 0, 0, (void *) 13, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "14", NULL, 0, 0, (void *) 14, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "15", NULL, 0, 0, (void *) 15, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { NULL }};
+static GTextInfo pantopology[] = {
+    { (unichar_t *) N_("PanoseTopology|Any"), NULL, 0, 0, (void *) 0, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseTopology|No Fit"), NULL, 0, 0, (void *) 1, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Roman Disconnected"), NULL, 0, 0, (void *) 2, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Roman Trailing"), NULL, 0, 0, (void *) 3, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Roman Connected"), NULL, 0, 0, (void *) 4, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Cursive Disconnected"), NULL, 0, 0, (void *) 5, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Cursive Trailing"), NULL, 0, 0, (void *) 6, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Cursive Connected"), NULL, 0, 0, (void *) 7, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Blackletter Disconnected"), NULL, 0, 0, (void *) 8, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Blackletter Trailing"), NULL, 0, 0, (void *) 9, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Blackletter Connected"), NULL, 0, 0, (void *) 10, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "11", NULL, 0, 0, (void *) 11, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "12", NULL, 0, 0, (void *) 12, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "13", NULL, 0, 0, (void *) 13, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "14", NULL, 0, 0, (void *) 14, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "15", NULL, 0, 0, (void *) 15, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { NULL }};
+static GTextInfo panform[] = {
+    { (unichar_t *) N_("PanoseForm|Any"), NULL, 0, 0, (void *) 0, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseForm|No Fit"), NULL, 0, 0, (void *) 1, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Upright/No Wrapping"), NULL, 0, 0, (void *) 2, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Upright/Some Wrapping"), NULL, 0, 0, (void *) 3, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Upright/More Wrapping"), NULL, 0, 0, (void *) 4, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Upright/Extreme Wrapping"), NULL, 0, 0, (void *) 5, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Oblique/No Wrapping"), NULL, 0, 0, (void *) 6, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Oblique/Some Wrapping"), NULL, 0, 0, (void *) 7, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Oblique/More Wrapping"), NULL, 0, 0, (void *) 8, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Oblique/Extreme Wrapping"), NULL, 0, 0, (void *) 9, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Exaggerated/No Wrapping"), NULL, 0, 0, (void *) 10, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Exaggerated/Some Wrapping"), NULL, 0, 0, (void *) 11, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Exaggerated/More Wrapping"), NULL, 0, 0, (void *) 12, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Exaggerated/Extreme Wrapping"), NULL, 0, 0, (void *) 13, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "14", NULL, 0, 0, (void *) 14, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "15", NULL, 0, 0, (void *) 15, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { NULL }};
+static GTextInfo panfinials[] = {
+    { (unichar_t *) N_("PanoseFinials|Any"), NULL, 0, 0, (void *) 0, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseFinials|No Fit"), NULL, 0, 0, (void *) 1, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("None/No loops"), NULL, 0, 0, (void *) 2, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("None/Closed loops"), NULL, 0, 0, (void *) 3, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("None/Open loops"), NULL, 0, 0, (void *) 4, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Sharp/No loops"), NULL, 0, 0, (void *) 5, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Sharp/Closed loops"), NULL, 0, 0, (void *) 6, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Sharp/Open loops"), NULL, 0, 0, (void *) 7, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Tapered/No loops"), NULL, 0, 0, (void *) 8, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Tapered/Closed loops"), NULL, 0, 0, (void *) 9, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Tapered/Open loops"), NULL, 0, 0, (void *) 10, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Round/No loops"), NULL, 0, 0, (void *) 11, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Round/Closed loops"), NULL, 0, 0, (void *) 12, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Round/Open loops"), NULL, 0, 0, (void *) 13, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "14", NULL, 0, 0, (void *) 14, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "15", NULL, 0, 0, (void *) 15, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { NULL }};
+static GTextInfo panxascent[] = {
+    { (unichar_t *) N_("PanoseXAscent|Any"), NULL, 0, 0, (void *) 0, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseXAscent|No Fit"), NULL, 0, 0, (void *) 1, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseXAscent|Very Low"), NULL, 0, 0, (void *) 2, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseXAscent|Low"), NULL, 0, 0, (void *) 3, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseXAscent|Medium"), NULL, 0, 0, (void *) 4, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseXAscent|High"), NULL, 0, 0, (void *) 5, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseXAscent|Very High"), NULL, 0, 0, (void *) 6, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "7", NULL, 0, 0, (void *) 7, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "8", NULL, 0, 0, (void *) 8, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "9", NULL, 0, 0, (void *) 9, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "10", NULL, 0, 0, (void *) 10, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "11", NULL, 0, 0, (void *) 11, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "12", NULL, 0, 0, (void *) 12, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "13", NULL, 0, 0, (void *) 13, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "14", NULL, 0, 0, (void *) 14, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "15", NULL, 0, 0, (void *) 15, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { NULL }};
+/* Latin: Decorative */
+static GTextInfo panclass[] = {
+    { (unichar_t *) N_("PanoseClass|Any"), NULL, 0, 0, (void *) 0, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseClass|No Fit"), NULL, 0, 0, (void *) 1, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Derivative"), NULL, 0, 0, (void *) 2, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Non-standard Topology"), NULL, 0, 0, (void *) 3, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Non-standard Elements"), NULL, 0, 0, (void *) 4, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Non-standard Aspect"), NULL, 0, 0, (void *) 5, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Initials"), NULL, 0, 0, (void *) 6, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Cartoon"), NULL, 0, 0, (void *) 7, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Picture Stems"), NULL, 0, 0, (void *) 8, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Ornamented"), NULL, 0, 0, (void *) 9, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Text and Background"), NULL, 0, 0, (void *) 10, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Collage"), NULL, 0, 0, (void *) 11, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Montage"), NULL, 0, 0, (void *) 12, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "13", NULL, 0, 0, (void *) 13, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "14", NULL, 0, 0, (void *) 14, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "15", NULL, 0, 0, (void *) 15, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { NULL }};
+static GTextInfo panaspect[] = {
+    { (unichar_t *) N_("PanoseAspect|Any"), NULL, 0, 0, (void *) 0, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseAspect|No Fit"), NULL, 0, 0, (void *) 1, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Super Condensed"), NULL, 0, 0, (void *) 2, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Very Condensed"), NULL, 0, 0, (void *) 3, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Condensed"), NULL, 0, 0, (void *) 4, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Normal"), NULL, 0, 0, (void *) 5, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Extended"), NULL, 0, 0, (void *) 6, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Very Extended"), NULL, 0, 0, (void *) 7, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Super Extended"), NULL, 0, 0, (void *) 8, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "9", NULL, 0, 0, (void *) 9, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "10", NULL, 0, 0, (void *) 10, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "11", NULL, 0, 0, (void *) 11, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "12", NULL, 0, 0, (void *) 12, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "13", NULL, 0, 0, (void *) 13, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "14", NULL, 0, 0, (void *) 14, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "15", NULL, 0, 0, (void *) 15, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { NULL }};
+static GTextInfo pancontrast3[] = {
+    { (unichar_t *) N_("PanoseContrast|Any"), NULL, 0, 0, (void *) 0, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseContrast|No Fit"), NULL, 0, 0, (void *) 1, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseContrast|None"), NULL, 0, 0, (void *) 2, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Very Low"), NULL, 0, 0, (void *) 3, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Low"), NULL, 0, 0, (void *) 4, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Medium Low"), NULL, 0, 0, (void *) 5, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Medium"), NULL, 0, 0, (void *) 6, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Medium High"), NULL, 0, 0, (void *) 7, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("High"), NULL, 0, 0, (void *) 8, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Very High"), NULL, 0, 0, (void *) 9, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Horizontal Low"), NULL, 0, 0, (void *) 10, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Horizontal Medium"), NULL, 0, 0, (void *) 11, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Horizontal High"), NULL, 0, 0, (void *) 12, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Broken"), NULL, 0, 0, (void *) 13, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "14", NULL, 0, 0, (void *) 14, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "15", NULL, 0, 0, (void *) 15, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { NULL }};
+static GTextInfo panserifvar[] = {
+    { (unichar_t *) N_("PanoseSerifVariant|Any"), NULL, 0, 0, (void *) 0, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseSerifVariant|No Fit"), NULL, 0, 0, (void *) 1, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Cove"), NULL, 0, 0, (void *) 2, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Obtuse Cove"), NULL, 0, 0, (void *) 3, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Square Cove"), NULL, 0, 0, (void *) 4, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Obtuse Square Cove"), NULL, 0, 0, (void *) 5, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseSerivfs|Square"), NULL, 0, 0, (void *) 6, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseSerifs|Thin"), NULL, 0, 0, (void *) 7, NULL, 0, 0, 0, 0, 0, 0, 1},
+/*!*/{ (unichar_t *) N_("Oval"), NULL, 0, 0, (void *) 8, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Exaggerated"), NULL, 0, 0, (void *) 9, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Triangle"), NULL, 0, 0, (void *) 10, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Normal Sans"), NULL, 0, 0, (void *) 11, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Obtuse Sans"), NULL, 0, 0, (void *) 12, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Perpendicular Sans"), NULL, 0, 0, (void *) 13, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Flared"), NULL, 0, 0, (void *) 14, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseSerivfs|Rounded"), NULL, 0, 0, (void *) 15, NULL, 0, 0, 0, 0, 0, 0, 1},
+/* Um, these guys are only supposed to go up to 15, so why does this have a 16? */
+/*!*/{ (unichar_t *) N_("PanoseSerivfs|Script"), NULL, 0, 0, (void *) 16, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { NULL }};
+static GTextInfo pantreatment[] = {
+    { (unichar_t *) N_("PanoseTreatment|Any"), NULL, 0, 0, (void *) 0, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseTreatment|No Fit"), NULL, 0, 0, (void *) 1, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Solid Fill"), NULL, 0, 0, (void *) 2, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("No Fill"), NULL, 0, 0, (void *) 3, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Patterned Fill"), NULL, 0, 0, (void *) 4, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Complex Fill"), NULL, 0, 0, (void *) 5, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Shaped Fill"), NULL, 0, 0, (void *) 6, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Drawn/Distressed"), NULL, 0, 0, (void *) 7, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "8", NULL, 0, 0, (void *) 8, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "9", NULL, 0, 0, (void *) 9, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "10", NULL, 0, 0, (void *) 10, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "11", NULL, 0, 0, (void *) 11, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "12", NULL, 0, 0, (void *) 12, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "13", NULL, 0, 0, (void *) 13, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "14", NULL, 0, 0, (void *) 14, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "15", NULL, 0, 0, (void *) 15, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { NULL }};
+static GTextInfo panlining[] = {
+    { (unichar_t *) N_("PanoseLining|Any"), NULL, 0, 0, (void *) 0, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseLining|No Fit"), NULL, 0, 0, (void *) 1, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseLining|None"), NULL, 0, 0, (void *) 2, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseLining|Inline"), NULL, 0, 0, (void *) 3, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseLining|Outline"), NULL, 0, 0, (void *) 4, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseLining|Engraved (Multiple Lines)"), NULL, 0, 0, (void *) 5, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseLining|Shadow"), NULL, 0, 0, (void *) 6, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseLining|Relief"), NULL, 0, 0, (void *) 7, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseLining|Backdrop"), NULL, 0, 0, (void *) 8, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "9", NULL, 0, 0, (void *) 9, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "10", NULL, 0, 0, (void *) 10, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "11", NULL, 0, 0, (void *) 11, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "12", NULL, 0, 0, (void *) 12, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "13", NULL, 0, 0, (void *) 13, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "14", NULL, 0, 0, (void *) 14, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "15", NULL, 0, 0, (void *) 15, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { NULL }};
+static GTextInfo pantopology2[] = {
+    { (unichar_t *) N_("PanoseTopology|Any"), NULL, 0, 0, (void *) 0, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseTopology|No Fit"), NULL, 0, 0, (void *) 1, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Standard"), NULL, 0, 0, (void *) 2, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Square"), NULL, 0, 0, (void *) 3, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Multiple Segment"), NULL, 0, 0, (void *) 4, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Deco (E,M,S) Waco midline"), NULL, 0, 0, (void *) 5, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Uneven Weighting"), NULL, 0, 0, (void *) 6, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Diverse Arms"), NULL, 0, 0, (void *) 7, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Diverse Forms"), NULL, 0, 0, (void *) 8, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Lombardic Forms"), NULL, 0, 0, (void *) 9, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Upper Case in Lower Case"), NULL, 0, 0, (void *) 10, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Implied Topology"), NULL, 0, 0, (void *) 11, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Horseshoe E and A"), NULL, 0, 0, (void *) 12, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Cursive"), NULL, 0, 0, (void *) 13, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Blackletter"), NULL, 0, 0, (void *) 14, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Swash Variance"), NULL, 0, 0, (void *) 15, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { NULL }};
+static GTextInfo pancharrange[] = {
+    { (unichar_t *) N_("PanoseCharRange|Any"), NULL, 0, 0, (void *) 0, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseCharRange|No Fit"), NULL, 0, 0, (void *) 1, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Extended Collection"), NULL, 0, 0, (void *) 2, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Litterals"), NULL, 0, 0, (void *) 3, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("No Lower Case"), NULL, 0, 0, (void *) 4, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Small Caps"), NULL, 0, 0, (void *) 5, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "6", NULL, 0, 0, (void *) 6, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "7", NULL, 0, 0, (void *) 7, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "8", NULL, 0, 0, (void *) 8, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "9", NULL, 0, 0, (void *) 9, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "10", NULL, 0, 0, (void *) 10, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "11", NULL, 0, 0, (void *) 11, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "12", NULL, 0, 0, (void *) 12, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "13", NULL, 0, 0, (void *) 13, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "14", NULL, 0, 0, (void *) 14, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "15", NULL, 0, 0, (void *) 15, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { NULL }};
+/* Latin: Symbol */
+static GTextInfo pankind[] = {
+    { (unichar_t *) N_("PanoseKind|Any"), NULL, 0, 0, (void *) 0, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseKind|No Fit"), NULL, 0, 0, (void *) 1, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Montages"), NULL, 0, 0, (void *) 2, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Pictures"), NULL, 0, 0, (void *) 3, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Shapes"), NULL, 0, 0, (void *) 4, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Scientific"), NULL, 0, 0, (void *) 5, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Music"), NULL, 0, 0, (void *) 6, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Expert"), NULL, 0, 0, (void *) 7, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Patterns"), NULL, 0, 0, (void *) 8, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Borders"), NULL, 0, 0, (void *) 9, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Icons"), NULL, 0, 0, (void *) 10, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Logos"), NULL, 0, 0, (void *) 11, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Industry specific"), NULL, 0, 0, (void *) 12, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "13", NULL, 0, 0, (void *) 13, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "14", NULL, 0, 0, (void *) 14, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "15", NULL, 0, 0, (void *) 15, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { NULL }};
+static GTextInfo panasprat2[] = {
+    { (unichar_t *) N_("PanoseAspect|Any"), NULL, 0, 0, (void *) 0, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("PanoseAspect|No Fit"), NULL, 0, 0, (void *) 1, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("No Width"), NULL, 0, 0, (void *) 2, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Exceptionally Wide"), NULL, 0, 0, (void *) 3, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Super Wide"), NULL, 0, 0, (void *) 4, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Very Wide"), NULL, 0, 0, (void *) 5, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Wide"), NULL, 0, 0, (void *) 6, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Normal"), NULL, 0, 0, (void *) 7, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Narrow"), NULL, 0, 0, (void *) 8, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Very Narrow"), NULL, 0, 0, (void *) 9, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "10", NULL, 0, 0, (void *) 10, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "11", NULL, 0, 0, (void *) 11, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "12", NULL, 0, 0, (void *) 12, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "13", NULL, 0, 0, (void *) 13, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "14", NULL, 0, 0, (void *) 14, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "15", NULL, 0, 0, (void *) 15, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { NULL }};
+
+static struct titlelist { char *name; GTextInfo *variants; } panoses[][9] = {
+    /*Any*/    {{ N_("Class2"), panunknown }, { N_("Class3"), panunknown }, { N_("Class4"), panunknown }, { N_("Class5"), panunknown }, { N_("Class6"), panunknown }, { N_("Class7"), panunknown }, { N_("Class8"), panunknown }, { N_("Class9"), panunknown }, { N_("Class10"), panunknown }},
+    /*NoFit*/  {{ N_("Class2"), panunknown }, { N_("Class3"), panunknown }, { N_("Class4"), panunknown }, { N_("Class5"), panunknown }, { N_("Class6"), panunknown }, { N_("Class7"), panunknown }, { N_("Class8"), panunknown }, { N_("Class9"), panunknown }, { N_("Class10"), panunknown }},
+    /*LtnTxt*/ {{ N_("_Serifs"), panserifs }, { N_("Panose|_Weight"), panweight }, { N_("_Proportion"), panprop }, { N_("_Contrast"), pancontrast }, { N_("Stroke _Variation"), panstrokevar }, { N_("_Arm Style"), panarmstyle }, { N_("_Letterform"), panletterform }, { N_("_Midline"), panmidline }, { N_("_X-Height"), panxheight }},
+    /*LtnHnd*/ {{ N_("_Tool"), pantool }, { N_("Panose|_Weight"), panweight }, { N_("_Spacing"), panspacing }, { N_("_Aspect Ratio"), panasprat }, { N_("_Contrast"), pancontrast2 }, { N_("_Topology"), pantopology }, { N_("F_orm"), panform }, { N_("F_inials"), panfinials }, { N_("_X-Ascent"), panxascent }},
+    /*LtnDcr*/ {{ N_("_Class"), panclass }, { N_("Panose|_Weight"), panweight }, { N_("_Aspect"), panaspect }, { N_("C_ontrast"), pancontrast3 }, { N_("_Serif Variant"), panserifvar }, { N_("T_reatment"), pantreatment }, { N_("_Lining"), panlining }, { N_("_Topology"), pantopology2 }, { N_("Char. _Range"), pancharrange }},
+					    /* Yup, really should be "unknown", no weights permitted, nor aspect ratios */
+    /*LtnSym*/ {{ N_("_Kind"), pankind }, { N_("Panose|_Weight"), panunknown }, { N_("_Spacing"), panspacing }, { N_("_Aspect Ratio"), panunknown }, { N_("AR: Char 94"), panasprat2 }, { N_("AR: Char 119"), panasprat2 }, { N_("AR: Char 157"), panasprat2 }, { N_("AR: Char 163"), panasprat2 }, { N_("AR: Char 211"), panasprat2 }},
+    /* 6 */    {{ N_("Class2"), panunknown }, { N_("Class3"), panunknown }, { N_("Class4"), panunknown }, { N_("Class5"), panunknown }, { N_("Class6"), panunknown }, { N_("Class7"), panunknown }, { N_("Class8"), panunknown }, { N_("Class9"), panunknown }, { N_("Class10"), panunknown }},
+    {NULL}};
+
 /* There is a similar list at the end of python.c, untranslated strings for */
 /*  scripting use */
 static GTextInfo mslanguages[] = {
@@ -669,13 +1029,13 @@ static GTextInfo unicoderangenames[] = {
     { (unichar_t *) N_("Spacing Modifier Letters"),		NULL, 0, 0, (void *) 5, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Combining Diacritical Marks"),		NULL, 0, 0, (void *) 6, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Greek and Coptic"),			NULL, 0, 0, (void *) 7, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unasigned Bit 8"),			NULL, 0, 0, (void *) 8, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Cyrillic/Cyrillic Supplementary"),	NULL, 0, 0, (void *) 9, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Coptic"),				NULL, 0, 0, (void *) 8, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Cyrillic & Supplement"),		NULL, 0, 0, (void *) 9, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Armenian"),				NULL, 0, 0, (void *) 10, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Hebrew"),				NULL, 0, 0, (void *) 11, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 12"),			NULL, 0, 0, (void *) 12, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Vai"),					NULL, 0, 0, (void *) 12, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Arabic"),				NULL, 0, 0, (void *) 13, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 14"),			NULL, 0, 0, (void *) 14, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("N'Ko"),					NULL, 0, 0, (void *) 14, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Devanagari"),				NULL, 0, 0, (void *) 15, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Bengali"),				NULL, 0, 0, (void *) 16, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Gurmukhi"),				NULL, 0, 0, (void *) 17, NULL, 0, 0, 0, 0, 0, 0, 1},
@@ -688,7 +1048,7 @@ static GTextInfo unicoderangenames[] = {
     { (unichar_t *) N_("Thai"),					NULL, 0, 0, (void *) 24, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Lao"),					NULL, 0, 0, (void *) 25, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Georgian"),				NULL, 0, 0, (void *) 26, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 27"),			NULL, 0, 0, (void *) 27, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Balinese"),				NULL, 0, 0, (void *) 27, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Hangul Jamo"),				NULL, 0, 0, (void *) 28, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Latin Extended Additional"),		NULL, 0, 0, (void *) 29, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Greek Extended"),			NULL, 0, 0, (void *) 30, NULL, 0, 0, 0, 0, 0, 0, 1},
@@ -699,7 +1059,7 @@ static GTextInfo unicoderangenames[] = {
     { (unichar_t *) N_("Letterlike Symbols"),			NULL, 0, 0, (void *) 35, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Numeric Forms"),			NULL, 0, 0, (void *) 36, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Arrows (& Supplements A&B)"),		NULL, 0, 0, (void *) 37, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Mathematical Operators (Supplementary & Misc."), NULL, 0, 0, (void *) 38, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Mathematical Operators (Suppl. & Misc.)"), NULL, 0, 0, (void *) 38, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Miscellaneous Technical"),		NULL, 0, 0, (void *) 39, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Control Pictures"),			NULL, 0, 0, (void *) 40, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Optical Character Recognition"),	NULL, 0, 0, (void *) 41, NULL, 0, 0, 0, 0, 0, 0, 1},
@@ -714,20 +1074,20 @@ static GTextInfo unicoderangenames[] = {
     { (unichar_t *) N_("Katakana & Phonetic Extensions"),	NULL, 0, 0, (void *) 50, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Bopomofo & Extended"),			NULL, 0, 0, (void *) 51, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Hangul Compatibility Jamo"),		NULL, 0, 0, (void *) 52, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 53"),			NULL, 0, 0, (void *) 53, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Enclosed CJK Leters and Months"),	NULL, 0, 0, (void *) 54, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Phags-pa"),				NULL, 0, 0, (void *) 53, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Enclosed CJK Letters and Months"),	NULL, 0, 0, (void *) 54, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("CJK Compatibility"),			NULL, 0, 0, (void *) 55, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Hangul Syllables"),			NULL, 0, 0, (void *) 56, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Non-Basic Multilingual Plane"),		NULL, 0, 0, (void *) 57, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 58"),			NULL, 0, 0, (void *) 58, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Phoenician"),				NULL, 0, 0, (void *) 58, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("CJK Unified Ideographs"),		NULL, 0, 0, (void *) 59, NULL, 0, 0, 0, 0, 0, 0, 1},
 		/* And too much other stuff to put in this string */
     { (unichar_t *) N_("Private Use Area"),			NULL, 0, 0, (void *) 60, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("CJK Compatability Ideographs"),		NULL, 0, 0, (void *) 61, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("CJK Compatibility Ideographs"),		NULL, 0, 0, (void *) 61, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Alphabetic Presentation Forms"),	NULL, 0, 0, (void *) 62, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Arabic Presentation Forms-A"),		NULL, 0, 0, (void *) 63, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Combining Half Marks"),			NULL, 0, 0, (void *) 64, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("CJK Compatability Forms"),		NULL, 0, 0, (void *) 65, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("CJK Compatibility Forms"),		NULL, 0, 0, (void *) 65, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Small Form Variants"),			NULL, 0, 0, (void *) 66, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Arabic Presentation Forms-B"),		NULL, 0, 0, (void *) 67, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Halfwidth and Fullwidth Forms"),	NULL, 0, 0, (void *) 68, NULL, 0, 0, 0, 0, 0, 0, 1},
@@ -750,41 +1110,41 @@ static GTextInfo unicoderangenames[] = {
     { (unichar_t *) N_("Old Italic"),				NULL, 0, 0, (void *) 85, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Gothic"),				NULL, 0, 0, (void *) 86, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Deseret"),				NULL, 0, 0, (void *) 87, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Byzantine Musical Symbols/Musical Symbols"), NULL, 0, 0, (void *) 88, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Musical Symbols, Byzantine & Western"), NULL, 0, 0, (void *) 88, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Mathematical Alphanumeric Symbols"),	NULL, 0, 0, (void *) 89, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Private Use (planes 15&16)"),		NULL, 0, 0, (void *) 90, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Variation Selectors"),			NULL, 0, 0, (void *) 91, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Tags"),					NULL, 0, 0, (void *) 92, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 93"),			NULL, 0, 0, (void *) 93, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 94"),			NULL, 0, 0, (void *) 94, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 95"),			NULL, 0, 0, (void *) 95, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 96"),			NULL, 0, 0, (void *) 96, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 97"),			NULL, 0, 0, (void *) 97, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 98"),			NULL, 0, 0, (void *) 98, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 99"),			NULL, 0, 0, (void *) 99, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 100"),			NULL, 0, 0, (void *) 100, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 101"),			NULL, 0, 0, (void *) 101, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 102"),			NULL, 0, 0, (void *) 102, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 103"),			NULL, 0, 0, (void *) 103, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 104"),			NULL, 0, 0, (void *) 104, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 105"),			NULL, 0, 0, (void *) 105, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 106"),			NULL, 0, 0, (void *) 106, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 107"),			NULL, 0, 0, (void *) 107, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 108"),			NULL, 0, 0, (void *) 108, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 109"),			NULL, 0, 0, (void *) 109, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 110"),			NULL, 0, 0, (void *) 110, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 111"),			NULL, 0, 0, (void *) 111, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 112"),			NULL, 0, 0, (void *) 112, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 113"),			NULL, 0, 0, (void *) 113, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 114"),			NULL, 0, 0, (void *) 114, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 115"),			NULL, 0, 0, (void *) 115, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 116"),			NULL, 0, 0, (void *) 116, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 117"),			NULL, 0, 0, (void *) 117, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 118"),			NULL, 0, 0, (void *) 118, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 119"),			NULL, 0, 0, (void *) 119, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 120"),			NULL, 0, 0, (void *) 120, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 121"),			NULL, 0, 0, (void *) 121, NULL, 0, 0, 0, 0, 0, 0, 1},
-    { (unichar_t *) N_("Unassigned Bit 122"),			NULL, 0, 0, (void *) 122, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Limbu"),				NULL, 0, 0, (void *) 93, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Tai Le"),				NULL, 0, 0, (void *) 94, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("New Tai Lue"),				NULL, 0, 0, (void *) 95, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Buginese"),				NULL, 0, 0, (void *) 96, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Glagolitic"),				NULL, 0, 0, (void *) 97, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Tifinagh"),				NULL, 0, 0, (void *) 98, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Yijing Hexagram Symbols"),		NULL, 0, 0, (void *) 99, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Syloti Nagri"),				NULL, 0, 0, (void *) 100, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Linear B Syllabary/Ideograms, Agean Num."),	NULL, 0, 0, (void *) 101, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Ancient Greek Numbers"),		NULL, 0, 0, (void *) 102, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Ugaritic"),				NULL, 0, 0, (void *) 103, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Old Persian"),				NULL, 0, 0, (void *) 104, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Shavian"),				NULL, 0, 0, (void *) 105, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Osmanya"),				NULL, 0, 0, (void *) 106, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Cypriot Syllabary"),			NULL, 0, 0, (void *) 107, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Kharoshthi"),				NULL, 0, 0, (void *) 108, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Tai Xuan Jing Symbols"),		NULL, 0, 0, (void *) 109, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Cuneiform Numbers & Punctuation"),	NULL, 0, 0, (void *) 110, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Counting Rod Numerals"),		NULL, 0, 0, (void *) 111, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Sudanese"),				NULL, 0, 0, (void *) 112, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Lepcha"),				NULL, 0, 0, (void *) 113, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Ol Chiki"),				NULL, 0, 0, (void *) 114, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Saurashtra"),				NULL, 0, 0, (void *) 115, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Kayah Li"),				NULL, 0, 0, (void *) 116, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Rejang"),				NULL, 0, 0, (void *) 117, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Cham"),					NULL, 0, 0, (void *) 118, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Ancient Symbols"),			NULL, 0, 0, (void *) 119, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Phaistos Disc"),			NULL, 0, 0, (void *) 120, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Carian/Lycian/Lydian"),			NULL, 0, 0, (void *) 121, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) N_("Mahjong & Domino Tiles"),		NULL, 0, 0, (void *) 122, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Unassigned Bit 123"),			NULL, 0, 0, (void *) 123, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Unassigned Bit 124"),			NULL, 0, 0, (void *) 124, NULL, 0, 0, 0, 0, 0, 0, 1},
     { (unichar_t *) N_("Unassigned Bit 125"),			NULL, 0, 0, (void *) 125, NULL, 0, 0, 0, 0, 0, 0, 1},
@@ -872,6 +1232,10 @@ static struct col_init ssci[] = {
     { me_enum, NULL, otfssfeattags, NULL, N_("Feature Tags") },
     { me_string, NULL, NULL, NULL, N_("Friendly Name") }
     };
+static struct col_init sizeci[] = {
+    { me_enum, NULL, mslanguages, NULL, N_("Language") },
+    { me_string, NULL, NULL, NULL, N_("Name") }
+    };
 static GTextInfo gridfit[] = {
     { (unichar_t *) N_("No Grid Fit"), NULL, 0, 0, (void *) 0, NULL, 0, 0, 0, 0, 1, 0, 1},
     { (unichar_t *) N_("Grid Fit"), NULL, 0, 0, (void *) 1, NULL, 0, 0, 0, 0, 0, 0, 1},
@@ -890,10 +1254,10 @@ static GTextInfo gfsymsmooth[] = {
     { NULL }};
 static struct col_init gaspci[] = {
     { me_int , NULL, NULL, NULL, N_("Gasp|For Pixels Per EM <= Value") },
-    { me_enum, NULL, gridfit, NULL, N_("Gasp|Grid Fit") },
-    { me_enum, NULL, antialias, NULL, N_("Gasp|Anti-Alias") },
-    { me_enum, NULL, symsmooth, NULL, N_("Gasp|Symmetric Smoothing") },
-    { me_enum, NULL, gfsymsmooth, NULL, N_("Gasp|Grid Fit w/ Sym Smooth") }
+    { me_enum, NULL, gridfit, NULL, N_("Gasp|Grid Fit") },			/* 1 */
+    { me_enum, NULL, antialias, NULL, N_("Gasp|Anti-Alias") },			/* 2 */
+    { me_enum, NULL, symsmooth, NULL, N_("Gasp|Symmetric Smoothing") },		/* 8 */
+    { me_enum, NULL, gfsymsmooth, NULL, N_("Gasp|Grid Fit w/ Sym Smooth") }	/* 4 */
     };
 static GTextInfo splineorder[] = {
     { (unichar_t *) N_("Cubic"), NULL, 0, 0, (void *) 0, NULL, 0, 0, 0, 0, 1, 0, 1},
@@ -1082,46 +1446,47 @@ static const char outlinepl[] = "konturowa";
 static const char mediumpl[] = "zwykła";
 static const char bookpl[] = "zwykła";
 
-
-
 static struct langstyle regs[] = { {0x409, regulareng}, { 0x40c, regularfren }, { 0x410, regularital }, { 0x407, regulargerm }, { 0x40a, regularspan }, { 0x419, regularru }, { 0x40e, regularhu },
 	{ 0x413, regulardutch}, { 0x41d, regularswed }, { 0x414, regularnor },
 	{ 0x406, regulardanish}, {0x415, regularpl }, { 0x804, "正常"},
-	{ 0x408, "κανονική"}, { 0x42a, "Chuẩn"}, { 0 }};
+	{ 0x408, "κανονική"}, { 0x42a, "Chuẩn"}, { 0x418, "Normal"}, { 0 }};
 static struct langstyle meds[] = { {0x409, mediumeng}, { 0x410, mediumital },
 	{ 0x40c, mediumfren }, { 0x407, mediumgerm }, { 0x40e, mediumhu },
 	{ 0x406, mediumdanish}, {0x415, mediumpl }, { 0x804, "中等"}, 
-	{ 0x408, "µεσαία"}, { 0x42a, "Vừa"}, { 0x413, mediumdutch}, { 0 }};
+	{ 0x408, "µεσαία"}, { 0x42a, "Vừa"}, { 0x413, mediumdutch}, 
+        { 0x418, "Mediu"}, { 0 }};
 static struct langstyle books[] = { {0x409, bookeng}, { 0x410, bookital },
 	{ 0x407, bookgerm }, { 0x40e, bookhu }, { 0x40e, bookhu2 },
 	{ 0x415, bookpl}, { 0x804, "书体"}, { 0x408, "ßιßλίου"},
-	{ 0x42a, "Sách"}, { 0x413, bookdutch}, { 0 }};
+	{ 0x42a, "Sách"}, { 0x413, bookdutch}, { 0x418, "Carte"}, { 0 }};
 static struct langstyle bolds[] = { {0x409, boldeng}, { 0x410, boldital }, { 0x40c, boldfren }, { 0x407, boldgerm }, { 0x407, boldgerm2 }, { 0x40a, boldspan}, { 0x419, boldru }, { 0x40e, boldhu }, { 0x40e, boldhu2 }, 
 	{ 0x413, bolddutch}, { 0x41d, boldswed }, { 0x414, boldnor },
 	{ 0x406, bolddanish}, { 0x415, boldpl}, { 0x804, "粗体"},  
-	{ 0x408, "έντονη"}, { 0x42a, "Đậm"}, { 0 }};
+	{ 0x408, "έντονη"}, { 0x42a, "Đậm"}, {0x418,"Aldin"}, { 0 }};
 static struct langstyle italics[] = { {0x409, italiceng}, { 0x410, italicital }, { 0x40c, italicfren }, { 0x407, italicgerm }, { 0x40a, italicspan}, { 0x419, italicru }, { 0x40e, italichu },
 	{ 0x413, italicdutch}, { 0x413, italicdutch2}, { 0x41d, italicswed }, { 0x414, italicnor },
 	{ 0x406, italicdanish}, { 0x415, italicpl}, { 0x804, "斜体"},
-	{ 0x408, "Λειψίας"}, { 0x42a, "Nghiêng" }, { 0 }};
+	{ 0x408, "Λειψίας"}, { 0x42a, "Nghiêng" }, { 0x418, "Cursiv"},  { 0 }};
 static struct langstyle obliques[] = { {0x409, obliqueeng}, { 0x410, obliqueital },
 	{ 0x40c, obliquefren }, { 0x407, obliquegerm }, { 0x419, obliqueru },
 	{ 0x40e, obliquehu }, { 0x40e, obliquehu2 }, {0x415, obliquepl},
 	{ 0x804, "斜体"}, { 0x408, "πλάγια"},
-	{ 0x42a, "Xiên" }, { 0x413, obliquedutch}, { 0x413, obliquedutch2}, { 0 }};
+	{ 0x42a, "Xiên" }, { 0x413, obliquedutch}, { 0x413, obliquedutch2}, 
+        { 0x418, "Înclinat"}, { 0 }};
 static struct langstyle demibolds[] = { {0x409, demiboldeng}, {0x409, demiboldeng3}, {0x409, demiboldeng5},
 	{ 0x410, demiboldital }, { 0x40c, demiboldfren }, { 0x40c, demiboldfren2 }, { 0x407, demiboldgerm }, { 0x407, demiboldgerm2 },
 	{ 0x419, demiboldru }, { 0x40e, demiboldhu }, { 0x40e, demiboldhu2 },
 	{ 0x406, demibolddanish}, { 0x415, demiboldpl },
 	{ 0x804, "略粗"}, { 0x408, "ηµιέντονη"},
-	{ 0x42a, "Nửa đậm"}, { 0x413, demibolddutch}, { 0 }};
+	{ 0x42a, "Nửa đậm"}, { 0x413, demibolddutch}, 
+        {0x418, "Semialdin"}, { 0 }};
 static struct langstyle heavys[] = { {0x409, heavyeng}, { 0x410, heavyital },
 	{ 0x419, heavyru }, { 0x40e, heavyhu }, { 0x40e, heavyhu2 },
 	{ 0x415, heavypl }, { 0x804, "粗"}, { 0 }};
 static struct langstyle blacks[] = { {0x409, blackeng}, { 0x410, blackital }, { 0x40c, blackfren }, { 0x407, blackgerm }, { 0x419, blackru }, { 0x40e, blackhu }, { 0x40e, blackhu2 }, { 0x40a, blackspan }, 
 	{ 0x413, blackdutch}, { 0x41d, blackswed }, { 0x414, blacknor }, { 0x406, blackdanish}, 
 	{ 0x415, heavypl }, { 0x804, "黑"},  { 0x408, "µαύρα"},
-	{ 0x42a, "Đen"}, 0 };
+	{ 0x42a, "Đen"}, { 0x418, "Negru"}, 0 };
 static struct langstyle thins[] = { {0x409, thineng}, { 0x410, thinital },
 	{ 0x419, thinru }, { 0x40e, thinhu }, { 0x415, thinpl},
 	{ 0x804, "细"}, { 0 }};
@@ -1130,20 +1495,20 @@ static struct langstyle extralights[] = { {0x409, extralighteng}, {0x409, extral
 static struct langstyle lights[] = { {0x409, lighteng}, {0x410, lightital}, {0x40c, lightfren}, {0x407, lightgerm}, { 0x419, lightru }, { 0x40e, lighthu }, { 0x40a, lightspan }, 
 	{ 0x413, lightdutch}, { 0x41d, lightswed }, { 0x414, lightnor },
 	{ 0x406, lightdanish}, { 0x415, lightpl}, { 0x804, "细"},
-	{ 0x408, "λεπτή"}, { 0x42a, "Nhẹ" }, { 0 }};
+	{ 0x408, "λεπτή"}, { 0x42a, "Nhẹ" }, { 0x418, "Subțire"}, { 0 }};
 static struct langstyle condenseds[] = { {0x409, condensedeng}, {0x410, condensedital}, {0x40c, condensedfren}, {0x407, condensedgerm}, { 0x419, condensedru }, { 0x40e, condensedhu }, { 0x40a, condensedspan }, 
 	{ 0x413, condenseddutch}, { 0x41d, condensedswed },
 	{ 0x414, condensednor }, { 0x406, condenseddanish},
 	{ 0x415, condensedpl }, { 0x804, "压缩"},
-	{ 0x408, "πυκνή"}, { 0x42a, "Hẹp" }, { 0 }};
+	{ 0x408, "πυκνή"}, { 0x42a, "Hẹp" }, { 0x418, "Îngust"}, { 0 }};
 static struct langstyle expandeds[] = { {0x409, expandedeng}, {0x410, expandedital}, {0x40c, expandedfren}, {0x407, expandedgerm}, { 0x419, expandedru }, { 0x40e, expandedhu }, { 0x40a, expandedspan }, 
 	{ 0x413, expandeddutch}, { 0x41d, expandedswed }, { 0x414, expandednor },
 	{ 0x406, expandeddanish}, { 0x415, expandedpl }, { 0x804, "加宽"},
-	{ 0x408, "αραιή"}, { 0x42a, "Rộng" }, { 0 }};
+	{ 0x408, "αραιή"}, { 0x42a, "Rộng" }, { 0x418, "Expandat"}, { 0 }};
 static struct langstyle outlines[] = { {0x409, outlineeng}, {0x40c, outlinefren},
 	{0x407, outlinegerm}, {0x40e, outlinehu}, { 0x406, outlinedanish},
 	{0x415, outlinepl}, { 0x804, "轮廓"}, { 0x408, "περιγράμματος"},
-	{0x42a, "Nét ngoài" }, { 0x413, outlinedutch}, { 0 }};
+	{0x42a, "Nét ngoài" }, { 0x413, outlinedutch}, {0x418, "Contur"}, { 0 }};
 static struct langstyle *stylelist[] = {regs, meds, books, demibolds, bolds, heavys, blacks,
 	extralights, lights, thins, italics, obliques, condenseds, expandeds, outlines, NULL };
 
@@ -1190,16 +1555,9 @@ static struct langstyle *stylelist[] = {regs, meds, books, demibolds, bolds, hea
 #define CID_StrokeWidth		1223
 #define CID_Backgrounds		1226
 
-#define CID_PrivateEntries	2001
-#define	CID_PrivateValues	2002
-#define	CID_Add			2003
+#define CID_Private		2001
 #define CID_Guess		2004
-#define CID_Remove		2005
 #define CID_Hist		2006
-#define CID_Top			2007
-#define CID_Up			2008
-#define CID_Down		2009
-#define CID_Bottom		2010
 
 #define CID_TTFTabs		3000
 #define CID_WeightClass		3001
@@ -1304,9 +1662,6 @@ static struct langstyle *stylelist[] = {regs, meds, books, demibolds, bolds, hea
 #define CID_DesignTop		8303
 #define CID_StyleID		8304
 #define CID_StyleName		8305
-#define CID_StyleNameNew	8306
-#define CID_StyleNameDel	8307
-#define CID_StyleNameRename	8308
 
 #define CID_Tabs		10001
 #define CID_OK			10002
@@ -1408,394 +1763,322 @@ static struct { const char *name; short type, arr_size, present; } KnownPrivates
     { NULL }
 };
 
-struct ask_data {
-    int ret;
-    int done;
+static GTextInfo psprivate_nameids[] = {
+/* Don't translate these here either */
+    { (unichar_t *) "BlueValues", NULL, 0, 0, NULL, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "OtherBlues", NULL, 0, 0, NULL, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "BlueFuzz", NULL, 0, 0, NULL, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "FamilyBlues", NULL, 0, 0, NULL, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "FamilyOtherBlues", NULL, 0, 0, NULL, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "BlueScale", NULL, 0, 0, NULL, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "BlueShift", NULL, 0, 0, NULL, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "StdHW", NULL, 0, 0, NULL, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "StdVW", NULL, 0, 0, NULL, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "StemSnapH", NULL, 0, 0, NULL, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "StemSnapV", NULL, 0, 0, NULL, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "ForceBold", NULL, 0, 0, NULL, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "LanguageGroup", NULL, 0, 0, NULL, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "RndStemUp", NULL, 0, 0, NULL, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "lenIV", NULL, 0, 0, NULL, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "ExpansionFactor", NULL, 0, 0, NULL, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { (unichar_t *) "Erode", NULL, 0, 0, NULL, NULL, 0, 0, 0, 0, 0, 0, 1},
+    { NULL }
 };
 
-static int Ask_Cancel(GGadget *g, GEvent *e) {
-    GWindow gw;
-    struct ask_data *d;
+static void PI_KeyEnable(GGadget *g,GMenuItem *mi, int r, int c) {
+    int i,j, rows;
+    struct matrix_data *strings = _GMatrixEditGet(g, &rows);
+    int cols = GMatrixEditGetColCnt(g);
+    int found;
 
-    if ( e->type==et_controlevent && e->u.control.subtype == et_buttonactivate ) {
-	gw = GGadgetGetWindow(g);
-	d = GDrawGetUserData(gw);
-	d->done = true;
-    }
-return( true );
-}
-
-static int Ask_OK(GGadget *g, GEvent *e) {
-    GWindow gw;
-    struct ask_data *d;
-
-    if ( e->type==et_controlevent && e->u.control.subtype == et_buttonactivate ) {
-	gw = GGadgetGetWindow(g);
-	d = GDrawGetUserData(gw);
-	d->done = d->ret = true;
-    }
-return( true );
-}
-
-static int ask_e_h(GWindow gw, GEvent *event) {
-    if ( event->type==et_close ) {
-	struct ask_data *d = GDrawGetUserData(gw);
-	d->done = true;
-    } else if ( event->type == et_char ) {
-return( false );
-    }
-return( true );
-}
-
-static char *AskKey(SplineFont *sf) {
-    int i,j, cnt=0;
-    GTextInfo *ti;
-    GRect pos;
-    GWindow gw;
-    GWindowAttrs wattrs;
-    GGadgetCreateData gcd[8], boxes[3], *varray[9], *harray[7];
-    GTextInfo label[8];
-    struct ask_data d;
-    char *ret;
-    int ptwidth;
-
-    if ( sf->private==NULL )
-	for ( i=0; KnownPrivates[i].name!=NULL; ++i ) {
-	    KnownPrivates[i].present = 0;
-	    ++cnt;
+    for ( i=0; mi[i].ti.text!=NULL; ++i ) {
+	found = 0;
+	for ( j=0; j<rows; ++j ) {
+	    if ( strcmp((char *) mi[i].ti.text,strings[j*cols+0].u.md_str)==0 ) {
+		found=1;
+	break;
+	    }
 	}
-    else {
-	for ( i=0; KnownPrivates[i].name!=NULL; ++i ) {
-	    for ( j=0; j<sf->private->next; ++j )
-		if ( strcmp(KnownPrivates[i].name,sf->private->keys[j])==0 )
-	    break;
-	    if ( !(KnownPrivates[i].present = (j<sf->private->next)) )
-		++cnt;
+	if ( j==r && found ) {
+	    mi[i].ti.disabled = false;
+	    mi[i].ti.selected = true;
+	} else {
+	    mi[i].ti.disabled = found;
+	    mi[i].ti.selected = false;
 	}
     }
-    if ( cnt==0 )
-	ti = NULL;
-    else {
-	ti = gcalloc(cnt+1,sizeof(GTextInfo));
-	for ( i=cnt=0; KnownPrivates[i].name!=NULL; ++i )
-	    if ( !KnownPrivates[i].present )
-		ti[cnt++].text = uc_copy(KnownPrivates[i].name);
+}
+
+static struct col_init psprivate_ci[] = {
+    { me_stringchoice, NULL, psprivate_nameids, PI_KeyEnable, N_("Key") },
+    { me_string, NULL, NULL, NULL, N_("Value") }
+    };
+
+static char *rpldecimal(const char *orig,const char *decimal_point,const char *oldloc) {
+    char *end;
+    char *new, *npt; const char *pt;
+    int dlen;
+    double dval;
+    char buffer[40];
+
+    /* if the current locale uses a "." for a decimal point the we don't need */
+    /*  to translate the number, just check that it is valid */
+    if ( strcmp(decimal_point,".")==0 ) {
+	strtod(orig,&end);
+	while ( isspace(*end)) ++end;
+	if ( *end!='\0' )
+return( NULL );
+return( copy(orig));
     }
 
-    memset(&d,'\0',sizeof(d));
-
-    memset(&wattrs,0,sizeof(wattrs));
-    wattrs.mask = wam_events|wam_cursor|wam_utf8_wtitle|wam_undercursor|wam_isdlg|wam_restrict;
-    wattrs.event_masks = ~(1<<et_charup);
-    wattrs.restrict_input_to_me = 1;
-    wattrs.is_dlg = true;
-    wattrs.undercursor = 1;
-    wattrs.cursor = ct_pointer;
-    wattrs.utf8_window_title = _("Private Key");
-    pos.x = pos.y = 0;
-    ptwidth = 2*GIntGetResource(_NUM_Buttonsize)+GGadgetScale(60);
-    pos.width =GDrawPointsToPixels(NULL,ptwidth);
-    pos.height = GDrawPointsToPixels(NULL,90);
-    gw = GDrawCreateTopWindow(NULL,&pos,ask_e_h,&d,&wattrs);
-
-    memset(&label,0,sizeof(label));
-    memset(&gcd,0,sizeof(gcd));
-
-    label[0].text = (unichar_t *) _("Key (in Private dictionary)");
-    label[0].text_is_1byte = true;
-    gcd[0].gd.label = &label[0];
-    gcd[0].gd.pos.x = 10; gcd[0].gd.pos.y = 6;
-    gcd[0].gd.flags = gg_visible | gg_enabled;
-    gcd[0].creator = GLabelCreate;
-    varray[0] = &gcd[0]; varray[1] = NULL;
-
-    gcd[1].gd.pos.x = 10; gcd[1].gd.pos.y = 18; gcd[1].gd.pos.width = ptwidth-20;
-    gcd[1].gd.flags = gg_visible | gg_enabled;
-    gcd[1].creator = GTextFieldCreate;
-    if ( ti!=NULL ) {
-	gcd[1].gd.u.list = ti;
-	gcd[1].creator = GListFieldCreate;
+    npt = new = galloc(2*strlen(orig)+10);
+    dlen = strlen(decimal_point);
+    /* now I want to change the number as little as possible. So if they use */
+    /*  arabic numerals we can get by with just switching the decimal point */
+    /*  If they use some other number convention, then parse in the old locale*/
+    /*  and sprintf in the PostScript ("C") locale. This might lose some */
+    /*  precision but the basic idea will get across */
+    for ( pt=orig; *pt; ) {
+	if ( strncmp(pt,decimal_point,dlen)==0 ) {
+	    pt += dlen;
+	    *npt++ = '.';
+	} else
+	    *npt++ = *pt++;
     }
-    varray[2] = &gcd[1]; varray[3] = NULL;
-    varray[4] = GCD_Glue; varray[5] = NULL;
+    *npt = '\0';
 
-    gcd[2].gd.pos.x = 20-3; gcd[2].gd.pos.y = 90-35-3;
-    gcd[2].gd.pos.width = -1; gcd[2].gd.pos.height = 0;
-    gcd[2].gd.flags = gg_visible | gg_enabled | gg_but_default;
-    label[2].text = (unichar_t *) _("_OK");
-    label[2].text_is_1byte = true;
-    label[2].text_in_resource = true;
-    gcd[2].gd.label = &label[2];
-    gcd[2].gd.handle_controlevent = Ask_OK;
-    gcd[2].creator = GButtonCreate;
-    harray[0] = GCD_Glue; harray[1] = &gcd[2]; harray[2] = GCD_Glue;
+    setlocale(LC_NUMERIC,"C");
+    strtod(new,&end);
+    setlocale(LC_NUMERIC,oldloc);
+    while ( isspace(*end)) ++end;
+    if ( *end=='\0' ) {
+	char *ret = copy(new);
+	free(new);
+return( ret );
+    }
 
-    gcd[3].gd.pos.x = -20; gcd[3].gd.pos.y = 90-35;
-    gcd[3].gd.pos.width = -1; gcd[3].gd.pos.height = 0;
-    gcd[3].gd.flags = gg_visible | gg_enabled | gg_but_cancel;
-    label[3].text = (unichar_t *) _("_Cancel");
-    label[3].text_is_1byte = true;
-    label[3].text_in_resource = true;
-    gcd[3].gd.label = &label[3];
-    gcd[3].gd.handle_controlevent = Ask_Cancel;
-    gcd[3].creator = GButtonCreate;
-    harray[3] = GCD_Glue; harray[4] = &gcd[3]; harray[5] = GCD_Glue;
-    harray[6] = NULL;
-    varray[6] = &boxes[2]; varray[7] = NULL;
-    varray[8] = NULL;
+    /* OK, can we parse the number in the original local? */
+    dval = strtod(new,&end);
+    while ( isspace(*end)) ++end;
+    if ( *end!='\0' ) {
+	free(new);
+return( NULL );
+    }
+    free(new);
+    setlocale(LC_NUMERIC,"C");
+    sprintf( buffer, "%g", dval );
+    setlocale(LC_NUMERIC,oldloc);
+return( copy(buffer));
+}
 
-    gcd[4].gd.pos.x = 2; gcd[4].gd.pos.y = 2;
-    gcd[4].gd.pos.width = pos.width-4; gcd[4].gd.pos.height = pos.height-2;
-    gcd[4].gd.flags = gg_enabled | gg_visible | gg_pos_in_pixels;
-    gcd[4].creator = GGroupCreate;
+static char *rplarraydecimal(const char *orig,const char *decimal_point,const char *oldloc) {
+    char *new, *npt, *rpl;
+    int nlen;
+    const char *start, *pt; int ch;
 
-    memset(boxes,0,sizeof(boxes));
-    boxes[0].gd.pos.x = boxes[0].gd.pos.y = 2;
-    boxes[0].gd.flags = gg_enabled|gg_visible;
-    boxes[0].gd.u.boxelements = varray;
-    boxes[0].creator = GHVGroupCreate;
+    nlen = 2*strlen(orig)+10;
+    npt = new = gcalloc(1,nlen+1);
+    *npt++ = '[';
 
-    boxes[2].gd.flags = gg_enabled|gg_visible;
-    boxes[2].gd.u.boxelements = harray;
-    boxes[2].creator = GHBoxCreate;
+    for ( pt=orig; isspace(*pt) || *pt=='['; ++pt );
+    while ( *pt!=']' && *pt!='\0' ) {
+	start=pt;
+	while ( *pt!=']' && *pt!=' ' && *pt!='\0' ) ++pt;
+	ch = *pt; *(char *) pt = '\0';
+	rpl = rpldecimal(start,decimal_point,oldloc);
+	*(char *) pt = ch;
+	if ( rpl==NULL ) {
+	    gwwv_post_notice(_("Bad type"),_("Expected array of numbers.\nFailed to parse \"%.*s\" as a number."),
+		    pt-start, start);
+	    free(new);
+return( NULL );
+	}
+	if ( npt-new + strlen(rpl) + 2 >nlen ) {
+	    int noff = npt-new;
+	    new = grealloc(new,nlen += strlen(rpl)+100);
+	    npt = new+noff;
+	}
+	if ( npt[-1]!='[' )
+	    *npt++ = ' ';
+	strcpy(npt,rpl);
+	free(rpl);
+	npt += strlen(npt);
+	while ( isspace(*pt)) ++pt;
+    }
+    *npt++ =']';
+    *npt = '\0';
+    rpl = copy(new);
+    free(new);
+return( rpl );
+}
 
-    GGadgetsCreate(gw,boxes);
-    GHVBoxSetExpandableRow(boxes[0].ret,gb_expandglue);
-    GHVBoxSetExpandableCol(boxes[2].ret,gb_expandgluesame);
-    GHVBoxFitWindow(boxes[0].ret);
-    GWidgetHidePalettes();
-    GDrawSetVisible(gw,true);
-    while ( !d.done )
-	GDrawProcessOneEvent(NULL);
-    ret = NULL;
-    if ( d.ret )
-	ret = cu_copy(_GGadgetGetTitle(gcd[1].ret));
-    GTextInfoListFree(ti);
-    GDrawDestroyWindow(gw);
+static void PSPrivate_FinishEdit(GGadget *g,int r, int c, int wasnew) {
+    int rows, cols = GMatrixEditGetColCnt(g);
+    struct matrix_data *strings = _GMatrixEditGet(g, &rows);
+    struct gfi_data *d = GDrawGetUserData(GGadgetGetWindow(g));
+    char *key = strings[r*cols+0].u.md_str;
+    char *val = strings[r*cols+1].u.md_str;
+    char *pt, *ept, *newval;
+    char *oldloc;
+    struct psdict *tempdict;
+
+    if ( key==NULL )
+return;
+
+    if ( c==0 && (wasnew || val==NULL || *val=='\0')) {
+	tempdict = gcalloc(1,sizeof(*tempdict));
+	SFPrivateGuess(d->sf,ly_fore,tempdict,key,true);
+	strings[r*cols+1].u.md_str = copy(PSDictHasEntry(tempdict,key));
+	PSDictFree(tempdict);
+    } else if ( c==1 && val!=NULL ) {
+	struct lconv *loc = localeconv();
+	int i;
+	for ( i=0; KnownPrivates[i].name!=NULL; ++i )
+	    if ( strcmp(KnownPrivates[i].name,key)==0 )
+	break;
+	if ( KnownPrivates[i].name==NULL )	/* If we don't recognize it, leave it be */
+return;
+	oldloc = copy(setlocale(LC_NUMERIC,NULL));
+
+	for ( pt=val; isspace(*pt); ++pt );
+	for ( ept = val+strlen(val-1); ept>pt && isspace(*ept); --ept );
+	if ( KnownPrivates[i].type==pt_boolean ) {
+	    if ( strcasecmp(val,"true")==0 || strcasecmp(val,"t")==0 || strtol(val,NULL,10)!=0 ) {
+		/* If they make a mistake about case, correct it */
+		strings[r*cols+1].u.md_str = copy("true");
+		free(val);
+		GGadgetRedraw(g);
+	    } else if ( strcasecmp(val,"false")==0 || strcasecmp(val,"f")==0 || (*val=='0' && strtol(val,NULL,10)==0) ) {
+		strings[r*cols+1].u.md_str = copy("false");
+		free(val);
+		GGadgetRedraw(g);
+	    } else
+/* GT: The words "true" and "false" should be left untranslated. We are restricted */
+/* GT: here by what PostScript understands, and it only understands the English */
+/* GT: words. You may, of course, change it to something like ("true" (vrai) ou "false" (faux)) */
+		gwwv_post_notice(_("Bad type"),_("Expected boolean value.\n(\"true\" or \"false\")"));
+	} else if ( KnownPrivates[i].type==pt_code ) {
+	    if ( *pt!='\0' && (*pt!='{' || (ept>=pt && *ept!='}')) )
+		gwwv_post_notice(_("Bad type"),_("Expected PostScript code.\nWhich usually begins with a \"{\" and ends with a \"}\"."));
+	} else if ( KnownPrivates[i].type==pt_number ) {
+	    newval = rpldecimal(val,loc->decimal_point,oldloc);
+	    if ( newval==NULL )
+		gwwv_post_notice(_("Bad type"),_("Expected number."));
+	    else if ( strcmp(newval,val)==0 )
+		free(newval);		/* No change */
+	    else {
+		strings[r*cols+1].u.md_str = newval;
+		free(val);
+		GGadgetRedraw(g);
+	    }
+	} else if ( KnownPrivates[i].type==pt_array ) {
+	    newval = rplarraydecimal(val,loc->decimal_point,oldloc);
+	    if ( newval==NULL )
+		gwwv_post_notice(_("Bad type"),_("Expected number."));
+	    else if ( strcmp(newval,val)==0 )
+		free(newval);		/* No change */
+	    else {
+		strings[r*cols+1].u.md_str = newval;
+		free(val);
+		GGadgetRedraw(g);
+	    }
+	}
+	free(oldloc);
+    }
+}
+
+static void PSPrivate_MatrixInit(struct matrixinit *mi,struct gfi_data *d) {
+    SplineFont *sf = d->sf;
+    int i,j;
+    struct matrix_data *md;
+
+    memset(mi,0,sizeof(*mi));
+    mi->col_cnt = 2;
+    mi->col_init = psprivate_ci;
+
+    mi->initial_row_cnt = sf->private==NULL?0:sf->private->next;
+    md = gcalloc(2*(mi->initial_row_cnt+1),sizeof(struct matrix_data));
+    if ( sf->private!=NULL ) {
+	for ( i=j=0; i<sf->private->next; ++i ) {
+	    md[2*j  ].u.md_str = copy(sf->private->keys[i]);
+	    md[2*j+1].u.md_str = copy(sf->private->values[i]);
+	    ++j;
+	}
+    }
+    mi->matrix_data = md;
+
+    mi->finishedit = PSPrivate_FinishEdit;
+}
+
+static struct psdict *GFI_ParsePrivate(struct gfi_data *d) {
+    struct psdict *ret = gcalloc(1,sizeof(struct psdict));
+    GGadget *private = GWidgetGetControl(d->gw,CID_Private);
+    int rows, cols = GMatrixEditGetColCnt(private);
+    struct matrix_data *strings = GMatrixEditGet(private, &rows);
+    int i,j;
+
+    ret->cnt = rows;
+    ret->keys = galloc(rows*sizeof(char *));
+    ret->values = galloc(rows*sizeof(char *));
+    for ( i=j=0; i<rows; ++i ) {
+	if ( strings[i*cols+0].u.md_str!=NULL && strings[i*cols+1].u.md_str!=NULL ) {
+	    ret->keys[j] = copy(strings[i*cols+0].u.md_str);
+	    ret->values[j++] = copy(strings[i*cols+1].u.md_str);
+	}
+    }
+    ret->next = j;
 return( ret );
 }
 
-static GTextInfo *PI_ListSet(SplineFont *sf) {
-    GTextInfo *ti = gcalloc((sf->private==NULL?0:sf->private->next)+1,sizeof( GTextInfo ));
-    int i=0;
-
-    if ( sf->private!=NULL ) {
-	for ( i=0; i<sf->private->next; ++i ) {
-	    ti[i].text = uc_copy(sf->private->keys[i]);
-	}
-    }
-    if ( i!=0 )
-	ti[0].selected = true;
-return( ti );
-}
-
-static GTextInfo **PI_ListArray(struct psdict *private) {
-    GTextInfo **ti = gcalloc((private==NULL?0:private->next)+1,sizeof( GTextInfo *));
-    int i=0;
-
-    if ( private!=NULL ) {
-	for ( i=0; i<private->next; ++i ) {
-	    ti[i] = gcalloc(1,sizeof(GTextInfo));
-	    ti[i]->fg = ti[i]->bg = COLOR_DEFAULT;
-	    ti[i]->text = uc_copy(private->keys[i]);
-	}
-    }
-    ti[i] = gcalloc(1,sizeof(GTextInfo));
-    if ( i!=0 )
-	ti[0]->selected = true;
-return( ti );
-}
-
-static void PIPrivateCheck(struct gfi_data *d) {
-    if ( d->private==NULL ) {
-	if ( d->sf->private==NULL ) {
-	    d->private = gcalloc(1,sizeof(struct psdict));
-	    d->private->cnt = 10;
-	    d->private->keys = gcalloc(10,sizeof(char *));
-	    d->private->values = gcalloc(10,sizeof(char *));
-	} else
-	    d->private = PSDictCopy(d->sf->private);
-    }
-}
-
-static int PIFinishFormer(struct gfi_data *d) {
-    unichar_t *end;
-    char *buts[3];
-    buts[0] = _("_OK"); buts[1] = _("_Cancel"); buts[2]=NULL;
-
-    if ( d->old_sel < 0 )
-return( true );
-    if ( d->private==NULL && d->sf->private!=NULL ) {
-	const unichar_t *val = _GGadgetGetTitle(GWidgetGetControl(d->gw,CID_PrivateValues));
-	if ( uc_strcmp(val,d->sf->private->values[d->old_sel])==0 )
-return( true );			/* Didn't change */
-	PIPrivateCheck(d);
-    }
-    if ( d->private!=NULL && d->old_sel>=0 && d->old_sel!=d->private->next ) {
-	const unichar_t *val = _GGadgetGetTitle(GWidgetGetControl(d->gw,CID_PrivateValues));
-	const unichar_t *pt = val;
-	int i;
-
-	/* does the type appear reasonable? */
-	while ( isspace(*pt)) ++pt;
-	for ( i=0; KnownPrivates[i].name!=NULL; ++i )
-	    if ( strcmp(KnownPrivates[i].name,d->private->keys[d->old_sel])==0 )
-	break;
-	if ( KnownPrivates[i].name!=NULL ) {
-	    if ( KnownPrivates[i].type==pt_array ) {
-		if ( *pt!='[' && gwwv_ask(_("Bad type"),(const char **) buts,0,1,_("Expected array.\nProceed anyway?"))==1 )
-return( false );
-	    } else if ( KnownPrivates[i].type==pt_boolean ) {
-		if ( uc_strcmp(pt,"true")!=0 && uc_strcmp(pt,"false")!=0 &&
-			gwwv_ask(_("Bad type"),(const char **) buts,0,1,_("Expected boolean.\nProceed anyway?"))==1 )
-return( false );
-	    } else if ( KnownPrivates[i].type==pt_code ) {
-		if ( *pt!='{' && gwwv_ask(_("Bad type"),(const char **) buts,0,1,_("Expected code.\nProceed anyway?"))==1 )
-return( false );
-	    } else if ( KnownPrivates[i].type==pt_number ) {
-		u_strtod(pt,&end);
-		while ( isspace(*end)) ++end;
-		if ( *end!='\0' && gwwv_ask(_("Bad type"),(const char **) buts,0,1,_("Expected number.\nProceed anyway?"))==1 )
-return( false );
-	    }
-	}
-
-	/* Ok then set it */
-	free(d->private->values[d->old_sel]);
-	d->private->values[d->old_sel] = cu_copy(val);
-	d->old_sel = -1;
-    }
-return( true );
-}
-
-static void ProcessListSel(struct gfi_data *d) {
-    GGadget *list = GWidgetGetControl(d->gw,CID_PrivateEntries);
-    int sel = GGadgetGetFirstListSelectedItem(list);
-    unichar_t *temp;
-    static const unichar_t nullstr[] = { 0 };
-    SplineFont *sf = d->sf;
-    struct psdict *private;
-
-    if ( d->old_sel==sel )
-return;
-
-    if ( !PIFinishFormer(d)) {
-	/*GGadgetSelectListItem(list,sel,false);*/
-	GGadgetSelectListItem(list,d->old_sel,true);
-return;
-    }
-    private = d->private ? d->private : sf->private;
-    GGadgetSetEnabled(GWidgetGetControl(d->gw,CID_Bottom),sel!=-1 && private!=NULL && sel<private->next-1 );
-    GGadgetSetEnabled(GWidgetGetControl(d->gw,CID_Down),sel!=-1 && private!=NULL && sel<private->next-1 );
-    GGadgetSetEnabled(GWidgetGetControl(d->gw,CID_Top),sel>0);
-    GGadgetSetEnabled(GWidgetGetControl(d->gw,CID_Up),sel>0);
-
-    if ( sel==-1 ) {
-	GGadgetSetEnabled(GWidgetGetControl(d->gw,CID_Remove),false);
-	GGadgetSetEnabled(GWidgetGetControl(d->gw,CID_Guess),false);
-	GGadgetSetEnabled(GWidgetGetControl(d->gw,CID_Hist),false);
-	GGadgetSetEnabled(GWidgetGetControl(d->gw,CID_PrivateValues),false);
-	GGadgetSetTitle(GWidgetGetControl(d->gw,CID_PrivateValues),nullstr);
-    } else {
-	GGadgetSetEnabled(GWidgetGetControl(d->gw,CID_Remove),true);
-	if ( strcmp(private->keys[sel],"BlueValues")==0 ||
-		strcmp(private->keys[sel],"OtherBlues")==0 ||
-		strcmp(private->keys[sel],"StdHW")==0 ||
-		strcmp(private->keys[sel],"StemSnapH")==0 ||
-		strcmp(private->keys[sel],"StdVW")==0 ||
-		strcmp(private->keys[sel],"StemSnapV")==0 ) {
-	    GGadgetSetEnabled(GWidgetGetControl(d->gw,CID_Guess),true);
-	    GGadgetSetEnabled(GWidgetGetControl(d->gw,CID_Hist),true);
-	} else if ( strcmp(private->keys[sel],"BlueScale")==0 &&
-		PSDictFindEntry(private,"BlueValues")!=-1 ) {
-	    /* We can guess a BlueShift value if we've got a BlueValues entry */
-	    GGadgetSetEnabled(GWidgetGetControl(d->gw,CID_Guess),true);
-	    GGadgetSetEnabled(GWidgetGetControl(d->gw,CID_Hist),false);
-	} else {
-	    GGadgetSetEnabled(GWidgetGetControl(d->gw,CID_Guess),false);
-	    GGadgetSetEnabled(GWidgetGetControl(d->gw,CID_Hist),false);
-	}
-	GGadgetSetEnabled(GWidgetGetControl(d->gw,CID_PrivateValues),true);
-	GGadgetSetTitle(GWidgetGetControl(d->gw,CID_PrivateValues),
-		temp = uc_copy( private->values[sel]));
-	free( temp );
-	GTextFieldShow(GWidgetGetControl(d->gw,CID_PrivateValues),0);
-    }
-    d->old_sel = sel;
-}
-
-static int PI_Add(GGadget *g, GEvent *e) {
-    GWindow gw;
-    struct gfi_data *d;
-    GGadget *list;
-    int i;
-    char *newkey;
-    GTextInfo **ti;
-
-    if ( e->type==et_controlevent && e->u.control.subtype == et_buttonactivate ) {
-	gw = GGadgetGetWindow(g);
-	d = GDrawGetUserData(gw);
-	if ( !PIFinishFormer(d))
-return(true);
-	newkey = AskKey(d->sf);
-	if ( newkey==NULL )
-return( true );
-	PIPrivateCheck(d);
-	if (( i = PSDictFindEntry(d->private,newkey))==-1 ) {
-	    SFPrivateGuess(d->sf,ly_fore,d->private,newkey,true);
-	    if (( i = PSDictFindEntry(d->private,newkey))==-1 )
-		i = PSDictChangeEntry(d->private,newkey,"");
-	}
-	list = GWidgetGetControl(d->gw,CID_PrivateEntries);
-	ti = PI_ListArray(d->private);
-	if ( i>0 ) {
-	    ti[0]->selected = false;
-	    ti[i]->selected = true;
-	}
-	GGadgetSetList(list,ti,false);
-	d->old_sel = -1;
-	ProcessListSel(d);
-	free(newkey);
-    }
-return( true );
+static void PSPrivate_EnableButtons(GGadget *g, int r, int c) {
+    int rows, cols = GMatrixEditGetColCnt(g);
+    struct matrix_data *strings = _GMatrixEditGet(g, &rows);
+    struct gfi_data *d = GDrawGetUserData(GGadgetGetWindow(g));
+    char *key = r>=0 && r<rows ? strings[r*cols+0].u.md_str : NULL;
+    int has_hist = key!=NULL && (
+		    strcmp(key,"BlueValues")==0 ||
+		    strcmp(key,"OtherBlues")==0 ||
+		    strcmp(key,"StdHW")==0 ||
+		    strcmp(key,"StemSnapH")==0 ||
+		    strcmp(key,"StdVW")==0 ||
+		    strcmp(key,"StemSnapV")==0);
+    int has_guess = key!=NULL && (has_hist ||
+		    strcmp(key,"BlueScale")==0 ||
+		    strcmp(key,"BlueShift")==0 ||
+		    strcmp(key,"BlueFuzz")==0 ||
+		    strcmp(key,"ForceBold")==0 ||
+		    strcmp(key,"LanguageGroup")==0 ||
+		    strcmp(key,"ExpansionFactor")==0);
+    GGadgetSetEnabled(GWidgetGetControl(d->gw,CID_Guess), has_guess);
+    GGadgetSetEnabled(GWidgetGetControl(d->gw,CID_Hist ), has_hist );
 }
 
 static int PI_Guess(GGadget *g, GEvent *e) {
     GWindow gw;
     struct gfi_data *d;
-    GGadget *list;
-    int sel;
-    SplineFont *sf;
-    unichar_t *temp;
-    struct psdict *private;
-    char *buts[3];
-    buts[0] = _("_OK"); buts[1] = _("_Cancel"); buts[2]=NULL;
+    GGadget *private;
+    struct psdict *tempdict;
+    struct matrix_data *strings;
+    int rows, cols, r;
+    char *key, *ret;
 
     if ( e->type==et_controlevent && e->u.control.subtype == et_buttonactivate ) {
 	gw = GGadgetGetWindow(g);
 	d = GDrawGetUserData(gw);
-	sf = d->sf;
-	private = d->private ? d->private : sf->private;
-	list = GWidgetGetControl(d->gw,CID_PrivateEntries);
-	sel = GGadgetGetFirstListSelectedItem(list);
-	if ( strcmp(private->keys[sel],"BlueValues")==0 ||
-		strcmp(private->keys[sel],"OtherBlues")==0 ) {
-	    if ( gwwv_ask(_("Guess"),(const char **) buts,0,1,_("This will change both BlueValues and OtherBlues.\nDo you want to continue?"))==1 )
-return( true );
-	} else if ( strcmp(private->keys[sel],"StdHW")==0 ||
-		strcmp(private->keys[sel],"StemSnapH")==0 ) {
-	    if ( gwwv_ask(_("Guess"),(const char **) buts,0,1,_("This will change both StdHW and StemSnapH.\nDo you want to continue?"))==1 )
-return( true );
-	} else if ( strcmp(private->keys[sel],"StdVW")==0 ||
-		strcmp(private->keys[sel],"StemSnapV")==0 ) {
-	    if ( gwwv_ask(_("Guess"),(const char **) buts,0,1,_("This will change both StdVW and StemSnapV.\nDo you want to continue?"))==1 )
-return( true );
+	private = GWidgetGetControl(gw,CID_Private);
+	strings = GMatrixEditGet(private, &rows);	/* Commit any changes made thus far */
+	cols = GMatrixEditGetColCnt(private);
+	r = GMatrixEditGetActiveRow(private);
+	key = strings[r*cols+0].u.md_str;
+	tempdict = gcalloc(1,sizeof(*tempdict));
+	SFPrivateGuess(d->sf,ly_fore,tempdict,key,true);
+	ret = copy(PSDictHasEntry(tempdict,key));
+	if ( ret!=NULL ) {
+	    free(strings[r*cols+1].u.md_str);
+	    strings[r*cols+1].u.md_str = ret;
+	    GGadgetRedraw(private);
 	}
-	PIPrivateCheck(d);
-	SFPrivateGuess(sf,ly_fore,d->private,private->keys[sel],false);
-	GGadgetSetTitle(GWidgetGetControl(d->gw,CID_PrivateValues),
-		temp = uc_copy( d->private->values[sel]));
-	free( temp );
+	PSDictFree(tempdict);
     }
 return( true );
 }
@@ -1803,134 +2086,41 @@ return( true );
 static int PI_Hist(GGadget *g, GEvent *e) {
     GWindow gw;
     struct gfi_data *d;
-    GGadget *list;
-    int sel;
-    SplineFont *sf;
-    struct psdict *private;
+    GGadget *private;
+    struct psdict *tempdict;
     enum hist_type h;
-    unichar_t *temp;
+    struct matrix_data *strings;
+    int rows, cols, r;
+    char *key, *ret;
 
     if ( e->type==et_controlevent && e->u.control.subtype == et_buttonactivate ) {
 	gw = GGadgetGetWindow(g);
 	d = GDrawGetUserData(gw);
-	sf = d->sf;
-	PIPrivateCheck(d);
-	private = d->private ? d->private : sf->private;
-	list = GWidgetGetControl(d->gw,CID_PrivateEntries);
-	sel = GGadgetGetFirstListSelectedItem(list);
-	if ( strcmp(private->keys[sel],"BlueValues")==0 ||
-		strcmp(private->keys[sel],"OtherBlues")==0 )
+	private = GWidgetGetControl(gw,CID_Private);
+	strings = _GMatrixEditGet(private, &rows);
+	cols = GMatrixEditGetColCnt(private);
+	r = GMatrixEditGetActiveRow(private);
+	key = strings[r*cols+0].u.md_str;
+	if ( strcmp(key,"BlueValues")==0 ||
+		strcmp(key,"OtherBlues")==0 )
 	    h = hist_blues;
-	else if ( strcmp(private->keys[sel],"StdHW")==0 ||
-		strcmp(private->keys[sel],"StemSnapH")==0 )
+	else if ( strcmp(key,"StdHW")==0 ||
+		strcmp(key,"StemSnapH")==0 )
 	    h = hist_hstem;
-	else if ( strcmp(private->keys[sel],"StdVW")==0 ||
-		strcmp(private->keys[sel],"StemSnapV")==0 )
+	else if ( strcmp(key,"StdVW")==0 ||
+		strcmp(key,"StemSnapV")==0 )
 	    h = hist_vstem;
 	else
 return( true );		/* can't happen */
-	SFHistogram(sf,ly_fore,private,NULL,NULL,h);
-	GGadgetSetTitle(GWidgetGetControl(d->gw,CID_PrivateValues),
-		temp = uc_copy( d->private->values[sel]));
-	free( temp );
-    }
-return( true );
-}
-
-static int PI_Delete(GGadget *g, GEvent *e) {
-    GWindow gw;
-    struct gfi_data *d;
-    GGadget *list;
-    int sel;
-    SplineFont *sf;
-    GTextInfo **ti;
-
-    if ( e->type==et_controlevent && e->u.control.subtype == et_buttonactivate ) {
-	gw = GGadgetGetWindow(g);
-	d = GDrawGetUserData(gw);
-	PIPrivateCheck(d);
-	sf = d->sf;
-	list = GWidgetGetControl(d->gw,CID_PrivateEntries);
-	sel = GGadgetGetFirstListSelectedItem(list);
-	PSDictRemoveEntry(d->private, d->private->keys[sel]);
-	sf->changed = true;
-	ti = PI_ListArray(d->private);
-	--sel;
-	if ( d->private!=NULL && sel>=d->private->next )
-	    sel = d->private->next-1;
-	if ( sel>0 ) {
-	    ti[0]->selected = false;
-	    ti[sel]->selected = true;
+	tempdict = GFI_ParsePrivate(d);
+	SFHistogram(d->sf,ly_fore,tempdict,NULL,NULL,h);
+	ret = copy(PSDictHasEntry(tempdict,key));
+	if ( ret!=NULL ) {
+	    free(strings[r*cols+1].u.md_str);
+	    strings[r*cols+1].u.md_str = ret;
+	    GGadgetRedraw(private);
 	}
-	GGadgetSetList(list,ti,false);
-	d->old_sel = -2;
-	ProcessListSel(d);
-    }
-return( true );
-}
-
-static int PI_Move(GGadget *g, GEvent *e) {
-    GWindow gw;
-    struct gfi_data *d;
-    GGadget *list;
-    int sel, cid, i, new_sel;
-    GTextInfo **ti;
-    char *key, *val;
-
-    if ( e->type==et_controlevent && e->u.control.subtype == et_buttonactivate ) {
-	gw = GGadgetGetWindow(g);
-	d = GDrawGetUserData(gw);
-	PIPrivateCheck(d);
-	list = GWidgetGetControl(d->gw,CID_PrivateEntries);
-	sel = GGadgetGetFirstListSelectedItem(list);
-	cid = GGadgetGetCid(g);
-	if ( d->private==NULL || sel==-1 )
-return( true );
-	key = d->private->keys[sel];
-	val = d->private->values[sel];
-	if ( cid==CID_Top && sel>0 ) {
-	    for ( i=sel; i>0; --i ) {
-		d->private->keys[i] = d->private->keys[i-1];
-		d->private->values[i] = d->private->values[i-1];
-	    }
-	    d->private->keys[0] = key;
-	    d->private->values[0] = val;
-	    new_sel = 0;
-	} else if ( cid==CID_Up && sel>0 ) {
-	    d->private->keys[sel] = d->private->keys[sel-1];
-	    d->private->values[sel] = d->private->values[sel-1];
-	    d->private->keys[sel-1] = key;
-	    d->private->values[sel-1] = val;
-	    new_sel = sel-1;
-	} else if ( cid==CID_Down && sel<d->private->next-1 ) {
-	    d->private->keys[sel] = d->private->keys[sel+1];
-	    d->private->values[sel] = d->private->values[sel+1];
-	    d->private->keys[sel+1] = key;
-	    d->private->values[sel+1] = val;
-	    new_sel = sel+1;
-	} else if ( cid==CID_Bottom && sel<d->private->next-1 ) {
-	    for ( i=sel; i<d->private->next-1; ++i ) {
-		d->private->keys[i] = d->private->keys[i+1];
-		d->private->values[i] = d->private->values[i+1];
-	    }
-	    d->private->keys[d->private->next-1] = key;
-	    d->private->values[d->private->next-1] = val;
-	    new_sel = d->private->next-1;
-	}
-	ti = PI_ListArray(d->private);
-	ti[0]->selected = false;
-	ti[new_sel]->selected = true;
-	GGadgetSetList(list,ti,false);
-	d->old_sel = -2;
-	ProcessListSel(d);
-    }
-return( true );
-}
-
-static int PI_ListSel(GGadget *g, GEvent *e) {
-
-    if ( e->type==et_controlevent && e->u.control.subtype == et_listselected ) {
-	ProcessListSel(GDrawGetUserData(GGadgetGetWindow(g)));
+	PSDictFree(tempdict);
     }
 return( true );
 }
@@ -2068,8 +2258,6 @@ return( true );
 
 static void GFI_Close(struct gfi_data *d) {
 
-    PSDictFree(d->private);
-
     GDrawDestroyWindow(d->gw);
     if ( d->sf->fontinfo == d )
 	d->sf->fontinfo = NULL;
@@ -2130,24 +2318,26 @@ static void GFI_Mark_DeleteClass(GGadget *g,int whichclass) {
     OTLookup *otl;
     int isgpos;
 
+    whichclass += is_markclass;		/* Classes begin at 1, Sets begin at 0 */
     for ( isgpos=0; isgpos<2; ++isgpos ) {
 	for ( otl = isgpos ? sf->gpos_lookups : sf->gsub_lookups; otl!=NULL; otl=otl->next ) {
 	    if ( is_markclass ) {
 		int old = (otl->lookup_flags & pst_markclass)>>8;
 		if ( old==whichclass ) {
 		    ff_post_notice(_("Mark Class was in use"),_("This mark class (%s) was used in lookup %s"),
-			    classes[2*whichclass+0].u.md_str,otl->lookup_name);
+			    classes[2*whichclass-2].u.md_str,otl->lookup_name);
 		    otl->lookup_flags &= ~ pst_markclass;
 		} else if ( old>whichclass ) {
 		    otl->lookup_flags &= ~ pst_markclass;
 		    otl->lookup_flags |= (old-1)<<8;
 		}
-	    } else {
+	    } else if ( otl->lookup_flags&pst_usemarkfilteringset ) {
 		int old = (otl->lookup_flags & pst_markset)>>16;
 		if ( old==whichclass ) {
 		    ff_post_notice(_("Mark Set was in use"),_("This mark set (%s) was used in lookup %s"),
 			    classes[2*whichclass+0].u.md_str,otl->lookup_name);
 		    otl->lookup_flags &= ~ pst_markset;
+		    otl->lookup_flags &= ~pst_usemarkfilteringset;
 		} else if ( old>whichclass ) {
 		    otl->lookup_flags &= ~ pst_markset;
 		    otl->lookup_flags |= (old-1)<<16;
@@ -2185,64 +2375,16 @@ static void GFI_CancelClose(struct gfi_data *d) {
     GFI_Close(d);
 }
 
-static char *OtfNameToText(int lang, const char *name) {
-    const char *langname;
-    char *text;
+static struct otfname *OtfNameFromStyleNames(GGadget *me) {
     int i;
-
-    for ( i=sizeof(mslanguages)/sizeof(mslanguages[0])-1; i>=0 ; --i )
-	if ( mslanguages[i].userdata == (void *) (intpt) lang )
-    break;
-    if ( i==-1 )
-	for ( i=sizeof(mslanguages)/sizeof(mslanguages[0])-1; i>=0 ; --i )
-	    if ( ((intpt) mslanguages[i].userdata&0xff) == (lang&0xff) )
-	break;
-    if ( i==-1 )
-	langname = "";
-    else
-	langname = (char*) (mslanguages[i].text);
-
-    text = galloc((strlen(langname)+strlen(name)+4));
-    strcpy(text,name);
-    strcat(text," | ");
-    strcat(text,langname);
-return( text );
-}
-
-static GTextInfo **StyleNames(struct otfname *otfn) {
-    int cnt;
-    struct otfname *on;
-    GTextInfo **tis;
-    char *cname;
-
-    for ( cnt=0, on=otfn; on!=NULL; on=on->next )
-	++cnt;
-    tis = galloc((cnt+1)*sizeof(GTextInfo *));
-    for ( cnt=0, on=otfn; on!=NULL; on=on->next, ++cnt ) {
-	tis[cnt] = gcalloc(1,sizeof(GTextInfo));
-	tis[cnt]->fg = tis[cnt]->bg = COLOR_DEFAULT;
-	tis[cnt]->userdata = (void *) (intpt) otfn->lang;
-	cname = OtfNameToText(on->lang,on->name);
-	tis[cnt]->text = utf82u_copy(cname);
-	free(cname);
-    }
-    tis[cnt] = gcalloc(1,sizeof(GTextInfo));
-return( tis );
-}
-
-static struct otfname *OtfNameFromStyleNames(GGadget *list) {
-    int32 len; int i;
-    GTextInfo **old = GGadgetGetList(list,&len);
+    int rows;
+    struct matrix_data *strings = GMatrixEditGet(me, &rows);
     struct otfname *head=NULL, *last, *cur;
-    unichar_t *pt, *temp;
 
-    for ( i=0; i<len; ++i ) {
+    for ( i=0; i<rows; ++i ) {
 	cur = chunkalloc(sizeof(struct otfname));
-	cur->lang = (intpt) old[i]->userdata;
-	pt = uc_strstr(old[i]->text," | ");
-	temp = u_copyn(old[i]->text,pt-old[i]->text);
-	cur->name = u2utf8_copy(temp);
-	free(temp);
+	cur->lang = strings[2*i  ].u.md_ival;
+	cur->name = copy(strings[2*i+1].u.md_str);
 	if ( head==NULL )
 	    head = cur;
 	else
@@ -2250,207 +2392,6 @@ static struct otfname *OtfNameFromStyleNames(GGadget *list) {
 	last = cur;
     }
 return( head );
-}
-
-static int sn_e_h(GWindow gw, GEvent *event) {
-
-    if ( event->type==et_close ) {
-	int *d = GDrawGetUserData(gw);
-	*d = true;
-    } else if ( event->type == et_char ) {
-return( false );
-    } else if ( event->type==et_controlevent && event->u.control.subtype == et_buttonactivate ) {
-	int *d = GDrawGetUserData(gw);
-	*d = GGadgetGetCid(event->u.control.g)+1;
-    }
-return( true );
-}
-
-static void AskForLangName(GGadget *list,int sel) {
-    int32 len; int i;
-    GTextInfo **old = GGadgetGetList(list,&len);
-    unichar_t *name, *pt;
-    char *cname;
-    int lang_index;
-    GGadgetCreateData gcd[7];
-    GTextInfo label[5];
-    GRect pos;
-    GWindow gw;
-    GWindowAttrs wattrs;
-    int done = 0;
-    int k;
-    GTextInfo **ti;
-    char *temp;
-
-    for ( i=sizeof(mslanguages)/sizeof(mslanguages[0])-1; i>=0 ; --i )
-	mslanguages[i].fg = mslanguages[i].bg = COLOR_DEFAULT;
-    if ( sel==-1 ) {
-	for ( i=0; i<len; ++i )
-	    if ( old[i]->userdata == (void *) 0x409 )
-	break;
-	if ( i==len ) {
-	    for ( i=sizeof(mslanguages)/sizeof(mslanguages[0])-1; i>=0 ; --i )
-		if ( mslanguages[i].userdata == (void *) 0x409 )
-	    break;
-	    lang_index = i;
-	} else {
-	    for ( lang_index=sizeof(mslanguages)/sizeof(mslanguages[0])-1; lang_index>=0 ; --lang_index ) {
-		for ( i=0; i<len; ++i )
-		    if ( mslanguages[lang_index].userdata == old[i]->userdata )
-		break;
-		if ( i==len )
-	    break;
-	    }
-	}
-	if ( lang_index < 0 )
-	    lang_index = 0;
-	name = uc_copy("");
-    } else {
-	for ( lang_index=sizeof(mslanguages)/sizeof(mslanguages[0])-1; lang_index>=0 ; --lang_index )
-	    if ( mslanguages[lang_index].userdata == old[sel]->userdata )
-	break;
-	if ( lang_index < 0 )
-	    lang_index = 0;
-	pt = uc_strstr(old[sel]->text," | ");
-	name = u_copyn(old[sel]->text,pt-old[sel]->text);
-    }
-
-    memset(gcd,0,sizeof(gcd));
-    memset(label,0,sizeof(label));
-
-    gcd[0].gd.pos.x = 7; gcd[0].gd.pos.y = 7;
-    gcd[0].gd.flags = gg_visible | gg_enabled | gg_list_alphabetic;
-    gcd[0].gd.cid = CID_Language;
-    gcd[0].gd.u.list = mslanguages;
-    gcd[0].creator = GListButtonCreate;
-    for ( i=0; mslanguages[i].text!=NULL; ++i )
-	mslanguages[i].selected = false;
-    mslanguages[lang_index].selected = true;
-
-    k = 1;
-    label[k].text = (unichar_t *) _("_Name:");
-    label[k].text_is_1byte = true;
-    label[k].text_in_resource = true;
-    gcd[k].gd.label = &label[k];
-    gcd[k].gd.pos.x = 10; gcd[k].gd.pos.y = gcd[k-1].gd.pos.y+30;
-    gcd[k].gd.flags = gg_visible | gg_enabled;
-    gcd[k++].creator = GLabelCreate;
-
-    label[k].text = name;
-    gcd[k].gd.label = &label[k];
-    gcd[k].gd.pos.x = 50; gcd[k].gd.pos.y = gcd[k-1].gd.pos.y-4;
-    gcd[k].gd.pos.width = 122;
-    gcd[k].gd.flags = gg_visible | gg_enabled|gg_text_xim;
-    gcd[k].gd.cid = CID_StyleName;
-    gcd[k++].creator = GTextFieldCreate;
-
-    gcd[k].gd.pos.x = 25-3; gcd[k].gd.pos.y = gcd[k-1].gd.pos.y+30;
-    gcd[k].gd.pos.width = -1; gcd[k].gd.pos.height = 0;
-    gcd[k].gd.flags = gg_visible | gg_enabled | gg_but_default;
-    label[k].text = (unichar_t *) _("_OK");
-    label[k].text_is_1byte = true;
-    label[k].text_in_resource = true;
-    gcd[k].gd.label = &label[k];
-    gcd[k].gd.cid = true;
-    gcd[k++].creator = GButtonCreate;
-
-    gcd[k].gd.pos.x = -25; gcd[k].gd.pos.y = gcd[k-1].gd.pos.y+3;
-    gcd[k].gd.pos.width = -1; gcd[k].gd.pos.height = 0;
-    gcd[k].gd.flags = gg_visible | gg_enabled | gg_but_cancel;
-    label[k].text = (unichar_t *) _("_Cancel");
-    label[k].text_is_1byte = true;
-    label[k].text_in_resource = true;
-    gcd[k].gd.label = &label[k];
-    gcd[k].gd.cid = false;
-    gcd[k++].creator = GButtonCreate;
-
-    memset(&wattrs,0,sizeof(wattrs));
-    wattrs.mask = wam_events|wam_cursor|wam_utf8_wtitle|wam_undercursor|wam_isdlg|wam_restrict;
-    wattrs.event_masks = ~(1<<et_charup);
-    wattrs.is_dlg = true;
-    wattrs.restrict_input_to_me = 1;
-    wattrs.undercursor = 1;
-    wattrs.cursor = ct_pointer;
-    wattrs.utf8_window_title = _("Style Name");
-    pos.x = pos.y = 0;
-    pos.width =GDrawPointsToPixels(NULL,GGadgetScale(180));
-    pos.height = GDrawPointsToPixels(NULL,2*26+45);
-    gw = GDrawCreateTopWindow(NULL,&pos,sn_e_h,&done,&wattrs);
-
-    GGadgetsCreate(gw,gcd);
-    free(name);
-    ti = GGadgetGetList(gcd[0].ret,&len);
-    for ( i=0; i<len; ++i )
-	if ( ti[i]->userdata == mslanguages[lang_index].userdata ) {
-	    GGadgetSelectOneListItem(gcd[0].ret,i);
-    break;
-	}
-    GDrawSetVisible(gw,true);
-
-    while ( !done )
-	GDrawProcessOneEvent(NULL);
-
-    if ( done==2 ) {
-	lang_index = GGadgetGetFirstListSelectedItem(gcd[0].ret);
-	cname = OtfNameToText((intpt) ti[lang_index]->userdata,
-		(temp = GGadgetGetTitle8(GWidgetGetControl(gw,CID_StyleName))));
-	free(temp);
-	if ( sel==-1 )
-	    GListAppendLine8(list,cname,false)->userdata =
-		    ti[lang_index]->userdata;
-	else
-	    GListChangeLine8(list,sel,cname)->userdata =
-		    ti[lang_index]->userdata;
-    }
-
-    GDrawDestroyWindow(gw);
-}
-
-static int GFI_StyleNameNew(GGadget *g, GEvent *e) {
-    GGadget *list;
-
-    if ( e->type==et_controlevent && e->u.control.subtype == et_buttonactivate ) {
-	list = GWidgetGetControl(GGadgetGetWindow(g),CID_StyleName);
-	AskForLangName(list,-1);
-    }
-return( true );
-}
-
-static int GFI_StyleNameDel(GGadget *g, GEvent *e) {
-    GGadget *list;
-    if ( e->type==et_controlevent && e->u.control.subtype == et_buttonactivate ) {
-	list = GWidgetGetControl(GGadgetGetWindow(g),CID_StyleName);
-	GListDelSelected(list);
-	GGadgetSetEnabled(GWidgetGetControl(GGadgetGetWindow(g),CID_StyleNameDel),false);
-	GGadgetSetEnabled(GWidgetGetControl(GGadgetGetWindow(g),CID_StyleNameRename),false);
-    }
-return( true );
-}
-
-static int GFI_StyleNameRename(GGadget *g, GEvent *e) {
-    GGadget *list;
-    int sel;
-
-    if ( e->type==et_controlevent && e->u.control.subtype == et_buttonactivate ) {
-	list = GWidgetGetControl(GGadgetGetWindow(g),CID_StyleName);
-	if ( (sel=GGadgetGetFirstListSelectedItem(list))==-1 )
-return( true );
-	AskForLangName(list,sel);
-    }
-return( true );
-}
-
-static int GFI_StyleNameSelChanged(GGadget *g, GEvent *e) {
-    if ( e->type==et_controlevent && e->u.control.subtype == et_listselected ) {
-	struct gfi_data *d = GDrawGetUserData(GGadgetGetWindow(g));
-	int sel = GGadgetGetFirstListSelectedItem(g);
-	GGadgetSetEnabled(GWidgetGetControl(d->gw,CID_StyleNameDel),sel!=-1);
-	GGadgetSetEnabled(GWidgetGetControl(d->gw,CID_StyleNameRename),sel!=-1);
-    } else if ( e->type==et_controlevent && e->u.control.subtype == et_listdoubleclick ) {
-	e->u.control.subtype = et_buttonactivate;
-	GFI_StyleNameRename(g,e);
-    }
-return( true );
 }
 
 void GListMoveSelected(GGadget *list,int offset) {
@@ -2964,9 +2905,9 @@ static void TN_StrIDEnable(GGadget *g,GMenuItem *mi, int r, int c) {
 static void TN_LangEnable(GGadget *g,GMenuItem *mi, int r, int c) {
     int i;
 
-    for ( i=0; mi[i].ti.text!=NULL; ++i )
+    for ( i=0; mi[i].ti.text!=NULL; ++i );
     qsort(mi,i,sizeof(mi[0]),menusort);
-}    
+}
 
 static void TN_NewName(GGadget *g,int row) {
     int rows;
@@ -3300,6 +3241,20 @@ static int GFI_AddOFL(GGadget *g, GEvent *e) {
 return( true );
 }
 
+static int ss_cmp(const void *_md1, const void *_md2) {
+    const struct matrix_data *md1 = _md1, *md2 = _md2;
+
+    char buf1[20], buf2[20];
+    const char *l1, *l2;
+
+    if ( md1[1].u.md_ival == md2[1].u.md_ival ) {
+       l1 = langname(md1[0].u.md_ival,buf1);
+       l2 = langname(md2[0].u.md_ival,buf2);
+return( strcoll(l1,l2));
+    }
+return( md1[1].u.md_ival - md2[1].u.md_ival );
+}
+
 static void SSMatrixInit(struct matrixinit *mi,struct gfi_data *d) {
     SplineFont *sf = d->sf;
     struct matrix_data *md;
@@ -3322,6 +3277,40 @@ static void SSMatrixInit(struct matrixinit *mi,struct gfi_data *d) {
 	    md[3*cnt+2].u.md_str = copy(on->name);
 	}
     }
+    qsort( md, cnt, 3*sizeof(struct matrix_data), ss_cmp );
+    mi->matrix_data = md;
+    mi->initial_row_cnt = cnt;
+}
+
+static int size_cmp(const void *_md1, const void *_md2) {
+    const struct matrix_data *md1 = _md1, *md2 = _md2;
+
+    char buf1[20], buf2[20];
+    const char *l1, *l2;
+
+   l1 = langname(md1[0].u.md_ival,buf1);
+   l2 = langname(md2[0].u.md_ival,buf2);
+return( strcoll(l1,l2));
+}
+
+static void SizeMatrixInit(struct matrixinit *mi,struct gfi_data *d) {
+    SplineFont *sf = d->sf;
+    struct matrix_data *md;
+    struct otfname *on;
+    int cnt;
+
+    memset(mi,0,sizeof(*mi));
+    mi->col_cnt = 2;
+    mi->col_init = sizeci;
+
+    for ( cnt=0, on=sf->fontstyle_name; on!=NULL; on=on->next )
+	++cnt;
+    md = gcalloc(2*(cnt+10),sizeof(struct matrix_data));
+    for ( cnt=0, on=sf->fontstyle_name; on!=NULL; on=on->next, ++cnt ) {
+	md[2*cnt  ].u.md_ival = on->lang;
+	md[2*cnt+1].u.md_str = copy(on->name);
+    }
+    qsort( md, cnt, 2*sizeof(struct matrix_data), size_cmp );
     mi->matrix_data = md;
     mi->initial_row_cnt = cnt;
 }
@@ -3400,8 +3389,8 @@ static void GaspMatrixInit(struct matrixinit *mi,struct gfi_data *d) {
 	    md[5*i  ].u.md_ival = sf->gasp[i].ppem;
 	    md[5*i+1].u.md_ival = (sf->gasp[i].flags&1)?1:0;
 	    md[5*i+2].u.md_ival = (sf->gasp[i].flags&2)?1:0;
-	    md[5*i+3].u.md_ival = (sf->gasp[i].flags&4)?1:0;
-	    md[5*i+4].u.md_ival = (sf->gasp[i].flags&8)?1:0;
+	    md[5*i+3].u.md_ival = (sf->gasp[i].flags&8)?1:0;
+	    md[5*i+4].u.md_ival = (sf->gasp[i].flags&4)?1:0;
 	}
 	mi->initial_row_cnt = sf->gasp_cnt;
     }
@@ -3748,7 +3737,8 @@ static void StoreSSNames(struct gfi_data *d) {
     OtfFeatNameListFree(sf->feat_names);
     sf->feat_names = NULL;
 
-    for ( i=0; i<rows; ++i ) {
+    qsort( strings, rows, 3*sizeof(struct matrix_data), ss_cmp );
+    for ( i=rows-1; i>=0; --i ) {
 	if ( strings[3*i+2].u.md_str == NULL )
     continue;
 	tag = strings[3*i+1].u.md_ival;
@@ -3945,6 +3935,7 @@ static int GFI_OK(GGadget *g, GEvent *e) {
 	int32 len;
 	GTextInfo **ti;
 	int subs[4], super[4], strike[2];
+	struct otfname *fontstyle_name;
 	int design_size, size_top, size_bottom, styleid;
 	int strokedfont = false;
 	real strokewidth;
@@ -4015,12 +4006,10 @@ return( true );
 	}
 	if ( layer_cnt>=BACK_LAYER_MAX-2 ) {
 	    ff_post_error(_("Too many layers"),_("FontForge supports at most %d layers"),BACK_LAYER_MAX-2);
-	    /* This can be increased in configure-pfaedit.h */
+	    /* This can be increased in configure-fontforge.h */
 return( true );
 	}
 	if ( !CheckNames(d))
-return( true );
-	if ( !PIFinishFormer(d))
 return( true );
 
 	if ( ttfmultuniqueids(sf,d)) {
@@ -4057,6 +4046,34 @@ return(true);
 	size_bottom = rint(10*GetReal8(gw,CID_DesignBottom,_("_Bottom"),&err));
 	size_top = rint(10*GetReal8(gw,CID_DesignTop,_("_Top"),&err));
 	styleid = GetInt8(gw,CID_StyleID,_("Style _ID:"),&err);
+	fontstyle_name = OtfNameFromStyleNames(GWidgetGetControl(gw,CID_StyleName));
+	OtfNameListFree(fontstyle_name);
+	if ( design_size==0 && ( size_bottom!=0 || size_top!=0 || styleid!=0 || fontstyle_name!=NULL )) {
+	    ff_post_error(_("Bad Design Size Info"),_("If the design size is 0, then all other fields on that pane must be zero (or unspecified) too."));
+return( true );
+	} else if ( styleid!=0 && fontstyle_name==NULL ) {
+	    ff_post_error(_("Bad Design Size Info"),_("If you specify a style id for the design size, then you must specify a style name"));
+return( true );
+	} else if ( fontstyle_name==NULL && styleid!=0 ) {
+	    ff_post_error(_("Bad Design Size Info"),_("If you specify a style name for the design size, then you must specify a style id"));
+return( true );
+	} else if ( design_size<0 ) {
+	    ff_post_error(_("Bad Design Size Info"),_("If you specify a design size, it must be positive"));
+return( true );
+	} else if ( size_bottom!=0 && size_bottom>design_size ) {
+	    ff_post_error(_("Bad Design Size Info"),_("In the design size range, the bottom field must be less than the design size."));
+return( true );
+	} else if ( size_top!=0 && size_top<design_size ) {
+	    ff_post_error(_("Bad Design Size Info"),_("In the design size range, the bottom top must be more than the design size."));
+return( true );
+	} else if ( styleid!=0 && size_top==0 ) {
+	    ff_post_error(_("Bad Design Size Info"),_("If you specify a style id for the design size, then you must specify a size range"));
+return( true );
+	} else if ( size_top!=0 && styleid==0 ) {
+	    ff_post_notice(_("Bad Design Size Info"),_("If you specify a design size range, then you are supposed to specify a style id and style name too. FontForge will allow you to leave those fields blank, but other applications may not."));
+	    /* no return, this is just a warning */
+	}
+
 	if ( *_GGadgetGetTitle(GWidgetGetControl(gw,CID_Revision))!='\0' )
 	    sfntRevision = rint(65536.*GetReal8(gw,CID_Revision,_("sfnt Revision:"),&err));
 	if ( *_GGadgetGetTitle(GWidgetGetControl(gw,CID_WoffMajor))!='\0' ) {
@@ -4270,8 +4287,8 @@ return(true);
 		else
 		    sf->gasp[i].flags = gasp[5*i+1].u.md_ival |
 			    (gasp[5*i+2].u.md_ival<<1) |
-			    (gasp[5*i+2].u.md_ival<<2) |
-			    (gasp[5*i+2].u.md_ival<<3);
+			    (gasp[5*i+4].u.md_ival<<2) |
+			    (gasp[5*i+3].u.md_ival<<3);
 	    }
 	}
 	sf->head_optimized_for_cleartype = GGadgetIsChecked(GWidgetGetControl(gw,CID_HeadClearType));
@@ -4333,11 +4350,9 @@ return(true);
 	for ( j=0; j<_sf->subfontcnt; ++j )
 	    _sf->subfonts[j]->hasvmetrics = vmetrics;
 
-	if ( d->private!=NULL ) {
-	    PSDictFree(sf->private);
-	    sf->private = d->private;
-	    d->private = NULL;
-	}
+	PSDictFree(sf->private);
+	sf->private = GFI_ParsePrivate(d);
+
 	if ( d->names_set )
 	    StoreTTFNames(d);
 	StoreSSNames(d);
@@ -4580,6 +4595,41 @@ static int GFI_PanoseDefault(GGadget *g, GEvent *e) {
 return( true );
 }
 
+static int GFI_ShowPanoseDocs(GGadget *g, GEvent *e) {
+    if ( e->type==et_controlevent && e->u.control.subtype == et_buttonactivate ) {
+	help("http://panose.com/");	
+    }
+return( true );
+}
+
+static void GFI_SetPanoseLists(struct gfi_data *d) {
+    int kind = GGadgetGetFirstListSelectedItem(GWidgetGetControl(d->gw,CID_PanFamily));
+    int i;
+
+    if ( kind!=d->last_panose_family ) {
+	if ( kind>6 ) kind=6;	/* No data for any kinds beyond 5, so anything bigger is just undefined, and that's 6 */
+	for ( i=1; i<10; ++i ) {
+	    GGadget *lab = GWidgetGetControl(d->gw,CID_PanFamilyLab+i);
+	    GGadget *list = GWidgetGetControl(d->gw,CID_PanFamily+i);
+	    int temp = GGadgetGetFirstListSelectedItem(list);
+	    if ( kind==5 && i==2 ) temp=1;
+	    if ( temp>=16 && (kind!=4 || i!=5)) temp=15;
+	    else if ( temp>16 ) temp=16;	/* Decorative.serifvar has 17 elements */
+	    GGadgetSetTitle8WithMn(lab,panoses[kind][i-1].name);
+	    GGadgetSetList(list,GTextInfoArrayFromList(panoses[kind][i-1].variants,NULL),false);
+	    GGadgetSelectOneListItem(list,temp);
+	}
+    }
+}
+
+static int GFI_ChangePanoseFamily(GGadget *g, GEvent *e) {
+    if ( e->type==et_controlevent && e->u.control.subtype == et_listselected ) {
+	struct gfi_data *d = GDrawGetUserData(GGadgetGetWindow(g));
+	GFI_SetPanoseLists(d);
+    }
+return( true );
+}
+
 static void GFI_SubSuperSet(struct gfi_data *d, struct pfminfo *info) {
     char buffer[40];
     unichar_t ubuf[40];
@@ -4738,9 +4788,16 @@ static void TTFSetup(struct gfi_data *d) {
 
     GGadgetSetChecked(GWidgetGetControl(d->gw,CID_PanDefault),!info.panose_set);
     _GFI_PanoseDefault(d);
-    if ( info.panose_set )
-	for ( i=0; i<10; ++i )
-	    GGadgetSelectOneListItem(GWidgetGetControl(d->gw,CID_PanFamily+i),info.panose[i]);
+    if ( info.panose_set ) {
+	for ( i=0; i<10; ++i ) {
+	    int v = info.panose[i];
+	    if ( v>=16 && (info.panose[0]!=4 || i!=5 )) v=15;
+	    else if ( v>16 ) v=16;	/* Sigh Decorative.SerifVar has 17 elements */
+	    GGadgetSelectOneListItem(GWidgetGetControl(d->gw,CID_PanFamily+i),v);
+	    if ( i==0 )
+		GFI_SetPanoseLists(d);
+	}
+    }
 
     GGadgetSetChecked(GWidgetGetControl(d->gw,CID_SubSuperDefault),!info.subsuper_set);
     if ( info.subsuper_set )
@@ -6008,6 +6065,7 @@ static int GFI_LookupEditMetadata(GGadget *g, GEvent *e) {
 	continue;
 	    if ( lk->all[i].selected ) {
 		EditLookup(lk->all[i].lookup,isgpos,gfi->sf);
+		GDrawRequestExpose(GDrawableGetWindow(GWidgetGetControl(gfi->gw,CID_LookupWin+isgpos)),NULL,false);
 return( true );
 	    } else if ( lk->all[i].open ) {
 		for ( j=0; j<lk->all[i].subtable_cnt; ++j ) {
@@ -6015,6 +6073,7 @@ return( true );
 		continue;
 		    if ( lk->all[i].subtables[j].selected ) {
 			EditSubtable(lk->all[i].subtables[j].subtable,isgpos,gfi->sf,NULL,gfi->def_layer);
+			GDrawRequestExpose(GDrawableGetWindow(GWidgetGetControl(gfi->gw,CID_LookupWin+isgpos)),NULL,false);
 return( true );
 		    }
 		}
@@ -6456,12 +6515,12 @@ static void LookupPopup(GWindow gw,OTLookup *otl,struct lookup_subtable *sub,
     pos = strlen(popup_msg);
 
     if ( sub!=NULL && otl->lookup_type==gpos_pair && sub->kc!=NULL ) {
-	snprintf(popup_msg+pos,sizeof(popup_msg)-pos,_("(kerning class)\n") );
+	snprintf(popup_msg+pos,sizeof(popup_msg)-pos,"%s",_("(kerning class)\n") );
 	pos += strlen( popup_msg+pos );
     }
 
     if ( otl->features==NULL )
-	snprintf(popup_msg+pos,sizeof(popup_msg)-pos,_("Not attached to a feature"));
+	snprintf(popup_msg+pos,sizeof(popup_msg)-pos,"%s",_("Not attached to a feature"));
     else {
 	for ( fl=otl->features; fl!=NULL && pos<sizeof(popup_msg)-2; fl=fl->next ) {
 	    snprintf(popup_msg+pos,sizeof(popup_msg)-pos,"%c%c%c%c: ",
@@ -7272,7 +7331,7 @@ static int lookups_e_h(GWindow gw, GEvent *event, int isgpos) {
     struct gfi_data *gfi = GDrawGetUserData(gw);
 
     if (( event->type==et_mouseup || event->type==et_mousedown ) &&
-	    (event->u.mouse.button==4 || event->u.mouse.button==5) ) {
+	    (event->u.mouse.button>=4 && event->u.mouse.button<=7) ) {
 return( GGadgetDispatchEvent(GWidgetGetControl(gw,CID_LookupVSB+isgpos),event));
     }
 
@@ -7311,11 +7370,11 @@ void FontInfo(SplineFont *sf,int deflayer,int defaspect,int sync) {
     GWindowAttrs wattrs;
     GTabInfo aspects[26], vaspects[6], lkaspects[3];
     GGadgetCreateData mgcd[10], ngcd[19], psgcd[30], tngcd[8],
-	pgcd[12], vgcd[19], pangcd[22], comgcd[4], txgcd[23], floggcd[4],
+	pgcd[12], vgcd[19], pangcd[23], comgcd[4], txgcd[23], floggcd[4],
 	mfgcd[8], mcgcd[8], szgcd[19], mkgcd[7], metgcd[29], vagcd[3], ssgcd[23],
 	xugcd[8], dgcd[6], ugcd[6], gaspgcd[5], gaspgcd_def[2], lksubgcd[2][4],
 	lkgcd[2], lkbuttonsgcd[15], cgcd[12], lgcd[20], msgcd[7], ssngcd[8],
-	woffgcd[8];
+	woffgcd[8], privategcd_def[4];
     GGadgetCreateData mb[2], mb2, nb[2], nb2, nb3, xub[2], psb[2], psb2[3], ppbox[4],
 	    vbox[4], metbox[2], ssbox[2], panbox[2], combox[2], mkbox[3],
 	    txbox[5], ubox[3], dbox[2], flogbox[2],
@@ -7323,14 +7382,14 @@ void FontInfo(SplineFont *sf,int deflayer,int defaspect,int sync) {
 	    lkbox[7], cbox[6], lbox[8], msbox[3], ssboxes[4], woffbox[2];
     GGadgetCreateData *marray[7], *marray2[9], *narray[29], *narray2[7], *narray3[3],
 	*xuarray[20], *psarray[10], *psarray2[21], *psarray4[10],
-	*ppbuttons[5], *pparray[6], *vradio[5], *varray[38], *metarray[46],
-	*pp2buttons[7], *ssarray[58], *panarray[38], *comarray[3], *flogarray[3],
+	*pparray[6], *vradio[5], *varray[38], *metarray[46],
+	*ssarray[58], *panarray[40], *comarray[3], *flogarray[3],
 	*mkarray[6], *msarray[6],
 	*txarray[5], *txarray2[30],
 	*txarray3[6], *txarray4[6], *uarray[5], *darray[10],
 	*mcarray[13], *mcarray2[7],
 	*mfarray[14], *szarray[7], *szarray2[5], *szarray3[7],
-	*szarray4[4], *szarray5[6], *tnvarray[4], *tnharray[6], *tnharray2[5], *gaspharray[6],
+	*szarray4[4], *tnvarray[4], *tnharray[6], *tnharray2[5], *gaspharray[6],
 	*gaspvarray[3], *lkarray[2][7], *lkbuttonsarray[17], *lkharray[3],
 	*charray1[4], *charray2[4], *charray3[4], *cvarray[9], *cvarray2[4],
 	*larray[16], *larray2[25], *larray3[6], *larray4[5], *uharray[4],
@@ -7340,7 +7399,7 @@ void FontInfo(SplineFont *sf,int deflayer,int defaspect,int sync) {
 	mflabel[8], mclabel[8], szlabel[17], mklabel[7], metlabel[28],
 	sslabel[23], xulabel[8], dlabel[5], ulabel[3], gasplabel[5],
 	lkbuttonslabel[14], clabel[11], floglabel[3], llabel[20], mslabel[7],
-	ssnlabel[7], wofflabel[8];
+	ssnlabel[7], wofflabel[8], privatelabel_def[3];
     GTextInfo *namelistnames;
     struct gfi_data *d;
     char iabuf[20], upbuf[20], uwbuf[20], asbuf[20], dsbuf[20],
@@ -7358,7 +7417,7 @@ void FontInfo(SplineFont *sf,int deflayer,int defaspect,int sync) {
     unichar_t *tmpcreatetime, *tmpmodtime;
     time_t t;
     const struct tm *tm;
-    struct matrixinit mi, gaspmi, layersmi, ssmi, marks_mi, markc_mi;
+    struct matrixinit mi, gaspmi, layersmi, ssmi, sizemi, marks_mi, markc_mi, private_mi;
     struct matrix_data *marks_md, *markc_md;
     int ltype;
     static GBox small_blue_box;
@@ -8136,104 +8195,48 @@ return;
     memset(&plabel,0,sizeof(plabel));
     memset(&pgcd,0,sizeof(pgcd));
 
-    pgcd[0].gd.pos.x = 10; pgcd[0].gd.pos.y = 6;
-    pgcd[0].gd.pos.width = 240; pgcd[0].gd.pos.height = 8*12+10;
-    pgcd[0].gd.flags = gg_visible | gg_enabled;
-    pgcd[0].gd.cid = CID_PrivateEntries;
-    pgcd[0].gd.u.list = PI_ListSet(sf);
-    pgcd[0].gd.handle_controlevent = PI_ListSel;
-    pgcd[0].creator = GListCreate;
+    PSPrivate_MatrixInit(&private_mi,d);
 
-    pgcd[1].gd.pos.x = 10; pgcd[1].gd.pos.y = pgcd[0].gd.pos.y+pgcd[0].gd.pos.height+10;
-    pgcd[1].gd.pos.width = pgcd[0].gd.pos.width; pgcd[1].gd.pos.height = 8*12+10;
-    pgcd[1].gd.flags = gg_visible | gg_enabled;
-    pgcd[1].gd.cid = CID_PrivateValues;
-    pgcd[1].creator = GTextAreaCreate;
-
-    pgcd[2].gd.pos.x = 10; pgcd[2].gd.pos.y = 300-35-30;
-    pgcd[2].gd.pos.width = -1; pgcd[2].gd.pos.height = 0;
-    pgcd[2].gd.flags = gg_visible | gg_enabled ;
-    plabel[2].text = (unichar_t *) _("_Add");
-    plabel[2].text_is_1byte = true;
-    plabel[2].text_in_resource = true;
-    pgcd[2].gd.label = &plabel[2];
-    pgcd[2].gd.handle_controlevent = PI_Add;
-    pgcd[2].gd.cid = CID_Add;
-    pgcd[2].creator = GButtonCreate;
-
-    pgcd[3].gd.pos.x = (260)/2-GIntGetResource(_NUM_Buttonsize)*100/GIntGetResource(_NUM_ScaleFactor)-5;
-    pgcd[3].gd.pos.y = pgcd[2].gd.pos.y;
-    pgcd[3].gd.pos.width = -1; pgcd[3].gd.pos.height = 0;
-    pgcd[3].gd.flags = gg_visible ;
-    plabel[3].text = (unichar_t *) _("_Guess");
-    plabel[3].text_is_1byte = true;
-    plabel[3].text_in_resource = true;
-    pgcd[3].gd.label = &plabel[3];
-    pgcd[3].gd.handle_controlevent = PI_Guess;
-    pgcd[3].gd.cid = CID_Guess;
-    pgcd[3].creator = GButtonCreate;
-
-    pgcd[4].gd.pos.x = -(260/2-GIntGetResource(_NUM_Buttonsize)*100/GIntGetResource(_NUM_ScaleFactor)-5);
-    pgcd[4].gd.pos.y = pgcd[2].gd.pos.y;
-    pgcd[4].gd.pos.width = -1; pgcd[4].gd.pos.height = 0;
-    pgcd[4].gd.flags = gg_visible | gg_utf8_popup ;
-/* GT: This is an abbreviation for Histogram */
-    plabel[4].text = (unichar_t *) _("_Hist.");
-    plabel[4].text_is_1byte = true;
-    plabel[4].text_in_resource = true;
-    pgcd[4].gd.label = &plabel[4];
-    pgcd[4].gd.handle_controlevent = PI_Hist;
-    pgcd[4].gd.cid = CID_Hist;
-    pgcd[4].gd.popup_msg = (unichar_t *) _("Histogram Dialog");
-    pgcd[4].creator = GButtonCreate;
-
-    pgcd[5].gd.pos.x = -10; pgcd[5].gd.pos.y = pgcd[2].gd.pos.y;
-    pgcd[5].gd.pos.width = -1; pgcd[5].gd.pos.height = 0;
-    pgcd[5].gd.flags = gg_visible | gg_enabled ;
-    plabel[5].text = (unichar_t *) _("_Remove");
-    plabel[5].text_is_1byte = true;
-    plabel[5].text_in_resource = true;
-    pgcd[5].gd.label = &plabel[5];
-    pgcd[5].gd.handle_controlevent = PI_Delete;
-    pgcd[5].gd.cid = CID_Remove;
-    pgcd[5].creator = GButtonCreate;
-
-    ppbuttons[0] = &pgcd[2]; ppbuttons[1] = &pgcd[3];
-    ppbuttons[2] = &pgcd[4]; ppbuttons[3] = &pgcd[5]; ppbuttons[4] = NULL;
-
-    {
-	static int cids[] = { CID_Top, CID_Up, CID_Down, CID_Bottom, 0 };
-	static char *names[] = { N_("_Top"), N_("_Up"), N_("_Down"), N_("_Bottom") };
-	pp2buttons[0] = GCD_Glue;
-	for ( i=0 ; cids[i]!=0 ; ++i ) {
-	    pgcd[i+6].gd.flags = gg_visible | gg_enabled ;
-	    plabel[i+6].text = (unichar_t *) _(names[i]);
-	    plabel[i+6].text_is_1byte = true;
-	    plabel[i+6].text_in_resource = true;
-	    pgcd[i+6].gd.label = &plabel[i+6];
-	    pgcd[i+6].gd.handle_controlevent = PI_Move;
-	    pgcd[i+6].gd.cid = cids[i];
-	    pgcd[i+6].creator = GButtonCreate;
-	    pp2buttons[i+1] = &pgcd[i+6];
-	}
-	pp2buttons[5] = GCD_Glue; pp2buttons[6] = NULL;
-    }
-
-    pparray[0] = &pgcd[0]; pparray[1] = &ppbox[3]; pparray[2] = &pgcd[1];
-    pparray[3] = &ppbox[2]; pparray[4] = NULL;
+    i=0;
+    pgcd[i].gd.pos.width = 300; pgcd[i].gd.pos.height = 200;
+    pgcd[i].gd.flags = gg_enabled | gg_visible | gg_utf8_popup;
+    pgcd[i].gd.cid = CID_Private;
+    pgcd[i].gd.u.matrix = &private_mi;
+    pgcd[i].gd.popup_msg = (unichar_t *) _(
+	"The PostScript 'Private' dictionary gives you control over\n"
+	"several font-wide versions of hinting.\n"
+	"The 'Private' dictionary only applies to PostScript fonts.");
+    pgcd[i].data = d;
+    pgcd[i++].creator = GMatrixEditCreate;
+    pparray[0] = &pgcd[0]; pparray[1] = NULL;
 
     memset(ppbox,0,sizeof(ppbox));
     ppbox[0].gd.flags = gg_enabled|gg_visible;
     ppbox[0].gd.u.boxelements = pparray;
     ppbox[0].creator = GVBoxCreate;
 
-    ppbox[2].gd.flags = gg_enabled|gg_visible;
-    ppbox[2].gd.u.boxelements = ppbuttons;
-    ppbox[2].creator = GHBoxCreate;
 
-    ppbox[3].gd.flags = gg_enabled|gg_visible;
-    ppbox[3].gd.u.boxelements = pp2buttons;
-    ppbox[3].creator = GHBoxCreate;
+    memset(&privatelabel_def,0,sizeof(privatelabel_def));
+    memset(&privategcd_def,0,sizeof(privategcd_def));
+    privategcd_def[0].gd.flags = gg_visible ;
+    privatelabel_def[0].text = (unichar_t *) _("_Guess");
+    privatelabel_def[0].text_is_1byte = true;
+    privatelabel_def[0].text_in_resource = true;
+    privategcd_def[0].gd.label = &privatelabel_def[0];
+    privategcd_def[0].gd.handle_controlevent = PI_Guess;
+    privategcd_def[0].gd.cid = CID_Guess;
+    privategcd_def[0].creator = GButtonCreate;
+
+    privategcd_def[1].gd.flags = gg_visible | gg_utf8_popup ;
+    privatelabel_def[1].text = (unichar_t *) _("_Histogram");
+    privatelabel_def[1].text_is_1byte = true;
+    privatelabel_def[1].text_in_resource = true;
+    privategcd_def[1].gd.label = &privatelabel_def[1];
+    privategcd_def[1].gd.handle_controlevent = PI_Hist;
+    privategcd_def[1].gd.cid = CID_Hist;
+    privategcd_def[1].gd.popup_msg = (unichar_t *) _("Histogram Dialog");
+    privategcd_def[1].creator = GButtonCreate;
+
 /******************************************************************************/
     memset(&vlabel,0,sizeof(vlabel));
     memset(&vgcd,0,sizeof(vgcd));
@@ -8913,6 +8916,22 @@ return;
     memset(&panlabel,0,sizeof(panlabel));
     memset(&pangcd,0,sizeof(pangcd));
 
+    if ( small_blue_box.main_foreground==0 ) {
+	extern void _GButtonInit(void);
+	_GButtonInit();
+	small_blue_box = _GGadget_button_box;
+	small_blue_box.border_type = bt_box;
+	small_blue_box.border_shape = bs_rect;
+	small_blue_box.border_width = 1;
+	small_blue_box.flags = 0;
+	small_blue_box.padding = 0;
+	small_blue_box.main_foreground = 0x0000ff;
+	small_blue_box.border_darker = small_blue_box.main_foreground;
+	small_blue_box.border_darkest = small_blue_box.border_brighter =
+		small_blue_box.border_brightest =
+		small_blue_box.main_background = GDrawGetDefaultBackground(NULL);
+    }
+
     i = j = 0;
 
     pangcd[i].gd.pos.x = 5; pangcd[i].gd.pos.y = 5;
@@ -8926,7 +8945,16 @@ return;
     pangcd[i].gd.handle_controlevent = GFI_PanoseDefault;
     panarray[j++] = &pangcd[i];
     pangcd[i++].creator = GCheckBoxCreate;
-    panarray[j++] = GCD_Glue; panarray[j++] = NULL;
+
+    panlabel[i].text = (unichar_t *) _( "http://panose.com/");
+    panlabel[i].text_is_1byte = true;
+    pangcd[i].gd.label = &panlabel[i];
+    pangcd[i].gd.pos.x = 12; ugcd[1].gd.pos.y = 10; 
+    pangcd[i].gd.flags = gg_visible | gg_enabled | gg_dontcopybox;
+    pangcd[i].gd.box = &small_blue_box;
+    pangcd[i].gd.handle_controlevent = GFI_ShowPanoseDocs;
+    pangcd[i++].creator = GButtonCreate;
+    panarray[j++] = &pangcd[i-1]; panarray[j++] = NULL;
 
     pangcd[i].gd.pos.x = 20; pangcd[i].gd.pos.y = pangcd[i-1].gd.pos.y+14+4;
     panlabel[i].text = (unichar_t *) S_("Panose|_Family");
@@ -8943,6 +8971,7 @@ return;
     pangcd[i].gd.cid = CID_PanFamily;
     pangcd[i].gd.u.list = panfamily;
     panarray[j++] = &pangcd[i];
+    pangcd[i].gd.handle_controlevent = GFI_ChangePanoseFamily;
     pangcd[i++].creator = GListButtonCreate;
     panarray[j++] = NULL;
 
@@ -9489,7 +9518,7 @@ return;
     ssngcd[1].gd.cid = CID_SSNames;
     ssngcd[1].gd.u.matrix = &ssmi;
     ssngcd[1].gd.popup_msg = (unichar_t *) _(
-	"To create a new name, left click on the <New> button, and select a locale.\n"
+	"To create a new name, left click on the <New> button, and select a locale (language).\n"
 	"To change the locale, left click on it.\n"
 	"To change the feature, left click on it.\n"
 	"To change the text, left click in it and then type.\n"
@@ -9799,6 +9828,7 @@ return;
 /******************************************************************************/
     memset(&szlabel,0,sizeof(szlabel));
     memset(&szgcd,0,sizeof(szgcd));
+    SizeMatrixInit(&sizemi,d);
 
     k=0;
 
@@ -9907,63 +9937,29 @@ return;
     szgcd[k].gd.popup_msg = (unichar_t *) _("This provides a set of names used to identify the\nstyle of this font. Names may be translated into multiple\nlanguages (English is required, others are optional)\nAll fonts with the same Style ID should share this name.");
     szgcd[k++].creator = GLabelCreate;
 
-    szgcd[k].gd.pos.x = 10; szgcd[k].gd.pos.y = szgcd[k-1].gd.pos.y+14;
-    szgcd[k].gd.pos.width = ngcd[15].gd.pos.width; szgcd[k].gd.pos.height = 100;
-    szgcd[k].gd.flags = gg_visible | gg_enabled | gg_list_alphabetic;
+    szgcd[k].gd.pos.width = 300; szgcd[k].gd.pos.height = 200;
+    szgcd[k].gd.flags = gg_enabled | gg_visible | gg_utf8_popup;
     szgcd[k].gd.cid = CID_StyleName;
-    szgcd[k].gd.handle_controlevent = GFI_StyleNameSelChanged;
-    szgcd[k++].creator = GListCreate;
-
-    szgcd[k].gd.pos.x = 10; szgcd[k].gd.pos.y = szgcd[k-1].gd.pos.y+szgcd[k-1].gd.pos.height+4;
-    szgcd[k].gd.pos.width = -1;
-    szgcd[k].gd.flags = gg_visible | gg_enabled;
-    szlabel[k].text = (unichar_t *) S_("StyleName|_New...");
-    szlabel[k].text_is_1byte = true;
-    szlabel[k].text_in_resource = true;
-    szgcd[k].gd.label = &szlabel[k];
-    szgcd[k].gd.cid = CID_StyleNameNew;
-    szgcd[k].gd.handle_controlevent = GFI_StyleNameNew;
-    szgcd[k++].creator = GButtonCreate;
-
-    szgcd[k].gd.pos.x = 20+GIntGetResource(_NUM_Buttonsize)*100/GIntGetResource(_NUM_ScaleFactor);
-    szgcd[k].gd.pos.y = szgcd[k-1].gd.pos.y;
-    szgcd[k].gd.pos.width = -1;
-    szgcd[k].gd.flags = gg_visible;
-    szlabel[k].text = (unichar_t *) _("_Delete");
-    szlabel[k].text_is_1byte = true;
-    szlabel[k].text_in_resource = true;
-    szgcd[k].gd.label = &szlabel[k];
-    szgcd[k].gd.cid = CID_StyleNameDel;
-    szgcd[k].gd.handle_controlevent = GFI_StyleNameDel;
-    szgcd[k++].creator = GButtonCreate;
-
-    szgcd[k].gd.pos.x = 10 + 2*(10+GIntGetResource(_NUM_Buttonsize)*100/GIntGetResource(_NUM_ScaleFactor));
-    szgcd[k].gd.pos.y = szgcd[k-1].gd.pos.y;
-    szgcd[k].gd.pos.width = -1;
-    szgcd[k].gd.flags = gg_visible;
-    szlabel[k].text = (unichar_t *) _("_Edit...");
-    szlabel[k].text_is_1byte = true;
-    szlabel[k].text_in_resource = true;
-    szgcd[k].gd.label = &szlabel[k];
-    szgcd[k].gd.cid = CID_StyleNameRename;
-    szgcd[k].gd.handle_controlevent = GFI_StyleNameRename;
-    szgcd[k++].creator = GButtonCreate;
+    szgcd[k].gd.u.matrix = &sizemi;
+    szgcd[k].gd.popup_msg = (unichar_t *) _(
+	"To create a new name, left click on the <New> button, and select a locale (language).\n"
+	"To change the locale, left click on it.\n"
+	"To change the text, left click in it and then type.\n"
+	);
+    szgcd[k].data = d;
+    szgcd[k].creator = GMatrixEditCreate;
 
     szarray[0] = &szbox[2];
     szarray[1] = &szbox[3];
     szarray[2] = &szbox[4];
     szarray[3] = &szgcd[11];
     szarray[4] = &szgcd[12];
-    szarray[5] = &szbox[5];
-    szarray[6] = NULL;
+    szarray[5] = NULL;
 
     szarray2[0] = &szgcd[0]; szarray2[1] = &szgcd[1]; szarray2[2] = &szgcd[2]; szarray2[3] = GCD_Glue; szarray2[4] = NULL;
     szarray3[0] = &szgcd[5]; szarray3[1] = &szgcd[6]; szarray3[2] = &szgcd[7]; szarray3[3] = &szgcd[8]; szarray3[4] = GCD_Glue; szarray3[5] = NULL;
      szarray3[6] = NULL;
     szarray4[0] = &szgcd[9]; szarray4[1] = &szgcd[10]; szarray4[2] = GCD_Glue; szarray4[3] = NULL;
-    szarray5[0] = &szgcd[13]; szarray5[1] = GCD_Glue;
-     szarray5[2] = &szgcd[14]; szarray5[3] = GCD_Glue;
-     szarray5[4] = &szgcd[15]; szarray5[5] = NULL;
 
     memset(szbox,0,sizeof(szbox));
     szbox[0].gd.flags = gg_enabled|gg_visible;
@@ -9982,10 +9978,6 @@ return;
     szbox[4].gd.flags = gg_enabled|gg_visible;
     szbox[4].gd.u.boxelements = szarray4;
     szbox[4].creator = GHBoxCreate;
-
-    szbox[5].gd.flags = gg_enabled|gg_visible;
-    szbox[5].gd.u.boxelements = szarray5;
-    szbox[5].creator = GHBoxCreate;
 
 /******************************************************************************/
     memset(&mcgcd,0,sizeof(mcgcd));
@@ -10346,22 +10338,6 @@ return;
     memset(&ugcd,0,sizeof(ugcd));
     memset(ubox,0,sizeof(ubox));
 
-    if ( small_blue_box.main_foreground==0 ) {
-	extern void _GButtonInit(void);
-	_GButtonInit();
-	small_blue_box = _GGadget_button_box;
-	small_blue_box.border_type = bt_box;
-	small_blue_box.border_shape = bs_rect;
-	small_blue_box.border_width = 0;
-	small_blue_box.flags = box_foreground_shadow_outer;
-	small_blue_box.padding = 0;
-	small_blue_box.main_foreground = 0x0000ff;
-	small_blue_box.border_darker = small_blue_box.main_foreground;
-	small_blue_box.border_darkest = small_blue_box.border_brighter =
-		small_blue_box.border_brightest =
-		small_blue_box.main_background = GDrawGetDefaultBackground(NULL);
-    }
-
     ulabel[0].text = (unichar_t *) _(
 	    "This pane is informative only and shows the characters\n"
 	    "actually in the font. If you wish to set the OS/2 Unicode\n"
@@ -10601,6 +10577,11 @@ return;
     GHVBoxSetExpandableCol(gaspboxes[2].ret,2);
     GHVBoxSetExpandableRow(gaspboxes[0].ret,1);
 
+    GMatrixEditAddButtons(pgcd[0].ret,privategcd_def);
+    GMatrixEditSetUpDownVisible(pgcd[0].ret, true);
+    GMatrixEditSetOtherButtonEnable(pgcd[0].ret, PSPrivate_EnableButtons);
+    GMatrixEditSetNewText(pgcd[0].ret,S_("PSPrivateDictKey|New"));
+
     GHVBoxSetExpandableCol(lbox[2].ret,3);
     GHVBoxSetExpandableCol(lbox[3].ret,gb_expandglue);
     GHVBoxSetExpandableCol(lbox[4].ret,gb_expandglue);
@@ -10627,10 +10608,6 @@ return;
     GHVBoxSetExpandableRow(psb[0].ret,psrow);
     GHVBoxSetExpandableCol(psb2[0].ret,3);
     GHVBoxSetExpandableCol(psb2[1].ret,1);
-
-    GHVBoxSetExpandableRow(ppbox[0].ret,0);
-    GHVBoxSetExpandableCol(ppbox[2].ret,gb_samesize);
-    GHVBoxSetExpandableCol(ppbox[3].ret,gb_expandgluesame);
 
     GHVBoxSetExpandableRow(vbox[0].ret,gb_expandglue);
     GHVBoxSetExpandableCol(vbox[0].ret,1);
@@ -10672,7 +10649,6 @@ return;
     GHVBoxSetExpandableCol(szbox[3].ret,gb_expandglue);
     GHVBoxSetPadding(szbox[4].ret,6,2);
     GHVBoxSetExpandableCol(szbox[4].ret,gb_expandglue);
-    GHVBoxSetExpandableCol(szbox[5].ret,gb_expandglue);
 
     GHVBoxSetExpandableRow(tnboxes[0].ret,1);
     GHVBoxSetExpandableCol(tnboxes[2].ret,gb_expandglue);
@@ -10721,7 +10697,6 @@ return;
     d->as = as; d->fh = as+ds;
 
     GTextInfoListFree(namelistnames);
-    GTextInfoListFree(pgcd[0].gd.u.list);
 
     for ( i=0; i<mi.initial_row_cnt; ++i )
 	free( mi.matrix_data[3*i+2].u.md_str );
@@ -10733,9 +10708,8 @@ return;
     free(copied_copyright);
 
     GWidgetIndicateFocusGadget(ngcd[1].ret);
-    ProcessListSel(d);
+    PSPrivate_EnableButtons(GWidgetGetControl(d->gw,CID_Private),-1,-1);
     GFI_AspectChange(mgcd[0].ret,NULL);
-    GGadgetSetList(GWidgetGetControl(gw,CID_StyleName),StyleNames(sf->fontstyle_name),false);
 
     GHVBoxFitWindow(mb[0].ret);
 
@@ -10763,11 +10737,18 @@ void FontInfoInit(void) {
     static GTextInfo *needswork[] = {
 	macstyles, widthclass, weightclass, fstype, pfmfamily, ibmfamily,
 	panfamily, panserifs, panweight, panprop, pancontrast, panstrokevar,
-	panarmstyle, panletterform, panmidline, panxheight, mslanguages,
+	panarmstyle, panletterform, panmidline, panxheight,
+	pantool, panspacing, panasprat, pancontrast2, pantopology, panform,
+	panfinials, panxascent,
+	panclass, panaspect, panserifvar, pantreatment, panlining,
+	pantopology2, pancharrange, pancontrast3,
+	pankind, panasprat2,
+	mslanguages,
 	ttfnameids, interpretations, gridfit, antialias, os2versions,
 	codepagenames, unicoderangenames, symsmooth, gfsymsmooth, splineorder,
 	NULL
     };
+    struct titlelist *tl;
     static char **needswork2[] = { texparams, texpopups,
 	mathparams, mathpopups, extparams, extpopups,
     NULL };
@@ -10778,6 +10759,7 @@ void FontInfoInit(void) {
 			{ sizeof(gaspci)/sizeof(gaspci[0]), gaspci },
 			{ sizeof(layersci)/sizeof(layersci[0]), layersci },
 			{ sizeof(ssci)/sizeof(ssci[0]), ssci },
+			{ sizeof(sizeci)/sizeof(sizeci[0]), sizeci },
 			{ sizeof(marks_ci)/sizeof(marks_ci[0]), marks_ci },
 			{ sizeof(markc_ci)/sizeof(markc_ci[0]), markc_ci },
 			{ 0 }};
@@ -10803,6 +10785,9 @@ return;
 	    }
 	}
     }
+
+    for ( tl=&panoses[0][0]; tl->name!=NULL; ++tl )
+	tl->name = S_(tl->name);
  
     LookupUIInit();
     LookupInit();

@@ -1,4 +1,4 @@
-/* Copyright (C) 2006-2010 by George Williams */
+/* Copyright (C) 2006-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -25,6 +25,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "gdraw.h"
+#include "../gdraw/gdrawP.h"
 #include "gkeysym.h"
 #include "ggadgetP.h"
 #include "gwidget.h"
@@ -99,7 +100,7 @@ return;
     gmatrixedit_font = _GGadgetInitDefaultBox("GMatrixEdit.",&gmatrixedit_box,gmatrixedit_font);
     GDrawDecomposeFont(gmatrixedit_font,&rq);
     rq.point_size = (rq.point_size>=12) ? rq.point_size-2 : rq.point_size>=10 ? rq.point_size-1 : rq.point_size;
-    rq.weight = 700; 
+    rq.weight = 700;
     gmatrixedit_titfont = GResourceFindFont("GMatrixEdit.TitleFont",GDrawInstanciateFont(screen_display,&rq));
     gmatrixedit_title_bg = GResourceFindColor("GMatrixEdit.TitleBG",gmatrixedit_title_bg);
     gmatrixedit_title_fg = GResourceFindColor("GMatrixEdit.TitleFG",gmatrixedit_title_fg);
@@ -176,11 +177,14 @@ static void GMatrixEdit_destroy(GGadget *g) {
 
 static void GME_FixScrollBars(GMatrixEdit *gme) {
     int width;
+    int lastc;
     int pagesize = gme->vsb->r.height/(gme->fh+gme->vpad);
     if ( pagesize<=0 ) pagesize=1;
 
-    GScrollBarSetBounds(gme->vsb,0,gme->rows+1,pagesize);
-    width = gme->col_data[gme->cols-1].x + gme->col_data[gme->cols-1].width;
+	/* Editable matrixedits need one extra line, for the <New> button */
+    GScrollBarSetBounds(gme->vsb,0,gme->rows+!gme->no_edit,pagesize);
+    for (lastc=gme->cols-1; lastc>=0 && gme->col_data[lastc].hidden; lastc--);
+    width = gme->col_data[lastc].x + gme->col_data[lastc].width;
     GScrollBarSetBounds(gme->hsb,0,width,gme->hsb->r.width);
 }
 
@@ -450,14 +454,26 @@ static void GMatrixEdit_Resize(GGadget *g, int32 width, int32 height ) {
     int subheight, subwidth;
     /*int plus, extra,x,c;*/
     int bcnt, i, min_width;
+    GRect wsize;
 
     width -= 2*bp; height -= 2*bp;
 
-    subheight = height - (gme->del->r.height+DEL_SPACE) -
+    subheight = height -
+	    (gme->no_edit && gme->buttonlist==NULL?0:(gme->del->r.height+DEL_SPACE)) -
 	    (gme->has_titles?gme->fh:0) -
 	    gme->hsb->r.height;
     subwidth = width - gme->vsb->r.width;
     GDrawResize(gme->nested,subwidth, subheight);
+    /* Make sure the dimensions of the internal window are properly set. */
+    /*  We need this because GDrawResize() just notifies WM about the size */
+    /*  changes, but doesn't update the data structures used by FF internally. */
+    /*  This may result into list marks/functional buttons being incorrectly */
+    /*  positioned in their matrix cells when the dialog is displayed. */
+    GDrawGetSize(gme->nested, &wsize);
+    wsize.width  = subwidth;
+    wsize.height = subheight;
+    gme->nested->pos = wsize;
+
     GGadgetResize(gme->vsb,gme->vsb->r.width,subheight);
     GGadgetMove(gme->vsb,gme->g.inner.x + width-2*bp-gme->vsb->r.width,
 			    gme->vsb->r.y);
@@ -474,7 +490,9 @@ static void GMatrixEdit_Resize(GGadget *g, int32 width, int32 height ) {
 	    if ( gme->buttonlist[i]->state!=gs_invisible )
 		++bcnt;
     }
-    if ( bcnt==1 ) {
+    if ( bcnt==1 && gme->no_edit ) {
+	/* No delete button to display */
+    } else if ( bcnt==1 ) {
 	GGadgetMove(gme->del,gme->g.inner.x + (width-gme->del->r.width)/2,
 				 gme->g.inner.y + height - (gme->del->r.height+DEL_SPACE/2));
     } else {
@@ -514,6 +532,18 @@ static void GMatrixEdit_Resize(GGadget *g, int32 width, int32 height ) {
 static int GMatrixEdit_Mouse(GGadget *g, GEvent *event) {
     GMatrixEdit *gme = (GMatrixEdit *) g;
     int c, nw, i, x, ex = event->u.mouse.x + gme->off_left;
+
+    if (( event->type==et_mouseup || event->type==et_mousedown ) &&
+	    (event->u.mouse.button>=4 && event->u.mouse.button<=7)) {
+	    int isv = event->u.mouse.button<=5;
+	if ( event->u.mouse.state&ksm_shift ) isv = !isv;
+	if ( isv && gme->vsb!=NULL )
+return( GGadgetDispatchEvent(gme->vsb,event));
+	else if ( !isv && gme->hsb!=NULL )
+return( GGadgetDispatchEvent(gme->hsb,event));
+	else
+return( true );
+    }
 
     if ( gme->pressed_col>=0 && (event->type==et_mouseup || event->type==et_mousemove)) {
 	c = gme->pressed_col;
@@ -583,11 +613,11 @@ static int GMatrixEdit_Expose(GWindow pixmap, GGadget *g, GEvent *event) {
     GBoxDrawBorder(pixmap,&g->r,g->box,g->state,false);
     if ( gme->has_titles ) {
 	r = gme->g.inner;
-	r.height = gme->fh;
+	r.height = gme->font_fh;
 	r.width = gme->hsb->r.width;
 	GDrawPushClip(pixmap,&r,&older);
 	GDrawFillRect(pixmap,&r,gmatrixedit_title_bg);
-	y = r.y + gme->as;
+	y = r.y + gme->font_as;
 	GDrawSetFont(pixmap,gme->titfont);
 	for ( lastc = gme->cols-1; lastc>0 && gme->col_data[lastc].hidden; --lastc );
 	for ( c=0; c<gme->cols; ++c ) {
@@ -636,13 +666,99 @@ static void GMatrixEdit_Redraw(GGadget *g ) {
     _ggadget_redraw(g);
 }
 
+static char *MD_Text(GMatrixEdit *gme,int r, int c ) {
+    char buffer[20], *str= NULL;
+    struct matrix_data *d = &gme->data[r*gme->cols+c];
+
+    switch ( gme->col_data[c].me_type ) {
+      case me_enum:
+	/* Fall through into next case */
+      case me_int:
+	sprintf( buffer,"%d",(int) d->u.md_ival );
+	str = buffer;
+      break;
+      case me_hex:
+	sprintf( buffer,"0x%x",(int) d->u.md_ival );
+	str = buffer;
+      break;
+      case me_uhex:
+	sprintf( buffer,"U+%04X",(int) d->u.md_ival );
+	str = buffer;
+      break;
+      case me_addr:
+	sprintf( buffer,"%p", d->u.md_addr );
+	str = buffer;
+      break;
+      case me_real:
+	sprintf( buffer,"%g",d->u.md_real );
+	str = buffer;
+      break;
+      case me_string: case me_bigstr:
+      case me_funcedit:
+      case me_onlyfuncedit:
+      case me_button:
+      case me_stringchoice: case me_stringchoicetrans: case me_stringchoicetag:
+	str = d->u.md_str;
+      break;
+      case me_func:
+	str = d->u.md_str;
+	if ( str==NULL )
+return( (gme->col_data[c].func)(&gme->g,r,c) );
+      break;
+    }
+    if (!str) str="";
+return( copy(str));
+}
+
+static int GME_RecalcFH(GMatrixEdit *gme) {
+    int r,c, as, ds;
+    int32 end = -1;
+    char *str, *ept;
+    GTextBounds bounds;
+    GMenuItem *mi;
+
+    GDrawSetFont(gme->nested,gme->font);
+    as = gme->font_as; ds = gme->font_fh-as;
+    for ( r=0; r<gme->rows; ++r ) for ( c=0; c<gme->cols; ++c ) {
+	end = -1;
+	switch ( gme->col_data[c].me_type ) {
+	  case me_enum:
+	    mi = FindMi(gme->col_data[c].enum_vals,gme->data[r*gme->cols+c].u.md_ival);
+	    if ( mi==NULL )
+    continue;
+	    str = copy( (char *)mi->ti.text );
+	break;
+	  default:
+	    str = MD_Text(gme,r,c);
+	    if ( str == NULL )
+    continue;
+	    if ( ( ept = strchr(str,'\n') ) != NULL )
+		end = ept - str;
+	break;
+	}
+	GDrawGetBiText8Bounds(gme->nested, str, end, NULL, &bounds);
+	free(str);
+	if ( bounds.as>as )
+	    as = bounds.as;
+	if ( bounds.ds>ds )
+	    ds = bounds.ds;
+    }
+    if ( as!=gme->as || as+ds!=gme->fh ) {
+	gme->fh = as+ds;
+	gme->as = as;
+return( true );
+    }
+return( false );
+}
+
 static void GMatrixEdit_SetFont(GGadget *g,FontInstance *new) {
     GMatrixEdit *gme = (GMatrixEdit *) g;
     int as, ds, ld;
     gme->font = new;
     GDrawWindowFontMetrics(g->base,gme->font,&as, &ds, &ld);
-    gme->as = as;
-    gme->fh = as+ds;
+    gme->font_as = gme->as = as;
+    gme->font_fh = gme->fh = as+ds;
+    GME_RecalcFH(gme);
     GME_FixScrollBars(gme);
     GDrawRequestExpose(gme->nested,NULL,false);
 }
@@ -718,29 +834,33 @@ struct gfuncs gmatrixedit_funcs = {
 static void GME_PositionEdit(GMatrixEdit *gme) {
     int x,y,end;
     GRect wsize;
-    int c = gme->active_col, r = gme->active_row;
+    int c = gme->active_col, r = gme->active_row, lastc;
+
+    for ( lastc = gme->cols-1; lastc>0 && gme->col_data[lastc].hidden; --lastc );
 
     if ( gme->edit_active ) {
 	x = gme->col_data[c].x - gme->off_left;
 	y = (r-gme->off_top)*(gme->fh+gme->vpad);
 	end = x + gme->col_data[c].width;
-	if ( gme->col_data[c].me_type==me_stringchoice ||
-		gme->col_data[c].me_type==me_stringchoicetrans ||
-		gme->col_data[c].me_type==me_stringchoicetag ||
-		gme->col_data[c].me_type==me_onlyfuncedit ||
-		gme->col_data[c].me_type==me_funcedit )
-	    end -= gme->mark_size+gme->mark_skip;
 
-	GDrawGetSize(gme->nested,&wsize);
-	if ( end>wsize.width )
-	    end = wsize.width;
+	if ( c == lastc ) {
+	    GDrawGetSize(gme->nested,&wsize);
+	    if ( end>wsize.width )
+		end = wsize.width - x;
+	    if ( gme->col_data[c].me_type==me_stringchoice ||
+		    gme->col_data[c].me_type==me_stringchoicetrans ||
+		    gme->col_data[c].me_type==me_stringchoicetag ||
+		    gme->col_data[c].me_type==me_onlyfuncedit ||
+		    gme->col_data[c].me_type==me_funcedit )
+		end -= gme->mark_size+gme->mark_skip;
+	}
+
 	GGadgetResize(gme->tf,end-x,gme->fh);
 	GGadgetMove(gme->tf,x,y);
     }
 }
 
 static void GME_StrSmallEdit(GMatrixEdit *gme,char *str, GEvent *event) {
-
     gme->edit_active = true;
     /* Shift so all of column is in window???? */
     GME_PositionEdit(gme);
@@ -862,6 +982,10 @@ return( false );
     gme->edit_active = false;
     GGadgetSetVisible(gme->tf,false);
     GME_AdjustCol(gme,gme->active_col);
+    if ( GME_RecalcFH(gme) ) {
+	GME_FixScrollBars(gme);
+	GDrawRequestExpose(gme->nested,NULL,false);
+    }
 
     gme->wasnew = false;
 return( true );
@@ -910,7 +1034,7 @@ static void GME_EnableDelete(GMatrixEdit *gme) {
 	    if ( gme->active_row>=1 && gme->active_row<gme->rows )
 		updown = ud_up_enabled;
 	    if ( gme->active_row>=0 && gme->active_row<gme->rows-1 )
-		updown = ud_down_enabled;
+		updown |= ud_down_enabled;
 	}
 	GGadgetSetEnabled(gme->up,updown & ud_up_enabled ? 1 : 0);
 	GGadgetSetEnabled(gme->down,updown & ud_down_enabled ? 1 : 0);
@@ -971,7 +1095,7 @@ return;
     GME_EnableDelete(gme);
     if ( gme->rowmotion!=NULL )
 	(gme->rowmotion)((GGadget *) gme, gme->active_row+1,gme->active_row);
-    GDrawRequestExpose(gme->nested,NULL,false);
+    GMatrixEditScrollToRowCol(&gme->g,gme->active_row,gme->active_col);
 }
 
 static int _GME_Up(GGadget *g, GEvent *e) {
@@ -999,7 +1123,7 @@ return;
     GME_EnableDelete(gme);
     if ( gme->rowmotion!=NULL )
 	(gme->rowmotion)((GGadget *) gme, gme->active_row-1,gme->active_row);
-    GDrawRequestExpose(gme->nested,NULL,false);
+    GMatrixEditScrollToRowCol(&gme->g,gme->active_row,gme->active_col);
 return;
 }
 
@@ -1219,58 +1343,19 @@ static void GME_StringChoices(GMatrixEdit *gme,GEvent *event,int r,int c) {
     _GMenuCreatePopupMenu(gme->nested,event, mi, GME_FinishChoice);
 }
 
-static char *MD_Text(GMatrixEdit *gme,int r, int c ) {
-    char buffer[20], *str= NULL;
-    struct matrix_data *d = &gme->data[r*gme->cols+c];
-    
-    switch ( gme->col_data[c].me_type ) {
-      case me_enum:
-	/* Fall through into next case */
-      case me_int:
-	sprintf( buffer,"%d",(int) d->u.md_ival );
-	str = buffer;
-      break;
-      case me_hex:
-	sprintf( buffer,"0x%x",(int) d->u.md_ival );
-	str = buffer;
-      break;
-      case me_uhex:
-	sprintf( buffer,"U+%04X",(int) d->u.md_ival );
-	str = buffer;
-      break;
-      case me_addr:
-	sprintf( buffer,"%p", d->u.md_addr );
-	str = buffer;
-      break;
-      case me_real:
-	sprintf( buffer,"%g",d->u.md_real );
-	str = buffer;
-      break;
-      case me_string: case me_bigstr:
-      case me_funcedit:
-      case me_onlyfuncedit:
-      case me_button:
-      case me_stringchoice: case me_stringchoicetrans: case me_stringchoicetag:
-	str = d->u.md_str;
-      break;
-      case me_func:
-	str = d->u.md_str;
-	if ( str==NULL )
-return( (gme->col_data[c].func)(&gme->g,r,c) );
-      break;
-    }
-return( copy(str));
-}
-
 static void GMatrixEdit_StartSubGadgets(GMatrixEdit *gme,int r, int c,GEvent *event) {
-    int i;
+    int i, markpos, lastc;
     struct matrix_data *d;
     int old_off_left = gme->off_left;	/* We sometimes scroll */
     int oldr;
+    GRect size;
 
+    GDrawGetSize(gme->nested,&size);
+
+    for ( lastc = gme->cols-1; lastc>0 && gme->col_data[lastc].hidden; --lastc );
     /* new row */
     if ( c==0 && r==gme->rows && event->type == et_mousedown &&
-	    event->u.mouse.button==1 ) {
+	    event->u.mouse.button==1 && !gme->no_edit ) {
 	if ( gme->rows>=gme->row_max )
 	    gme->data = grealloc(gme->data,(gme->row_max+=10)*gme->cols*sizeof(struct matrix_data));
 	++gme->rows;
@@ -1302,7 +1387,7 @@ return;
     gme->active_col = c; gme->active_row = r;
     if ( r!=oldr && oldr!=-1 ) {
 	GRect r;
-	r.x = 0; r.width=4000;
+	r.x = gme->col_data[c].x - gme->off_left; r.width = gme->col_data[c].width;
 	r.y = (oldr-gme->off_top)*(gme->fh+gme->vpad); r.height = gme->fh+gme->vpad;
 	if ( r.y+r.height>0 )
 	    GDrawRequestExpose(gme->nested,&r,false);
@@ -1311,11 +1396,18 @@ return;
 
     GMatrixEditScrollToRowCol(&gme->g,r,c);
     d = &gme->data[r*gme->cols+c];
+
+    markpos = ( c == lastc && gme->col_data[c].x + gme->col_data[c].width > size.width ) ?
+	    size.width - gme->col_data[c].x : gme->col_data[c].width;
+    markpos -= (gme->mark_size+gme->mark_skip);
+    if ( markpos < 0 ) markpos = 0;
     if ( event->type==et_mousedown && event->u.mouse.button==3 ) {
 	if ( gme->popupmenu!=NULL )
 	    (gme->popupmenu)(&gme->g,event,r,c);
     } else if ( d->frozen ) {
 	GDrawBeep(NULL);
+    } else if ( gme->no_edit ) {
+	/* Twiddle toes */;
     } else if ( gme->col_data[c].me_type==me_enum ) {
 	GME_Choices(gme,event,r,c);
     } else if ( gme->col_data[c].me_type==me_button ) {
@@ -1330,8 +1422,7 @@ return;
     } else if ( ((gme->col_data[c].me_type==me_funcedit ||
 		    gme->col_data[c].me_type==me_onlyfuncedit ) &&
 	    event->type==et_mousedown &&
-	    event->u.mouse.x>gme->col_data[c].x + gme->col_data[c].width -
-		(gme->mark_size+gme->mark_skip) - old_off_left ) ||
+	    event->u.mouse.x>gme->col_data[c].x + markpos - old_off_left ) ||
 	(gme->col_data[c].me_type==me_onlyfuncedit &&
 			event->type==et_mousedown &&
 			(gme->wasnew || event->u.mouse.clicks==2)) ) {
@@ -1351,8 +1442,7 @@ return;
 	    gme->col_data[c].me_type==me_stringchoicetrans ||
 	    gme->col_data[c].me_type==me_stringchoicetag) &&
 	    event->type==et_mousedown &&
-	    event->u.mouse.x>gme->col_data[c].x + gme->col_data[c].width -
-		(gme->mark_size+gme->mark_skip) - old_off_left ) {
+	    event->u.mouse.x>gme->col_data[c].x + markpos - old_off_left ) {
 	GME_StringChoices(gme,event,r,c);
     } else {
 	char *str = MD_Text(gme,gme->active_row,gme->active_col);
@@ -1435,7 +1525,7 @@ static void GMatrixEdit_SubExpose(GMatrixEdit *gme,GWindow pixmap,GEvent *event)
     char *str, *pt;
     GRect size;
     GRect clip, old;
-    Color fg;
+    Color fg, mkbg;
     struct matrix_data *data;
     GMenuItem *mi;
 
@@ -1463,26 +1553,29 @@ static void GMatrixEdit_SubExpose(GMatrixEdit *gme,GWindow pixmap,GEvent *event)
 		size.width,(r-gme->off_top)*(gme->fh+gme->vpad)-1,
 		gmatrixedit_rules);
 
+
     GDrawSetFont(pixmap,gme->font);
     for ( r=event->u.expose.rect.y/(gme->fh+gme->vpad);
 	    r<=(event->u.expose.rect.y+event->u.expose.rect.height+gme->fh+gme->vpad-1)/gme->fh &&
 	     r+gme->off_top<=gme->rows;
 	    ++r ) {
-	int y;
+	int y, lastc;
 	clip.y = r*(gme->fh+gme->vpad);
-	y = clip.y + gme->as;
+	y = clip.y + gme->font_as;	/* I know this looks odd, but it seems to work when we grab a glyph from another font with cairo */
 	clip.height = gme->fh;
+	for ( lastc = gme->cols-1; lastc>0 && gme->col_data[lastc].hidden; --lastc );
+	/* Compensate for the top border line */
+	if ( clip.y <= 0 ) {
+	    clip.y = 1; clip.height += ( clip.y - 1 );
+	}
+
 	for ( c=0; c<gme->cols; ++c ) {
 	    if ( gme->col_data[c].hidden )
 	continue;
-	    if ( gme->col_data[c].x + gme->col_data[c].width < gme->off_left )
+	    if ( gme->col_data[c].x + gme->col_data[c].width < gme->off_left && gme->col_data[c].width > gme->hpad)
 	continue;
-	    clip.x = gme->col_data[c].x-gme->off_left; clip.width = gme->col_data[c].width;
-	    if ( clip.x+clip.width > size.width ) {
-		clip.width = size.width - clip.x;
-		if ( clip.width<0 )
-	continue;
-	    }
+	    clip.x = gme->col_data[c].x - gme->off_left;
+	    clip.width = gme->col_data[c].width;
 	    if ( gme->col_data[c].me_type==me_button ) {
 		int temp;
 		clip.height += 2;
@@ -1496,7 +1589,7 @@ static void GMatrixEdit_SubExpose(GMatrixEdit *gme,GWindow pixmap,GEvent *event)
 		clip.width -= temp;
 	    } else if ( gme->col_data[c].disabled && gme->g.box->disabled_background!=COLOR_TRANSPARENT )
 		GDrawFillRect(pixmap,&clip,gme->g.box->disabled_background);
-	    else if ( gme->active_row==r )
+	    else if ( gme->active_row==r+gme->off_top )
 		GDrawFillRect(pixmap,&clip,gmatrixedit_activebg);
 #if 0
 	    else
@@ -1507,24 +1600,37 @@ static void GMatrixEdit_SubExpose(GMatrixEdit *gme,GWindow pixmap,GEvent *event)
 		    gme->col_data[c].me_type == me_stringchoicetrans ||
 		    gme->col_data[c].me_type == me_stringchoicetag ||
 		    gme->col_data[c].me_type == me_onlyfuncedit ||
-		    gme->col_data[c].me_type == me_funcedit )
-		clip.width -= gme->mark_size+gme->mark_skip;
+		    gme->col_data[c].me_type == me_funcedit ) {
+
+		if ( c == lastc ) {
+		    if ( clip.x < size.width && clip.x + clip.width > size.width )
+			clip.width = size.width - clip.x;
+		    else if ( clip.x >= size.width )
+			clip.width = 0;
+		}
+		if ( clip.width >= (gme->mark_size+gme->mark_skip) )
+		    clip.width -= (gme->mark_size+gme->mark_skip);
+		else
+		    clip.width = 0;
+	    }
 	    if ( clip.width>0 ) {
 		GDrawPushClip(pixmap,&clip,&old);
 		str = NULL;
 		if ( r+gme->off_top==gme->rows ) {
-		    buf[0] = '<';
-		    if ( gme->newtext!=NULL )
-			strncpy(buf+1,gme->newtext,sizeof(buf)-2);
-		    else if ( _ggadget_use_gettext )
-			strncpy(buf+1,S_("Row|New"),sizeof(buf)-2);
-		    else
-			u2utf8_strcpy(buf+1,GStringGetResource(_STR_New,NULL));
-		    buf[18] = '\0';
-		    k = strlen(buf);
-		    buf[k] = '>'; buf[k+1] = '\0';
-		    GDrawDrawBiText8(pixmap,gme->col_data[0].x - gme->off_left,y,
-			    buf,-1,NULL,gmatrixedit_activecol);
+		    if ( !gme->no_edit ) {
+			buf[0] = '<';
+			if ( gme->newtext!=NULL )
+			    strncpy(buf+1,gme->newtext,sizeof(buf)-2);
+			else if ( _ggadget_use_gettext )
+			    strncpy(buf+1,S_("Row|New"),sizeof(buf)-2);
+			else
+			    u2utf8_strcpy(buf+1,GStringGetResource(_STR_New,NULL));
+			buf[18] = '\0';
+			k = strlen(buf);
+			buf[k] = '>'; buf[k+1] = '\0';
+			GDrawDrawBiText8(pixmap,gme->col_data[0].x - gme->off_left,y,
+				buf,-1,NULL,gmatrixedit_activecol);
+		    }
 		} else {
 		    data = &gme->data[(r+gme->off_top)*gme->cols+c];
 		    fg = gme->g.state==gs_disabled?gme->g.box->disabled_foreground:
@@ -1563,8 +1669,15 @@ static void GMatrixEdit_SubExpose(GMatrixEdit *gme,GWindow pixmap,GEvent *event)
 		    gme->col_data[c].me_type == me_stringchoicetag ||
 		    gme->col_data[c].me_type == me_onlyfuncedit ||
 		    gme->col_data[c].me_type == me_funcedit ) {
+		GRect mr;
+		mr.x = clip.x + clip.width; mr.width = gme->mark_size+gme->mark_skip;
+		mr.y = clip.y; mr.height = clip.height;
+
+		mkbg = gme->active_row==r+gme->off_top ?
+			gmatrixedit_activebg : GDrawGetDefaultBackground(GDrawGetDisplayOfWindow(pixmap));
+		GDrawFillRect(pixmap,&mr,mkbg);
 		GListMarkDraw(pixmap,
-			clip.x + clip.width + gme->mark_skip + (gme->mark_size - gme->mark_length)/2,
+			mr.x + gme->mark_skip + (gme->mark_size - gme->mark_length)/2,
 			clip.y,
 			clip.height,
 			gme->g.state);
@@ -1581,9 +1694,15 @@ static int matrixeditsub_e_h(GWindow gw, GEvent *event) {
 
     GGadgetPopupExternalEvent(event);
     if (( event->type==et_mouseup || event->type==et_mousedown ) &&
-	    (event->u.mouse.button==4 || event->u.mouse.button==5) ) {
-	if ( !(event->u.mouse.state&(ksm_shift|ksm_control)) )	/* bind shift to magnify/minify */
+	    (event->u.mouse.button>=4 && event->u.mouse.button<=7)) {
+	    int isv = event->u.mouse.button<=5;
+	if ( event->u.mouse.state&ksm_shift ) isv = !isv;
+	if ( isv && gme->vsb!=NULL )
 return( GGadgetDispatchEvent(gme->vsb,event));
+	else if ( !isv && gme->hsb!=NULL )
+return( GGadgetDispatchEvent(gme->hsb,event));
+	else
+return( true );
     }
 
     switch ( event->type ) {
@@ -1677,39 +1796,62 @@ static void GME_HScroll(GMatrixEdit *gme,struct sbevent *sb) {
     GDrawGetSize(gme->nested,&size);
     switch( sb->type ) {
       case et_sb_top:
-        newpos = 0;
+	newpos = 0;
       break;
       case et_sb_uppage:
-        newpos -= 9*size.width/10;
+	newpos -= 9*size.width/10;
       break;
       case et_sb_up:
-        newpos -= size.width/15;
+	newpos -= size.width/15;
       break;
       case et_sb_down:
-        newpos += size.width/15;
+	newpos += size.width/15;
       break;
       case et_sb_downpage:
-        newpos += 9*size.width/10;
+	newpos += 9*size.width/10;
       break;
       case et_sb_bottom:
-        newpos = hend;
+	newpos = hend;
       break;
       case et_sb_thumb:
       case et_sb_thumbrelease:
-        newpos = sb->pos;
+	newpos = sb->pos;
       break;
     }
+
     if ( newpos + size.width > hend )
 	newpos = hend - size.width;
     if ( newpos<0 )
 	newpos = 0;
     if ( newpos!=gme->off_left ) {
-	int diff = gme->off_left-newpos;
-	GRect r;
+	int lastc, diff = gme->off_left-newpos;
+	GRect clip;
 	gme->off_left = newpos;
 	GScrollBarSetPos(gme->hsb,newpos);
-	r.x = 1; r.y = 1; r.width = size.width-1; r.height = size.height-1;
-	GDrawScroll(gme->nested,&r,diff,0);
+
+	clip.y = 1;
+	clip.height = size.height - 1;
+	for ( lastc = gme->cols-1; lastc>0 && gme->col_data[lastc].hidden; --lastc );
+
+	gme->off_left = newpos;
+	GScrollBarSetPos(gme->hsb,newpos);
+	clip.x = 1; clip.y = 1; clip.width = size.width-1; clip.height = size.height-1;
+
+	if (( gme->col_data[lastc].me_type == me_stringchoice ||
+		gme->col_data[lastc].me_type == me_stringchoicetrans ||
+		gme->col_data[lastc].me_type == me_stringchoicetag ||
+		gme->col_data[lastc].me_type == me_onlyfuncedit ||
+		gme->col_data[lastc].me_type == me_funcedit ) &&
+		gme->col_data[lastc].x <= gme->off_left + size.width - (gme->mark_size + gme->mark_skip) ) {
+	    int xdiff = gme->off_left + size.width - (gme->mark_size + gme->mark_skip) - gme->col_data[lastc].x;
+	    /* Catch the moment when we should stop scrolling the list mark area */
+	    if ( xdiff + diff < 0 ) {
+		GDrawScroll( gme->nested,&clip,xdiff + diff,0 );
+		diff = -xdiff;
+	    }
+	    clip.width -= (gme->mark_size + gme->mark_skip);
+	}
+	GDrawScroll( gme->nested,&clip,diff,0 );
 	GME_PositionEdit(gme);
 	GME_RedrawTitles(gme);
     }
@@ -1725,26 +1867,26 @@ static void GME_VScroll(GMatrixEdit *gme,struct sbevent *sb) {
 
     switch( sb->type ) {
       case et_sb_top:
-        newpos = 0;
+	newpos = 0;
       break;
       case et_sb_uppage:
-        newpos -= 9*page/10;
+	newpos -= 9*page/10;
       break;
       case et_sb_up:
-        newpos--;
+	newpos--;
       break;
       case et_sb_down:
-        newpos++;
+	newpos++;
       break;
       case et_sb_downpage:
-        newpos += 9*page/10;
+	newpos += 9*page/10;
       break;
       case et_sb_bottom:
-        newpos = gme->rows+1;
+	newpos = gme->rows+1;
       break;
       case et_sb_thumb:
       case et_sb_thumbrelease:
-        newpos = sb->pos;
+	newpos = sb->pos;
       break;
     }
     if ( newpos + page > gme->rows+1 )
@@ -1759,6 +1901,7 @@ static void GME_VScroll(GMatrixEdit *gme,struct sbevent *sb) {
 	r.x = 1; r.y = 1; r.width = size.width-1; r.height = size.height-1;
 	GDrawScroll(gme->nested,&r,0,diff);
 	GME_PositionEdit(gme);
+	GDrawRequestExpose(gme->nested,&size,false);
     }
 }
 
@@ -1832,8 +1975,8 @@ GGadget *GMatrixEditCreate(struct gwindow *base, GGadgetData *gd,void *data) {
     gme->font = gmatrixedit_font;
     gme->titfont = gmatrixedit_titfont;
     GDrawWindowFontMetrics(base,gme->font,&as, &ds, &ld);
-    gme->fh = as+ds;
-    gme->as = as;
+    gme->font_as = gme->as = as;
+    gme->font_fh = gme->fh = as+ds;
 
     gme->rows = matrix->initial_row_cnt; gme->cols = matrix->col_cnt;
     gme->row_max = gme->rows;
@@ -1866,6 +2009,11 @@ GGadget *GMatrixEditCreate(struct gwindow *base, GGadgetData *gd,void *data) {
 		gme->data[r*gme->cols+c].u.md_str = copy(gme->data[r*gme->cols+c].u.md_str);
 	}
     }
+
+    gme->mark_length = GDrawPointsToPixels(base,_GListMarkSize);
+    gme->mark_size = gme->mark_length +
+	    2*GBoxBorderWidth(base,&_GListMark_Box);
+    gme->mark_skip = GDrawPointsToPixels(base,_GGadget_TextImageSkip);
 
     /* Can't do this earlier. It depends on matrix_data being set */
     x = 1;
@@ -1916,7 +2064,7 @@ GGadget *GMatrixEditCreate(struct gwindow *base, GGadgetData *gd,void *data) {
 	gme->g.r.height = extra + gme->g.r.height*(gme->fh + gme->vpad);
 	gme->g.inner.height = gme->g.r.height - 2*bp;
     }
-	
+
     memset(&wattrs,0,sizeof(wattrs));
     if ( gme->g.box->main_background!=COLOR_TRANSPARENT )
 	wattrs.mask = wam_events|wam_cursor|wam_backcol;
@@ -1952,6 +2100,7 @@ GGadget *GMatrixEditCreate(struct gwindow *base, GGadgetData *gd,void *data) {
     gme->hsb = GScrollBarCreate(base,&sub_gd,gme);
     gme->hsb->contained = true;
 
+    GME_RecalcFH(gme);
     {
 	static GBox small = { 0 };
 	static unichar_t nullstr[1] = { 0 };
@@ -1972,10 +2121,6 @@ GGadget *GMatrixEditCreate(struct gwindow *base, GGadgetData *gd,void *data) {
 	((GTextField *) (gme->tf))->accepts_tabs = false;
     }
 
-    gme->mark_length = GDrawPointsToPixels(gme->nested,_GListMarkSize);
-    gme->mark_size = gme->mark_length +
-	    2*GBoxBorderWidth(gme->nested,&_GListMark_Box);
-    gme->mark_skip = GDrawPointsToPixels(gme->nested,_GGadget_TextImageSkip);
     if ( gme->g.state!=gs_invisible )
 	GDrawSetVisible(gme->nested,true);
 return( &gme->g );
@@ -1985,31 +2130,38 @@ void GMatrixEditSet(GGadget *g,struct matrix_data *data, int rows, int copy_it) 
     GMatrixEdit *gme = (GMatrixEdit *) g;
     int r,c;
 
-    MatrixDataFree(gme);
-
-    gme->rows = gme->row_max = rows;
-    if ( !copy_it ) {
-	gme->data = data;
+    if ( data==gme->data ) {
+	if ( rows<gme->rows )
+	    gme->rows = rows;
+	GME_RecalcFH(gme);
     } else {
-	gme->data = gcalloc(rows*gme->cols,sizeof(struct matrix_data));
-	memcpy(gme->data,data,rows*gme->cols*sizeof(struct matrix_data));
-	for ( c=0; c<gme->cols; ++c ) {
-	    enum me_type me_type = gme->col_data[c].me_type;
-	    if ( me_type==me_string || me_type==me_bigstr || me_type==me_func ||
-		    me_type==me_button || me_type==me_onlyfuncedit ||
-		    me_type==me_funcedit || me_type==me_stringchoice ||
-		    me_type==me_stringchoicetrans || me_type==me_stringchoicetag ) {
-		for ( r=0; r<rows; ++r )
-		    gme->data[r*gme->cols+c].u.md_str = copy(gme->data[r*gme->cols+c].u.md_str);
+	MatrixDataFree(gme);
+
+	gme->rows = gme->row_max = rows;
+	if ( !copy_it ) {
+	    gme->data = data;
+	} else {
+	    gme->data = gcalloc(rows*gme->cols,sizeof(struct matrix_data));
+	    memcpy(gme->data,data,rows*gme->cols*sizeof(struct matrix_data));
+	    for ( c=0; c<gme->cols; ++c ) {
+		enum me_type me_type = gme->col_data[c].me_type;
+		if ( me_type==me_string || me_type==me_bigstr || me_type==me_func ||
+			me_type==me_button || me_type==me_onlyfuncedit ||
+			me_type==me_funcedit || me_type==me_stringchoice ||
+			me_type==me_stringchoicetrans || me_type==me_stringchoicetag ) {
+		    for ( r=0; r<rows; ++r )
+			gme->data[r*gme->cols+c].u.md_str = copy(gme->data[r*gme->cols+c].u.md_str);
+		}
 	    }
 	}
-    }
+	GME_RecalcFH(gme);
 
-    gme->active_row = gme->active_col = -1;
-    GME_EnableDelete(gme);
-    if ( !GME_AdjustCol(gme,-1)) {
-	GME_FixScrollBars(gme);
-	GDrawRequestExpose(gme->nested,NULL,false);
+	gme->active_row = gme->active_col = -1;
+	GME_EnableDelete(gme);
+	if ( !GME_AdjustCol(gme,-1)) {
+	    GME_FixScrollBars(gme);
+	    GDrawRequestExpose(gme->nested,NULL,false);
+	}
     }
 }
 
@@ -2218,9 +2370,10 @@ void GMatrixEditScrollToRowCol(GGadget *g,int r, int c) {
     GMatrixEdit *gme = (GMatrixEdit *) g;
     int rows_shown = gme->vsb->r.height/(gme->fh+gme->vpad);
     int context = rows_shown/3;
-    int needs_expose = false;
+    int needs_expose = true;
     int width = gme->hsb->r.width;
     int i;
+    GRect size;
 
     if ( r<0 ) r = 0; else if ( r>=gme->rows ) r = gme->rows-1;
     if ( r<gme->off_top || r>=gme->off_top+rows_shown ) {
@@ -2252,9 +2405,8 @@ void GMatrixEditScrollToRowCol(GGadget *g,int r, int c) {
     }
     if ( needs_expose ) {
 	int hend = gme->col_data[gme->cols-1].x + gme->col_data[gme->cols-1].width;
-	GRect size;
-	GDrawGetSize(gme->nested,&size);
 
+	GDrawGetSize(gme->nested,&size);
 	if ( gme->off_left>hend-size.width )
 	    gme->off_left = hend-size.width;
 	if ( gme->off_left<0 )
@@ -2262,7 +2414,14 @@ void GMatrixEditScrollToRowCol(GGadget *g,int r, int c) {
 	GScrollBarSetPos(gme->hsb,gme->off_left);
 	GScrollBarSetPos(gme->vsb,gme->off_top);
 	GGadgetRedraw(&gme->g);
-	/* GDrawRequestExpose(gme->nested,NULL,false);*/
+    /* Used to request expose only if the row or column we are scrolling to */
+    /* was outside of the visible area. However we need expose anyway, because */
+    /* otherwise it is impossible to properly highlight fields in the active row. */
+    /* So the rectangle associated with the expose event is now the only thing which */
+    /* makes some difference. */
+    } else {
+	GGadgetGetSize(gme->tf,&size);
+	GDrawRequestExpose(gme->nested,&size,false);
     }
 }
 
@@ -2300,6 +2459,15 @@ void GMatrixEditActivateRowCol(GGadget *g, int r, int c) {
     GDrawRequestExpose(gme->nested,NULL,false);
 }
 
+void GMatrixEditSetEditable(GGadget *g, int editable ) {
+    GMatrixEdit *gme = (GMatrixEdit *) g;
+
+    gme->no_edit = !editable;
+    GGadgetSetVisible(gme->del,editable);
+    GMatrixEdit_Resize(&gme->g,gme->g.r.width,gme->g.r.height);
+    GDrawRequestExpose(gme->nested,NULL,false);
+}
+
 GResInfo *_GMatrixEditRIHead(void) {
     /* GRect size; */
 
@@ -2310,6 +2478,6 @@ GResInfo *_GMatrixEditRIHead(void) {
 	gmatrixedit_ri.extras = NULL;
 	gmatrixedit_ri.seealso1 = &gmatrixedit2_ri;
     }
-    
+
 return( &gmatrixedit_ri );
 }

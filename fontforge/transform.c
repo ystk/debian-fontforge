@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "pfaeditui.h"
+#include "fontforgeui.h"
 #include <math.h>
 #include "ustring.h"
 #include <gkeysym.h>
@@ -107,7 +107,7 @@ static GTextInfo transformtypes[] = {
 
 static int Trans_OK(GGadget *g, GEvent *e) {
     real transform[6], trans[6], t[6];
-    double angle, angle2;
+    bigreal angle, angle2;
     int i, index, err;
     int alllayers = false, round_2_int = false, dokerns = false, dokp=false;
     int dogrid = false, dowidth = false;

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -103,7 +103,7 @@ int GImageWrite_Bmp(GImage *gi, FILE *file) {
 	int pad=0;
 
 	if ( bitsperpixel==24 ) {
-	    unsigned long *pt = (unsigned long *) (base->data+row*base->bytes_per_line);
+	    uint32 *pt = (uint32 *) (base->data+row*base->bytes_per_line);
 	    for ( col=0; col<base->width; ++col ) {
 		putc(COLOR_BLUE(pt[col]),file);
 		putc(COLOR_GREEN(pt[col]),file);

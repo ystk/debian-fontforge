@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -36,6 +36,7 @@
 #include <time.h>
 #include "unicoderange.h"
 #include "psfont.h"
+#include <locale.h>
 
 void SFUntickAll(SplineFont *sf) {
     int i;
@@ -192,6 +193,8 @@ return( sc );
 	sc->name = copy(dummy.name);
 	sc->width = dummy.width;
 	sc->orig_pos = 0xffff;
+	if ( sf->cidmaster!=NULL )
+	    sc->altuni = CIDSetAltUnis(FindCidMap(sf->cidmaster->cidregistry,sf->cidmaster->ordering,sf->cidmaster->supplement,sf->cidmaster),enc);
 	/*SCLigDefault(sc);*/
 	SFAddGlyphAndEncode(sf,sc,map,enc);
     }
@@ -504,12 +507,12 @@ static void ScaleBase(struct Base *base, double scale) {
 }
 
 int SFScaleToEm(SplineFont *sf, int as, int des) {
-    double scale;
+    bigreal scale;
     real transform[6];
     BVTFunc bvts;
     uint8 *oldselected = sf->fv->selected;
 
-    scale = (as+des)/(double) (sf->ascent+sf->descent);
+    scale = (as+des)/(bigreal) (sf->ascent+sf->descent);
     sf->pfminfo.hhead_ascent = rint( sf->pfminfo.hhead_ascent * scale);
     sf->pfminfo.hhead_descent = rint( sf->pfminfo.hhead_descent * scale);
     sf->pfminfo.linegap = rint( sf->pfminfo.linegap * scale);
@@ -532,6 +535,8 @@ int SFScaleToEm(SplineFont *sf, int as, int des) {
     sf->pfminfo.os2_strikeypos = rint( sf->pfminfo.os2_strikeypos * scale);
     sf->upos *= scale;
     sf->uwidth *= scale;
+    sf->ufo_ascent *= scale;
+    sf->ufo_descent *= scale;
 
     if ( sf->private!=NULL )
 	SFScalePrivate(sf,scale);
@@ -1133,7 +1138,7 @@ return( NULL );
 		strmatch(fullname+strlen(fullname)-4, ".otf")==0 ||
 		strmatch(fullname+strlen(fullname)-4, ".otb")==0 ) && checked!='t') {
 	sf = SFReadTTF(fullname,0,openflags);
-    } else if ( strmatch(fullname+strlen(fullname)-4, ".svg")==0 && checked!='S' ) {
+    } else if ( strmatch(fullname+strlen(strippedname)-4, ".svg")==0 && checked!='S' ) {
 	sf = SFReadSVG(fullname,0);
     } else if ( strmatch(fullname+strlen(fullname)-4, ".ufo")==0 && checked!='u' ) {
 	sf = SFReadUFO(fullname,0);
@@ -1170,7 +1175,7 @@ return( NULL );
 	sf = CFFParse(fullname);
     } else if ( strmatch(fullname+strlen(fullname)-3, ".mf")==0 ) {
 	sf = SFFromMF(fullname);
-    } else if ( strmatch(fullname+strlen(fullname)-4, ".pdf")==0 && checked!='P' ) {
+    } else if ( strmatch(strippedname+strlen(strippedname)-4, ".pdf")==0 && checked!='P' ) {
 	sf = SFReadPdfFont(fullname,openflags);
     } else if ( strmatch(fullname+strlen(fullname)-3, ".ik")==0 && checked!='i' ) {
 	sf = SFReadIkarus(fullname);
@@ -1476,9 +1481,9 @@ return( false );
 
 enum flatness { mt_flat, mt_round, mt_pointy, mt_unknown };
 
-static double SPLMaxHeight(SplineSet *spl, enum flatness *isflat) {
+static bigreal SPLMaxHeight(SplineSet *spl, enum flatness *isflat) {
     enum flatness f = mt_unknown;
-    double max = -1.0e23;
+    bigreal max = -1.0e23;
     Spline *s, *first;
     extended ts[2];
     int i;
@@ -1502,7 +1507,7 @@ static double SPLMaxHeight(SplineSet *spl, enum flatness *isflat) {
 		    }
 		    SplineFindExtrema(&s->splines[1],&ts[0],&ts[1]);
 		    for ( i=0; i<2; ++i ) if ( ts[i]!=-1 ) {
-			double y = ((s->splines[1].a*ts[i]+s->splines[1].b)*ts[i]+s->splines[1].c)*ts[i]+s->splines[1].d;
+			bigreal y = ((s->splines[1].a*ts[i]+s->splines[1].b)*ts[i]+s->splines[1].c)*ts[i]+s->splines[1].d;
 			if ( y>max ) {
 			    f = mt_round;
 			    max = y;
@@ -1530,11 +1535,11 @@ static double SPLMaxHeight(SplineSet *spl, enum flatness *isflat) {
 return( max );
 }
 
-static double SCMaxHeight(SplineChar *sc, int layer, enum flatness *isflat) {
+static bigreal SCMaxHeight(SplineChar *sc, int layer, enum flatness *isflat) {
     /* Find the max height of this layer of the glyph. Also find whether that */
     /* max is flat (as in "z", curved as in "o" or pointy as in "A") */
     enum flatness f = mt_unknown, curf;
-    double max = -1.0e23, test;
+    bigreal max = -1.0e23, test;
     RefChar *r;
 
     max = SPLMaxHeight(sc->layers[layer].splines,&curf);
@@ -1550,9 +1555,9 @@ static double SCMaxHeight(SplineChar *sc, int layer, enum flatness *isflat) {
 return( max );
 }
 
-static double SPLMinHeight(SplineSet *spl, enum flatness *isflat) {
+static bigreal SPLMinHeight(SplineSet *spl, enum flatness *isflat) {
     enum flatness f = mt_unknown;
-    double min = 1.0e23;
+    bigreal min = 1.0e23;
     Spline *s, *first;
     extended ts[2];
     int i;
@@ -1576,7 +1581,7 @@ static double SPLMinHeight(SplineSet *spl, enum flatness *isflat) {
 		    }
 		    SplineFindExtrema(&s->splines[1],&ts[0],&ts[1]);
 		    for ( i=0; i<2; ++i ) if ( ts[i]!=-1 ) {
-			double y = ((s->splines[1].a*ts[i]+s->splines[1].b)*ts[i]+s->splines[1].c)*ts[i]+s->splines[1].d;
+			bigreal y = ((s->splines[1].a*ts[i]+s->splines[1].b)*ts[i]+s->splines[1].c)*ts[i]+s->splines[1].d;
 			if ( y<min ) {
 			    f = mt_round;
 			    min = y;
@@ -1604,11 +1609,11 @@ static double SPLMinHeight(SplineSet *spl, enum flatness *isflat) {
 return( min );
 }
 
-static double SCMinHeight(SplineChar *sc, int layer, enum flatness *isflat) {
+static bigreal SCMinHeight(SplineChar *sc, int layer, enum flatness *isflat) {
     /* Find the min height of this layer of the glyph. Also find whether that */
     /* min is flat (as in "z", curved as in "o" or pointy as in "A") */
     enum flatness f = mt_unknown, curf;
-    double min = 1.0e23, test;
+    bigreal min = 1.0e23, test;
     RefChar *r;
 
     min = SPLMinHeight(sc->layers[layer].splines,&curf);
@@ -1626,9 +1631,9 @@ return( min );
 
 #define RANGE	0x40ffffff
 
-struct dimcnt { double pos; int cnt; };
+struct dimcnt { bigreal pos; int cnt; };
 
-static int dclist_insert( struct dimcnt *arr, int cnt, double val ) {
+static int dclist_insert( struct dimcnt *arr, int cnt, bigreal val ) {
     int i;
 
     for ( i=0; i<cnt; ++i ) {
@@ -1642,13 +1647,13 @@ return( cnt );
 return( i+1 );
 }
 
-static double SFStandardHeight(SplineFont *sf, int layer, int do_max, unichar_t *list) {
+static bigreal SFStandardHeight(SplineFont *sf, int layer, int do_max, unichar_t *list) {
     struct dimcnt flats[200], curves[200];
-    double test;
+    bigreal test;
     enum flatness curf;
     int fcnt=0, ccnt=0, cnt, tot, i, useit;
     unichar_t ch, top;
-    double result, bestheight, bestdiff, diff, val;
+    bigreal result, bestheight, bestdiff, diff, val;
     char *blues, *end;
 
     while ( *list ) {
@@ -1693,7 +1698,7 @@ static double SFStandardHeight(SplineFont *sf, int layer, int do_max, unichar_t 
 	}
 	result = test/tot;
     } else if ( ccnt==0 )
-return( -1e23 );		/* We didn't find any glyphs */
+return( do_max ? -1e23 : 1e23 );		/* We didn't find any glyphs */
     else {
 	/* Italic fonts will often have no flat surfaces for x-height just wavies */
 	test = 0;
@@ -1750,32 +1755,32 @@ static unichar_t descender_str[] = { 'g','j','p','q','y',
     0x434, 0x440, 0x443, 0x444, 0x452, 0x458,
     0 };
 
-double SFCapHeight(SplineFont *sf, int layer, int return_error) {
-    double result = SFStandardHeight(sf,layer,true,capheight_str);
+bigreal SFCapHeight(SplineFont *sf, int layer, int return_error) {
+    bigreal result = SFStandardHeight(sf,layer,true,capheight_str);
 
     if ( result==-1e23 && !return_error )
 	result = (8*sf->ascent)/10;
 return( result );
 }
 
-double SFXHeight(SplineFont *sf, int layer, int return_error) {
-    double result = SFStandardHeight(sf,layer,true,xheight_str);
+bigreal SFXHeight(SplineFont *sf, int layer, int return_error) {
+    bigreal result = SFStandardHeight(sf,layer,true,xheight_str);
 
     if ( result==-1e23 && !return_error )
 	result = (6*sf->ascent)/10;
 return( result );
 }
 
-double SFAscender(SplineFont *sf, int layer, int return_error) {
-    double result = SFStandardHeight(sf,layer,true,ascender_str);
+bigreal SFAscender(SplineFont *sf, int layer, int return_error) {
+    bigreal result = SFStandardHeight(sf,layer,true,ascender_str);
 
     if ( result==-1e23 && !return_error )
 	result = (81*sf->ascent)/100;
 return( result );
 }
 
-double SFDescender(SplineFont *sf, int layer, int return_error) {
-    double result = SFStandardHeight(sf,layer,false,descender_str);
+bigreal SFDescender(SplineFont *sf, int layer, int return_error) {
+    bigreal result = SFStandardHeight(sf,layer,false,descender_str);
 
     if ( result==1e23 && !return_error )
 	result = -sf->descent/2;
@@ -1821,6 +1826,12 @@ int SFPrivateGuess(SplineFont *sf,int layer, struct psdict *private,char *name, 
     real snapcnt[12];
     real stemsnap[12];
     char buffer[211];
+    char *oldloc;
+    int ret;
+
+    oldloc = copy(setlocale(LC_NUMERIC,NULL));
+    setlocale(LC_NUMERIC,"C");
+    ret = true;
 
     if ( strcmp(name,"BlueValues")==0 || strcmp(name,"OtherBlues")==0 ) {
 	FindBlues(sf,layer,bluevalues,otherblues);
@@ -1844,13 +1855,13 @@ int SFPrivateGuess(SplineFont *sf,int layer, struct psdict *private,char *name, 
 	SnapSet(private,stemsnap,snapcnt,"StdVW","StemSnapV",
 		!onlyone ? 0 : strcmp(name,"StdVW")==0 ? 1 : 0);
     } else if ( strcmp(name,"BlueScale")==0 ) {
-	double val = -1;
+	bigreal val = -1;
 	if ( PSDictFindEntry(private,"BlueValues")!=-1 ) {
 	    /* Can guess BlueScale if we've got a BlueValues */
 	    val = BlueScaleFigureForced(private,NULL,NULL);
 	}
 	if ( val==-1 ) val = .039625;
-	sprintf(buffer,"%g", val );
+	sprintf(buffer,"%g", (double) val );
 	PSDictChangeEntry(private,"BlueScale",buffer);
     } else if ( strcmp(name,"BlueShift")==0 ) {
 	PSDictChangeEntry(private,"BlueShift","7");
@@ -1873,9 +1884,11 @@ int SFPrivateGuess(SplineFont *sf,int layer, struct psdict *private,char *name, 
     } else if ( strcmp(name,"ExpansionFactor")==0 ) {
 	PSDictChangeEntry(private,"ExpansionFactor","0.06" );
     } else
-return( 0 );
+	ret = false;
 
-return( true );
+    setlocale(LC_NUMERIC,oldloc);
+    free( oldloc );
+return( ret );
 }
 
 void SFRemoveLayer(SplineFont *sf,int l) {

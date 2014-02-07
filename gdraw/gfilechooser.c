@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -67,13 +67,14 @@ return( NULL );
 	    ++name;
 	} else if ( ch=='[' ) {
 	    /* [<char>...] matches the chars
-	    /* [<char>-<char>...] matches any char within the range (inclusive)
-	    /* the above may be concattenated and the resultant pattern matches
-	    /*		anything thing which matches any of them.
-	    /* [^<char>...] matches any char which does not match the rest of
-	    /*		the pattern
-	    /* []...] as a special case a ']' immediately after the '[' matches
-	    /*		itself and does not end the pattern */
+	     * [<char>-<char>...] matches any char within the range (inclusive)
+	     * the above may be concattenated and the resultant pattern matches
+	     *		anything thing which matches any of them.
+	     * [^<char>...] matches any char which does not match the rest of
+	     *		the pattern
+	     * []...] as a special case a ']' immediately after the '[' matches
+	     *		itself and does not end the pattern
+	     */
 	    int found = 0, not=0;
 	    ++pattern;
 	    if ( pattern[0]=='^' ) { not = 1; ++pattern; }
@@ -1298,9 +1299,12 @@ static int gfilechooser_mouse(GGadget *g, GEvent *event) {
     GFileChooser *gfc = (GFileChooser *) g;
 
     if (( event->type==et_mouseup || event->type==et_mousedown ) &&
-	    (event->u.mouse.button==4 || event->u.mouse.button==5) &&
-	    gfc->files->vsb!=NULL )
+	    (event->u.mouse.button>=4 && event->u.mouse.button<=7) ) {
+	if ( gfc->files->vsb!=NULL )
 return( GGadgetDispatchEvent(&gfc->files->vsb->g,event));
+	else
+return( true );
+    }
 
 return( false );
 }

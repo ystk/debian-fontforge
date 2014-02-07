@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -105,7 +105,7 @@ int LoadKerningDataFromAfm(SplineFont *sf, char *filename,EncMap *map) {
     int off;
     char name[44], second[44], lig[44], buf2[100];
     PST *liga;
-    double scale = (sf->ascent+sf->descent)/1000.0;
+    bigreal scale = (sf->ascent+sf->descent)/1000.0;
 
     if ( file==NULL )
 return( 0 );
@@ -365,7 +365,7 @@ return;
 	    off = (sf->ascent+sf->descent) *
 		    ((tfmd->kerntab[k_index]<<24) + (tfmd->kerntab[k_index+1]<<16) +
 			(tfmd->kerntab[k_index+2]<<8) + tfmd->kerntab[k_index+3])/
-		    (double) 0x100000;
+		    (bigreal) 0x100000;
  /* printf( "%s(%d) %s(%d) -> %g\n", sc1->name, sc1->enc, sc2->name, sc2->enc, off); */
 	    KPInsert(sc1,sc2,rint(off),false);
 	} else if ( tfmd->ligkerntab[lk_index*4+2]==0 &&
@@ -475,7 +475,7 @@ return;
     (*gvbase)->parts = gcalloc(cnt,sizeof(struct gv_part));
     for ( j=0; j<cnt; ++j ) {
 	DBounds b;
-	double len;
+	bigreal len;
 	SplineCharFindBounds(bats[j],&b);
 	if ( is_horiz )
 	    len = b.maxx;
@@ -498,7 +498,7 @@ int LoadKerningDataFromTfm(SplineFont *sf, char *filename,EncMap *map) {
     int charlist[256];
     int is_math;
     int width, height, depth;
-    real scale = (sf->ascent+sf->descent)/(double) (1<<20);
+    real scale = (sf->ascent+sf->descent)/(bigreal) (1<<20);
 
     if ( file==NULL )
 return( 0 );
@@ -583,7 +583,7 @@ return( 0 );
 	if ( charlist[i]!=-1 )
 	    tfmDoCharList(sf,i,&tfmd,map);
     }
-    
+
     free( tfmd.ligkerntab); free(tfmd.kerntab); free(tfmd.ext); free(tfmd.ictab);
     free( tfmd.dptab ); free( tfmd.httab ); free( tfmd.widtab );
     fclose(file);
@@ -627,7 +627,7 @@ return;
 	    off = (sf->ascent+sf->descent) *
 		    ((tfmd->kerntab[k_index]<<24) + (tfmd->kerntab[k_index+1]<<16) +
 			(tfmd->kerntab[k_index+2]<<8) + tfmd->kerntab[k_index+3])/
-		    (double) 0x100000;
+		    (bigreal) 0x100000;
  /* printf( "%s(%d) %s(%d) -> %g\n", sc1->name, sc1->enc, sc2->name, sc2->enc, off); */
 	    KPInsert(sc1,sc2,rint(off),false);
 	} else if ( LKShort(lk_index,2)==0 &&
@@ -698,7 +698,7 @@ return;
     (*gvbase)->parts = gcalloc(cnt,sizeof(struct gv_part));
     for ( j=0; j<cnt; ++j ) {
 	DBounds b;
-	double len;
+	bigreal len;
 	SplineCharFindBounds(bats[j],&b);
 	if ( is_horiz )
 	    len = b.maxx;
@@ -718,7 +718,7 @@ int LoadKerningDataFromOfm(SplineFont *sf, char *filename,EncMap *map) {
     int level, font_dir;
     int is_math;
     int width, height, depth;
-    real scale = (sf->ascent+sf->descent)/(double) (1<<20);
+    real scale = (sf->ascent+sf->descent)/(bigreal) (1<<20);
     struct tfmdata tfmd;
 
     if ( file==NULL )
@@ -838,7 +838,7 @@ return( 0 );
 	if ( tfmd.charlist[i]!=-1 )
 	    tfmDoCharList(sf,i,&tfmd,map);
     }
-    
+
     free( tfmd.ligkerntab); free(tfmd.kerntab); free(tfmd.ext); free(tfmd.ictab);
     free( tfmd.dptab ); free( tfmd.httab ); free( tfmd.widtab );
     free( tfmd.charlist );
@@ -1092,7 +1092,7 @@ static void AfmSplineFontHeader(FILE *afm, SplineFont *sf, int formattype,
     DBounds b;
     real width;
     int i, j, cnt, max;
-    double caph, xh, ash, dsh;
+    bigreal caph, xh, ash, dsh;
     int iscid = ( formattype==ff_cid || formattype==ff_otfcid );
     int ismm = ( formattype==ff_mma || formattype==ff_mmb );
     time_t now;
@@ -1124,7 +1124,7 @@ static void AfmSplineFontHeader(FILE *afm, SplineFont *sf, int formattype,
 	} else
 	    sc = sf->glyphs[i];
 	if ( sc!=NULL ) {
-	    if ( SCWorthOutputting(sc) || (iscid && i==0 && sc!=NULL)) 
+	    if ( SCWorthOutputting(sc) || (iscid && i==0 && sc!=NULL))
 		++cnt;
 	}
     }
@@ -1491,7 +1491,7 @@ return;
 static void AfmComposites(FILE *afm, SplineFont *sf, struct cc_data *cc, int cc_cnt) {
     int i;
     struct cc_accents *cca;
-    double em = (sf->ascent+sf->descent);
+    bigreal em = (sf->ascent+sf->descent);
 
     fprintf( afm, "StartComposites %d\n", cc_cnt );
     for ( i=0; i<cc_cnt; ++i ) {
@@ -1570,7 +1570,7 @@ int AfmSplineFont(FILE *afm, SplineFont *sf, int formattype,EncMap *map,
 		}
 	} else
 	    sc = sf->glyphs[gid];
-	if ( SCWorthOutputting(sc) || (iscid && i==0 && sc!=NULL)) 
+	if ( SCWorthOutputting(sc) || (iscid && i==0 && sc!=NULL))
 	    ++cnt;
     }
 
@@ -1579,7 +1579,7 @@ int AfmSplineFont(FILE *afm, SplineFont *sf, int formattype,EncMap *map,
 	    map->enc->is_unicodefull)) {
 	for ( i=0x2700; i<map->enccount && i<encmax && i<=0x27ff; ++i ) {
 	    int gid = map->map[i];
-	    if ( gid!=-1 && SCWorthOutputting(sf->glyphs[gid]) ) 
+	    if ( gid!=-1 && SCWorthOutputting(sf->glyphs[gid]) )
 		anyzapf = true;
 	}
 	if ( !anyzapf )
@@ -2012,10 +2012,17 @@ static void AddTempKP(SplineChar *first,SplineChar *second,
 
 void SFKernClassTempDecompose(SplineFont *sf,int isv) {
     KernClass *kc, *head= isv ? sf->vkerns : sf->kerns;
+    KernPair *kp;
     SplineChar ***first, ***last;
     int i, j, k, l;
     OTLookup *otl;
 
+    /* Make sure the temporary field is cleaned up. Otherwise we may lose kerning data */
+    for ( i=0; i<sf->glyphcnt; ++i ) if ( sf->glyphs[i]!=NULL ) {
+	for ( kp = isv ? sf->glyphs[i]->vkerns : sf->glyphs[i]->kerns; kp!=NULL; kp = kp->next ) {
+	    kp->kcid = false;
+	}
+    }
     for ( kc = head, i=0; kc!=NULL; kc = kc->next )
 	kc->kcid = ++i;
     for ( kc = head; kc!=NULL; kc = kc->next ) {
@@ -2191,7 +2198,7 @@ int PfmSplineFont(FILE *pfm, SplineFont *sf, int type0,EncMap *map,int layer) {
 	if ( SCWorthOutputting(sf->glyphs[i]) ) {
 	    ++cnt;
 	    if ( sf->glyphs[i]->unicodeenc=='I' || sf->glyphs[i]->unicodeenc=='x' ||
-		    sf->glyphs[i]->unicodeenc=='H' || sf->glyphs[i]->unicodeenc=='d' || 
+		    sf->glyphs[i]->unicodeenc=='H' || sf->glyphs[i]->unicodeenc=='d' ||
 		    sf->glyphs[i]->unicodeenc=='p' || sf->glyphs[i]->unicodeenc=='l' ) {
 		SplineCharLayerFindBounds(sf->glyphs[i],layer,&b);
 		if ( ymax<b.maxy ) ymax = b.maxy;

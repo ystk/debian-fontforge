@@ -1,4 +1,4 @@
-/* Copyright (C) 2005-2010 by George Williams */
+/* Copyright (C) 2005-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -472,7 +472,7 @@ return( true );
 		    test->pixelsize,base->pixelsize, i);
 return( false );
 	}
-	/* Can't just use the glyph's max/min properties at this point, as some glyphs may contain
+	/* Can't just use the glyph's max/min properties at this point, as some glyphs may contain */
 	/* references, in which case those properties would be mostly irrelevant */
 	BDFCharQuickBounds( test->glyphs[gid],&ib,0,0,false,true );
 	if ( !warned &&

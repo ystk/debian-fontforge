@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -25,7 +25,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "pfaeditui.h"
+#include "fontforgeui.h"
 #include <ustring.h>
 #include <math.h>
 #include <utype.h>
@@ -39,7 +39,7 @@ static int last_gi_aspect = 0;
 typedef struct charinfo {
     CharView *cv;
     EncMap *map;
-    SplineChar *sc;
+    SplineChar *sc, *cachedsc;
     int def_layer;
     SplineChar *oldsc;		/* oldsc->charinfo will point to us. Used to keep track of that pointer */
     int enc;
@@ -49,6 +49,8 @@ typedef struct charinfo {
     int r,c;
     int lc_seen, lc_aspect, vert_aspect;
     Color last, real_last;
+    struct splinecharlist *changes;
+    int name_change, uni_change;
 } CharInfo;
 
 #define CI_Width	218
@@ -565,7 +567,7 @@ return( true );
 static void CI_ParseCounters(CharInfo *ci) {
     int32 i,len;
     GTextInfo **ti = GGadgetGetList(GWidgetGetControl(ci->gw,CID_List+600),&len);
-    SplineChar *sc = ci->sc;
+    SplineChar *sc = ci->cachedsc;
 
     free(sc->countermasks);
 
@@ -859,7 +861,7 @@ static int CI_ProcessPosSubs(CharInfo *ci) {
     /*  complain and return failure */
     /* Check for various other errors */
     /* Otherwise process */
-    SplineChar *sc = ci->sc, *found;
+    SplineChar *sc = ci->cachedsc, *found;
     int i,j, rows, cols, isv, pstt, ch;
     char *pt;
     struct matrix_data *possub;
@@ -1162,7 +1164,7 @@ static void CI_ParseAltUnis(CharInfo *ci) {
     struct matrix_data *stuff = GMatrixEditGet(au,&rows);
     int i;
     struct altuni *altuni, *last = NULL;
-    SplineChar *sc = ci->sc;
+    SplineChar *sc = ci->cachedsc;
     int deenc = false;
     FontView *fvs;
     int oldcnt, newcnt;
@@ -1209,12 +1211,208 @@ static void CI_ParseAltUnis(CharInfo *ci) {
     }
 }
 
+static KernPair *CI_KPCopy(KernPair *kp) {
+    KernPair *head=NULL, *last=NULL, *newkp;
+
+    while ( kp!=NULL ) {
+	newkp = chunkalloc(sizeof(KernPair));
+	*newkp = *kp;
+#ifdef FONTFORGE_CONFIG_DEVICETABLES
+	newkp->adjust = DeviceTableCopy(kp->adjust);
+#endif
+	newkp->next = NULL;
+	if ( head==NULL )
+	    head = newkp;
+	else
+	    last->next = newkp;
+	last = newkp;
+	kp = kp->next;
+    }
+return( head );
+}
+
+static PST *CI_PSTCopy(PST *pst) {
+    PST *head=NULL, *last=NULL, *newpst;
+
+    while ( pst!=NULL ) {
+	newpst = chunkalloc(sizeof(KernPair));
+	*newpst = *pst;
+	if ( newpst->type==pst_ligature ) {
+	    newpst->u.lig.components = copy(pst->u.lig.components);
+	} else if ( newpst->type==pst_pair ) {
+	    newpst->u.pair.paired = copy(pst->u.pair.paired);
+	    newpst->u.pair.vr = chunkalloc(sizeof( struct vr [2]));
+	    memcpy(newpst->u.pair.vr,pst->u.pair.vr,sizeof(struct vr [2]));
+#ifdef FONTFORGE_CONFIG_DEVICETABLES
+	    newpst->u.pair.vr[0].adjust = ValDevTabCopy(pst->u.pair.vr[0].adjust);
+	    newpst->u.pair.vr[1].adjust = ValDevTabCopy(pst->u.pair.vr[1].adjust);
+#endif
+	} else if ( newpst->type==pst_lcaret ) {
+	    newpst->u.lcaret.carets = galloc(pst->u.lcaret.cnt*sizeof(uint16));
+	    memcpy(newpst->u.lcaret.carets,pst->u.lcaret.carets,pst->u.lcaret.cnt*sizeof(uint16));
+	} else if ( newpst->type==pst_substitution || newpst->type==pst_multiple || newpst->type==pst_alternate )
+	    newpst->u.subs.variant = copy(pst->u.subs.variant);
+	newpst->next = NULL;
+	if ( head==NULL )
+	    head = newpst;
+	else
+	    last->next = newpst;
+	last = newpst;
+	pst = pst->next;
+    }
+return( head );
+}
+
+static SplineChar *CI_SCDuplicate(SplineChar *sc) {
+    SplineChar *newsc;		/* copy everything we care about in this dlg */
+
+    newsc = chunkalloc(sizeof(SplineChar));
+    newsc->name = copy(sc->name);
+    newsc->unicodeenc = sc->unicodeenc;
+    newsc->orig_pos = sc->orig_pos;
+    newsc->comment = copy(sc->comment);
+    newsc->unlink_rm_ovrlp_save_undo = sc->unlink_rm_ovrlp_save_undo;
+    newsc->glyph_class = sc->glyph_class;
+    newsc->color = sc->color;
+    if ( sc->countermask_cnt!=0 ) {
+	newsc->countermask_cnt = sc->countermask_cnt;
+	newsc->countermasks = galloc(sc->countermask_cnt*sizeof(HintMask));
+	memcpy(newsc->countermasks,sc->countermasks,sc->countermask_cnt*sizeof(HintMask));
+    }
+    newsc->tex_height = sc->tex_height;
+    newsc->tex_depth = sc->tex_depth;
+    newsc->italic_correction = sc->italic_correction;
+    newsc->top_accent_horiz = sc->top_accent_horiz;
+    newsc->is_extended_shape = sc->is_extended_shape;
+#ifdef FONTFORGE_CONFIG_DEVICETABLES
+    newsc->italic_adjusts = DeviceTableCopy(sc->italic_adjusts);
+    newsc->top_accent_adjusts = DeviceTableCopy(sc->top_accent_adjusts);
+#endif
+    newsc->horiz_variants = GlyphVariantsCopy(sc->horiz_variants);
+    newsc->vert_variants = GlyphVariantsCopy(sc->vert_variants);
+    newsc->altuni = AltUniCopy(sc->altuni,NULL);
+    newsc->lig_caret_cnt_fixed = sc->lig_caret_cnt_fixed;
+    newsc->possub = CI_PSTCopy(sc->possub);
+    newsc->kerns = CI_KPCopy(sc->kerns);
+    newsc->vkerns = CI_KPCopy(sc->vkerns);
+#ifdef FONTFORGE_CONFIG_TYPE3
+    newsc->tile_margin = sc->tile_margin;
+    newsc->tile_bounds = sc->tile_bounds;
+#endif
+return( newsc );
+}
+
+static int CI_CheckMetaData(CharInfo *ci,SplineChar *oldsc,char *name,int unienc, char *comment) {
+    SplineFont *sf = oldsc->parent;
+    int i;
+    int isnotdef, samename=false, sameuni=false;
+    struct altuni *alt;
+    SplineChar *newsc = ci->cachedsc;
+    struct splinecharlist *scl, *baduniscl, *badnamescl;
+    SplineChar *baduni, *badname;
+
+    for ( alt=oldsc->altuni; alt!=NULL && (alt->unienc!=unienc || alt->vs!=-1 || alt->fid!=0); alt=alt->next );
+    if ( unienc==oldsc->unicodeenc || alt!=NULL )
+	sameuni=true;
+    samename = ( strcmp(name,oldsc->name)==0 );
+    
+    isnotdef = strcmp(name,".notdef")==0;
+    if (( !sameuni && unienc!=-1) || (!samename && !isnotdef) ) {
+	baduniscl = badnamescl = NULL;
+	baduni = badname = NULL;
+	for ( i=0; i<sf->glyphcnt; ++i ) if ( sf->glyphs[i]!=NULL && sf->glyphs[i]!=ci->sc ) {
+	    if ( unienc!=-1 && sf->glyphs[i]->unicodeenc==unienc ) {
+		for ( scl=ci->changes; scl!=NULL && scl->sc->orig_pos!=i; scl = scl->next );
+		if ( scl==NULL ) {
+		    baduni = sf->glyphs[i];
+		    baduniscl = NULL;
+		} else if ( scl->sc->unicodeenc==unienc ) {
+		    baduni = scl->sc;
+		    baduniscl = scl;
+		}
+	    }
+	    if ( !isnotdef && strcmp(name,sf->glyphs[i]->name )==0 ) {
+		for ( scl=ci->changes; scl!=NULL && scl->sc->orig_pos!=i; scl = scl->next );
+		if ( scl==NULL ) {
+		    badname = sf->glyphs[i];
+		    badnamescl = NULL;
+		} else if ( strcmp(scl->sc->name,name)==0 ) {
+		    badname = scl->sc;
+		    badnamescl = scl;
+		}
+	    }
+	}
+	for ( scl=ci->changes; scl!=NULL ; scl = scl->next ) if ( scl->sc!=newsc ) {
+	    if ( unienc!=-1 && scl->sc->unicodeenc==unienc ) {
+		baduni = scl->sc;
+		baduniscl = scl;
+	    }
+	    if ( !isnotdef && strcmp(scl->sc->name,name)==0 ) {
+		badname = scl->sc;
+		badnamescl = scl;
+	    }
+	}
+	if ( baduni!=NULL || badname!=NULL ) {
+	    char *buts[3];
+	    buts[0] = _("_Yes"); buts[1]=_("_Cancel"); buts[2] = NULL;
+	    if ( badname==baduni ) {
+		if ( ff_ask(_("Multiple"),(const char **) buts,0,1,_("There is already a glyph with this name and encoding,\nboth must be unique within a font,\ndo you want to swap them?"))==1 )
+return( false );
+		/* If we're going to swap, then add the swapee to the list of */
+		/*  things that need changing */
+		if ( baduniscl==NULL ) {
+		    baduni = CI_SCDuplicate(baduni);
+		    baduniscl = chunkalloc(sizeof(struct splinecharlist));
+		    baduniscl->sc = baduni;
+		    baduniscl->next = ci->changes;
+		    ci->changes = baduniscl;
+		}
+		baduni->unicodeenc = oldsc->unicodeenc;
+		free(baduni->name); baduni->name = copy(oldsc->name);
+	    } else {
+		if ( baduni!=NULL ) {
+		    if ( ff_ask(_("Multiple"),(const char **) buts,0,1,_("There is already a glyph with this encoding,\nwhich must be unique within a font,\ndo you want to swap the encodings of the two?"))==1 )
+return( false );
+		    if ( baduniscl==NULL ) {
+			baduni = CI_SCDuplicate(baduni);
+			baduniscl = chunkalloc(sizeof(struct splinecharlist));
+			baduniscl->sc = baduni;
+			baduniscl->next = ci->changes;
+			ci->changes = baduniscl;
+		    }
+		    baduni->unicodeenc = oldsc->unicodeenc;
+		}
+		if ( badname!=NULL ) {
+		    if ( ff_ask(_("Multiple"),(const char **) buts,0,1,_("There is already a glyph with this name,\nwhich must be unique within a font,\ndo you want to swap the names of the two?"))==1 )
+return( false );
+		    if ( badnamescl==NULL ) {
+			badname = CI_SCDuplicate(badname);
+			badnamescl = chunkalloc(sizeof(struct splinecharlist));
+			badnamescl->sc = badname;
+			badnamescl->next = ci->changes;
+			ci->changes = badnamescl;
+		    }
+		    free(badname->name); badname->name = copy(oldsc->name);
+		}
+	    }
+	}
+    }
+    if ( !samename )
+	ci->name_change = true;
+    if ( !sameuni )
+	ci->uni_change = true;
+    free( newsc->name ); free( newsc->comment );
+    newsc->name = copy( name );
+    newsc->unicodeenc = unienc;
+    newsc->comment = copy( comment );
+return( true );
+}
+
 static int _CI_OK(CharInfo *ci) {
     int val;
-    int ret, refresh_fvdi=0;
+    int ret;
     char *name, *comment;
     const unichar_t *nm;
-    FontView *fvs;
     int err = false;
     int tex_height, tex_depth, italic, topaccent;
     int hic, vic;
@@ -1228,6 +1426,7 @@ static int _CI_OK(CharInfo *ci) {
     real tile_margin=0;
     DBounds tileb;
 #endif
+    SplineChar *oldsc = ci->cachedsc==NULL ? ci->sc : ci->cachedsc;
 
     if ( !CI_ValidateAltUnis(ci))
 return( false );
@@ -1290,6 +1489,17 @@ return( false );
 return( false );
     }
 #endif
+    if ( ci->cachedsc==NULL ) {
+	struct splinecharlist *scl;
+	ci->cachedsc = chunkalloc(sizeof(SplineChar));
+	ci->cachedsc->orig_pos = ci->sc->orig_pos;
+	ci->cachedsc->parent = ci->sc->parent;
+	scl = chunkalloc(sizeof(struct splinecharlist));
+	scl->sc = ci->cachedsc;
+	scl->next = ci->changes;
+	ci->changes = scl;
+    }
+    /* CI_ProcessPosSubs is the first thing which might change anything real */
     if ( !CI_ProcessPosSubs(ci)) {
 	free( accentdevtab );
 	free( italicdevtab );
@@ -1297,42 +1507,36 @@ return( false );
 return( false );
     }
     name = u2utf8_copy( nm );
-    if ( strcmp(name,ci->sc->name)!=0 || val!=ci->sc->unicodeenc )
-	refresh_fvdi = 1;
     comment = GGadgetGetTitle8(GWidgetGetControl(ci->gw,CID_Comment));
-    SCPreserveState(ci->sc,2);
-    ret = SCSetMetaData(ci->sc,name,val,comment);
+    if ( comment!=NULL && *comment=='\0' ) {
+	free(comment);
+	comment=NULL;
+    }
+    ret = CI_CheckMetaData(ci,oldsc,name,val,comment);
     free(name); free(comment);
-    ci->sc->unlink_rm_ovrlp_save_undo = GGadgetIsChecked(GWidgetGetControl(ci->gw,CID_UnlinkRmOverlap));
-    if ( refresh_fvdi ) {
-	for ( fvs=(FontView *) ci->sc->parent->fv; fvs!=NULL; fvs=(FontView *) fvs->b.next ) {
-	    GDrawRequestExpose(fvs->gw,NULL,false);	/* Redraw info area just in case this char is selected */
-	    GDrawRequestExpose(fvs->v,NULL,false);	/* Redraw character area in case this char is on screen */
-	}
+    if ( !ret ) {
+	free( accentdevtab );
+	free( italicdevtab );
+	free(hicdt); free(vicdt);
+return( false );
     }
-    if ( ret ) {
-	ci->sc->glyph_class = GGadgetGetFirstListSelectedItem(GWidgetGetControl(ci->gw,CID_GClass));
-	val = GGadgetGetFirstListSelectedItem(GWidgetGetControl(ci->gw,CID_Color));
-	if ( val!=-1 ) {
-	    if ( ci->sc->color != (int) (intpt) (std_colors[val].userdata) ) {
-		ci->sc->color = (intpt) (std_colors[val].userdata);
-		for ( fvs=(FontView *) ci->sc->parent->fv; fvs!=NULL; fvs=(FontView *) fvs->b.next )
-		    GDrawRequestExpose(fvs->v,NULL,false);	/* Redraw info area just in case this char is selected */
-	    }
-	}
-	CI_ParseCounters(ci);
-	ci->sc->tex_height = tex_height;
-	ci->sc->tex_depth  = tex_depth;
-	ci->sc->italic_correction = italic;
-	ci->sc->top_accent_horiz = topaccent;
-	ci->sc->is_extended_shape = GGadgetIsChecked(GWidgetGetControl(ci->gw,CID_IsExtended));
+    ci->cachedsc->unlink_rm_ovrlp_save_undo = GGadgetIsChecked(GWidgetGetControl(ci->gw,CID_UnlinkRmOverlap));
+    ci->cachedsc->glyph_class = GGadgetGetFirstListSelectedItem(GWidgetGetControl(ci->gw,CID_GClass));
+    val = GGadgetGetFirstListSelectedItem(GWidgetGetControl(ci->gw,CID_Color));
+    if ( val!=-1 )
+	ci->cachedsc->color = (intpt) (std_colors[val].userdata);
+    CI_ParseCounters(ci);
+    ci->cachedsc->tex_height = tex_height;
+    ci->cachedsc->tex_depth  = tex_depth;
+    ci->cachedsc->italic_correction = italic;
+    ci->cachedsc->top_accent_horiz = topaccent;
+    ci->cachedsc->is_extended_shape = GGadgetIsChecked(GWidgetGetControl(ci->gw,CID_IsExtended));
 #ifdef FONTFORGE_CONFIG_DEVICETABLES
-	ci->sc->italic_adjusts = DeviceTableParse(ci->sc->italic_adjusts,italicdevtab);
-	ci->sc->top_accent_adjusts = DeviceTableParse(ci->sc->top_accent_adjusts,accentdevtab);
+    ci->cachedsc->italic_adjusts = DeviceTableParse(ci->cachedsc->italic_adjusts,italicdevtab);
+    ci->cachedsc->top_accent_adjusts = DeviceTableParse(ci->cachedsc->top_accent_adjusts,accentdevtab);
 #endif
-    }
-    ci->sc->horiz_variants = CI_ParseVariants(ci->sc->horiz_variants,ci,1,hicdt,hic,false);
-    ci->sc->vert_variants  = CI_ParseVariants(ci->sc->vert_variants ,ci,0,vicdt,vic,false);
+    ci->cachedsc->horiz_variants = CI_ParseVariants(ci->cachedsc->horiz_variants,ci,1,hicdt,hic,false);
+    ci->cachedsc->vert_variants  = CI_ParseVariants(ci->cachedsc->vert_variants ,ci,0,vicdt,vic,false);
 
     free( accentdevtab );
     free( italicdevtab );
@@ -1340,19 +1544,17 @@ return( false );
 
     CI_ParseAltUnis(ci);
 
-    if ( ret )
-	ci->sc->parent->changed = true;
-    if ( ret && ci->lc_seen ) {
+    if ( ci->lc_seen ) {
 	PST *pst, *prev=NULL;
 	int i;
-	ci->sc->lig_caret_cnt_fixed = lig_caret_cnt_fixed;
-	for ( pst = ci->sc->possub; pst!=NULL && pst->type!=pst_lcaret; pst=pst->next )
+	ci->cachedsc->lig_caret_cnt_fixed = lig_caret_cnt_fixed;
+	for ( pst = ci->cachedsc->possub; pst!=NULL && pst->type!=pst_lcaret; pst=pst->next )
 	    prev = pst;
 	if ( pst==NULL && lc_cnt==0 )
 	    /* Nothing to do */;
 	else if ( pst!=NULL && lc_cnt==0 ) {
 	    if ( prev==NULL )
-		ci->sc->possub = pst->next;
+		ci->cachedsc->possub = pst->next;
 	    else
 		prev->next = pst->next;
 	    pst->next = NULL;
@@ -1362,7 +1564,7 @@ return( false );
 		pst = chunkalloc(sizeof(PST));
 		pst->type = pst_lcaret;
 		pst->next = ci->sc->possub;
-		ci->sc->possub = pst;
+		ci->cachedsc->possub = pst;
 	    }
 	    if ( lc_cnt>pst->u.lcaret.cnt )
 		pst->u.lcaret.carets = grealloc(pst->u.lcaret.carets,lc_cnt*sizeof(int16));
@@ -1373,22 +1575,141 @@ return( false );
     }
 
 #ifdef FONTFORGE_CONFIG_TYPE3
-    ci->sc->tile_margin = tile_margin;
-    ci->sc->tile_bounds = tileb;
+    ci->cachedsc->tile_margin = tile_margin;
+    ci->cachedsc->tile_bounds = tileb;
 #endif
 
 return( ret );
 }
 
+static void CI_ApplyAll(CharInfo *ci) {
+    int refresh_fvdi = false;
+    struct splinecharlist *scl;
+    SplineChar *cached, *sc;
+    SplineFont *sf = ci->sc->parent;
+    FontView *fvs;
+
+    for ( scl = ci->changes; scl!=NULL; scl=scl->next ) {
+	cached = scl->sc;
+	sc = sf->glyphs[cached->orig_pos];
+	SCPreserveState(sc,2);
+	if ( strcmp(cached->name,sc->name)!=0 || cached->unicodeenc!=sc->unicodeenc )
+	    refresh_fvdi = 1;
+	if ( sc->name==NULL || strcmp( sc->name,cached->name )!=0 ) {
+	    if ( sc->name!=NULL )
+		SFGlyphRenameFixup(sf,sc->name,cached->name);
+	    free(sc->name); sc->name = copy(cached->name);
+	    sc->namechanged = true;
+	    GlyphHashFree(sf);
+	}
+	if ( sc->unicodeenc != cached->unicodeenc ) {
+	    struct splinecharlist *scl;
+	    int layer;
+	    RefChar *ref;
+	    struct altuni *alt;
+
+	    /* All references need the new unicode value */
+	    for ( scl=sc->dependents; scl!=NULL; scl=scl->next ) {
+		for ( layer=ly_back; layer<scl->sc->layer_cnt; ++layer )
+		    for ( ref = scl->sc->layers[layer].refs; ref!=NULL; ref=ref->next )
+			if ( ref->sc==sc )
+			    ref->unicode_enc = cached->unicodeenc;
+	    }
+	    /* If the current unicode enc were in the list of alt unis */
+	    /*  the user might have forgotten to remove it. So if s/he did */
+	    /*  forget, swap the altuni value with the old value */
+	    for ( alt=cached->altuni; alt!=NULL && (alt->unienc!=cached->unicodeenc || alt->vs!=-1 || alt->fid!=0); alt=alt->next );
+	    if ( alt!=NULL )	/* alt->unienc==new value */
+		alt->unienc = sc->unicodeenc;
+	    sc->unicodeenc = cached->unicodeenc;
+	}
+	free(sc->comment); sc->comment = copy(cached->comment);
+	sc->unlink_rm_ovrlp_save_undo = cached->unlink_rm_ovrlp_save_undo;
+	sc->glyph_class = cached->glyph_class;
+	if ( sc->color != cached->color )
+	    refresh_fvdi = true;
+	sc->color = cached->color;
+	free(sc->countermasks);
+	sc->countermask_cnt = cached->countermask_cnt;
+	sc->countermasks = cached->countermasks;
+	cached->countermasks = NULL; cached->countermask_cnt = 0;
+	sc->tex_height = cached->tex_height;
+	sc->tex_depth  = cached->tex_depth;
+	sc->italic_correction = cached->italic_correction;
+	sc->top_accent_horiz = cached->top_accent_horiz;
+	sc->is_extended_shape = cached->is_extended_shape;
+#ifdef FONTFORGE_CONFIG_DEVICETABLES
+	DeviceTableFree(sc->italic_adjusts);
+	DeviceTableFree(sc->top_accent_adjusts);
+	sc->italic_adjusts = cached->italic_adjusts;
+	sc->top_accent_adjusts = cached->top_accent_adjusts;
+	cached->italic_adjusts = cached->top_accent_adjusts = NULL;
+#endif
+	GlyphVariantsFree(sc->horiz_variants);
+	GlyphVariantsFree(sc->vert_variants);
+	sc->horiz_variants = cached->horiz_variants;
+	sc->vert_variants = cached->vert_variants;
+	cached->horiz_variants = cached->vert_variants = NULL;
+	AltUniFree(sc->altuni);
+	sc->altuni = cached->altuni;
+	cached->altuni = NULL;
+	sc->lig_caret_cnt_fixed = cached->lig_caret_cnt_fixed;
+	PSTFree(sc->possub);
+	sc->possub = cached->possub;
+	cached->possub = NULL;
+	KernPairsFree(sc->kerns); KernPairsFree(sc->vkerns);
+	sc->kerns = cached->kerns; sc->vkerns = cached->vkerns;
+	cached->kerns = cached->vkerns = NULL;
+#ifdef FONTFORGE_CONFIG_TYPE3
+	sc->tile_margin = cached->tile_margin;
+	sc->tile_bounds = cached->tile_bounds;
+#endif
+	if ( !sc->changed ) {
+	    sc->changed = true;
+	    refresh_fvdi = true;
+	}
+	SCRefreshTitles(sc);
+    }
+    if ( ci->name_change || ci->uni_change ) {
+	for ( fvs=(FontView *) sf->fv; fvs!=NULL; fvs=(FontView *) fvs->b.nextsame ) {
+	    /* Postscript encodings are by name, others are by unicode */
+	    /* Hence slight differences in when we update the encoding */
+	    if ( (ci->name_change && fvs->b.map->enc->psnames!=NULL ) ||
+		    (ci->uni_change && fvs->b.map->enc->psnames==NULL )) {
+		fvs->b.map->enc = &custom;
+		FVSetTitle((FontViewBase *) fvs);
+		refresh_fvdi = true;
+	    }
+	}
+    }
+    if ( refresh_fvdi ) {
+	for ( fvs=(FontView *) sf->fv; fvs!=NULL; fvs=(FontView *) fvs->b.nextsame ) {
+	    GDrawRequestExpose(fvs->gw,NULL,false);	/* Redraw info area just in case this char is selected */
+	    GDrawRequestExpose(fvs->v,NULL,false);	/* Redraw character area in case this char is on screen */
+	}
+    }
+    if ( ci->changes )
+	sf->changed = true;
+}
+
 static void CI_Finish(CharInfo *ci) {
+    struct splinecharlist *scl, *next;
+
+    for ( scl=ci->changes; scl!=NULL; scl=next ) {
+	next = scl->next;
+	SplineCharFree(scl->sc);
+	chunkfree(scl,sizeof(*scl));
+    }
     GDrawDestroyWindow(ci->gw);
 }
 
 static int CI_OK(GGadget *g, GEvent *e) {
     if ( e->type==et_controlevent && e->u.control.subtype == et_buttonactivate ) {
 	CharInfo *ci = GDrawGetUserData(GGadgetGetWindow(g));
-	if ( _CI_OK(ci) )
+	if ( _CI_OK(ci) ) {
+	    CI_ApplyAll(ci);
 	    CI_Finish(ci);
+	}
     }
 return( true );
 }
@@ -2379,7 +2700,7 @@ return;
 	ti = SFSubtableListOfType(ci->sc->parent, pst2lookuptype[sel+1], false, false);
 	GMatrixEditSetColumnChoices(g,0,ti);
 	GTextInfoListFree(ti);
-	if ( wasnew )
+	if ( wasnew && ci->cv!=NULL )
 	    SCSubtableDefaultSubsCheck(ci->sc,sub, possub, cols, r, CVLayer((CharViewBase *) (ci->cv)));
     } else if ( ci->old_sub!=NULL ) {
 	/* Restore old value */
@@ -2700,7 +3021,7 @@ return( NULL );
 			me->bitmap[(me->ymax-y)*me->bytes_per_line + (x-me->xmin)];
 	    }
 	}
-	xoffset = 1 - minx + me->width + kern - other->xmin + rint(old[cols*ci->r+PAIR_DX2+coff2].u.md_ival*scale);
+	xoffset = 1 - minx + me->width + kern - rint(old[cols*ci->r+PAIR_DX2+coff2].u.md_ival*scale);
 	yoffset = 1 + maxy - rint(old[cols*ci->r+PAIR_DY2+coff2].u.md_ival*scale);
 	for ( y=other->ymin; y<=other->ymax; ++y ) {
 	    for ( x=other->xmin; x<=other->xmax; ++x ) {
@@ -3027,7 +3348,7 @@ GImage *NameList_GetImage(SplineFont *sf,SplineChar *sc,int def_layer,
     char *subs = namelist, *pt, *start;
     int ch;
 
-    if ( sc==NULL || sf==NULL )
+    if ( sc==NULL || sf==NULL || namelist==NULL )
 return( NULL );
     me = Rasterize(sc,def_layer);
     ymin = me->ymin; ymax = me->ymax;
@@ -3333,6 +3654,9 @@ static int TeX_Default(GGadget *g, GEvent *e) {
 		isbaseline(ci->sc->unicodeenc) &&
 		(basesc = SFGetChar(sf,'I',NULL))!=NULL )
 	    /* Done */;
+	else
+	    basesc = ci->sc;
+
 	SplineCharFindBounds(basesc,&b);
 	style = MacStyleCode(sf,NULL);
 
@@ -3591,7 +3915,7 @@ return( true );
 }
 
 static void CIFillup(CharInfo *ci) {
-    SplineChar *sc = ci->sc;
+    SplineChar *sc = ci->cachedsc!=NULL ? ci->cachedsc : ci->sc;
     SplineFont *sf = sc->parent;
     unichar_t *temp;
     char buffer[400];
@@ -3613,8 +3937,8 @@ static void CIFillup(CharInfo *ci) {
 
     if ( ci->oldsc!=NULL && ci->oldsc->charinfo==ci )
 	ci->oldsc->charinfo = NULL;
-    sc->charinfo = ci;
-    ci->oldsc = sc;
+    ci->sc->charinfo = ci;
+    ci->oldsc = ci->sc;
 
     GGadgetSetEnabled(GWidgetGetControl(ci->gw,-1), ci->enc>0 &&
 	    ((gid=ci->map->map[ci->enc-1])==-1 ||
@@ -3868,6 +4192,7 @@ static int CI_NextPrev(GGadget *g, GEvent *e) {
 	CharInfo *ci = GDrawGetUserData(GGadgetGetWindow(g));
 	int enc = ci->enc + GGadgetGetCid(g);	/* cid is 1 for next, -1 for prev */
 	SplineChar *new;
+	struct splinecharlist *scl;
 
 	if ( enc<0 || enc>=ci->map->enccount ) {
 	    GGadgetSetEnabled(g,false);
@@ -3882,6 +4207,9 @@ return( true );
 	}
 	ci->sc = new;
 	ci->enc = enc;
+	for ( scl=ci->changes; scl!=NULL && scl->sc->orig_pos!=new->orig_pos;
+		scl = scl->next );
+	ci->cachedsc = scl==NULL ? NULL : scl->sc;
 	CIFillup(ci);
     }
 return( true );
@@ -4544,7 +4872,7 @@ return;
 	    vargcd[i][3].gd.label = &varlabel[i][3];
 	    vargcd[i][3].gd.flags = gg_enabled|gg_visible|gg_utf8_popup;
 	    vargcd[i][3].creator = GLabelCreate;
-	    vargcd[i][3].gd.popup_msg = (unichar_t *) _("The italic correction of the composed glyph. Should be independant of glyph size");
+	    vargcd[i][3].gd.popup_msg = (unichar_t *) _("The italic correction of the composed glyph. Should be independent of glyph size");
 	    varhvarray[i][2][0] = &vargcd[i][3];
 
 	    vargcd[i][4].gd.flags = gg_enabled|gg_visible|gg_utf8_popup;
@@ -4843,11 +5171,10 @@ return;
 
 	mgcd[4].gd.pos.x = -25; mgcd[4].gd.pos.y = mgcd[3].gd.pos.y+3;
 	mgcd[4].gd.flags = gg_visible | gg_enabled | gg_but_cancel;
-	mlabel[4].text = (unichar_t *) _("_Done");
+	mlabel[4].text = (unichar_t *) _("_Cancel");
 	mlabel[4].text_is_1byte = true;
 	mlabel[4].text_in_resource = true;
 	mgcd[4].gd.label = &mlabel[4];
-	mgcd[4].gd.mnemonic = 'C';
 	mgcd[4].gd.handle_controlevent = CI_Cancel;
 	mgcd[4].gd.cid = CID_Cancel;
 	mharray2[4] = GCD_Glue; mharray2[5] = &mgcd[4]; mharray2[6] = GCD_Glue; mharray2[7] = NULL;

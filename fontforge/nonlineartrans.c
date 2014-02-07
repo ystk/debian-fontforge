@@ -1,4 +1,4 @@
-/* Copyright (C) 2003-2010 by George Williams */
+/* Copyright (C) 2003-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -553,7 +553,7 @@ static void SplineSetNLTrans(SplineSet *ss,struct context *c,
     SplinePoint *first, *last, *next;
     SplinePoint *sp;
     TPoint mids[20];
-    double t;
+    bigreal t;
     int i;
     Spline1D *xsp, *ysp;
     /* When doing a linear transform, all we need to do is transform the */
@@ -790,7 +790,7 @@ return;
 
 static void BpPoV(BasePoint *me,void *_pov) {
     struct pov_data *pov = _pov;
-    double z, div;
+    bigreal z, div;
 
     z = pov->z + me->y*pov->sintilt;
     div = z/pov->d;
@@ -810,7 +810,7 @@ static void BpPoV(BasePoint *me,void *_pov) {
 void SPLPoV(SplineSet *base,struct pov_data *pov, int only_selected) {
     SplineSet *spl;
     real transform[6];
-    double si = sin( pov->direction ), co = cos( pov->direction );
+    bigreal si = sin( pov->direction ), co = cos( pov->direction );
     struct context c;
 
     if ( pov->z==0 )
@@ -820,12 +820,12 @@ return;
     transform[2] = -(transform[1] = si);
     transform[4] = -pov->x;
     transform[5] = -pov->y;
-    SplinePointListTransform(base,transform,!only_selected);
+    SplinePointListTransform(base,transform,only_selected?tpt_OnlySelected:tpt_AllPoints);
 
     if ( pov->d==0 || pov->tilt==0 ) {
 	transform[0] = transform[3] = pov->d/pov->z;
 	transform[1] = transform[2] = transform[4] = transform[5] = 0;
-	SplinePointListTransform(base,transform,!only_selected);
+	SplinePointListTransform(base,transform,only_selected?tpt_OnlySelected:tpt_AllPoints);
 return;
     }
 
@@ -840,7 +840,7 @@ return;
     transform[1] = -(transform[2] = si);
     transform[4] = pov->x;
     transform[5] = pov->y;
-    SplinePointListTransform(base,transform,!only_selected);
+    SplinePointListTransform(base,transform,only_selected?tpt_OnlySelected:tpt_AllPoints);
 }
 
 static void SCFindCenter(SplineChar *sc,BasePoint *center) {
@@ -890,8 +890,8 @@ void FVPointOfView(FontViewBase *fv,struct pov_data *pov) {
 }
 
 struct vanishing_point {
-    double x_vanish;
-    double y_vanish;
+    bigreal x_vanish;
+    bigreal y_vanish;
 };
 
 static void VanishingTrans(BasePoint *me,void *_vanish) {
@@ -901,7 +901,7 @@ static void VanishingTrans(BasePoint *me,void *_vanish) {
 		( me->x-vanish->x_vanish );
 }
 
-void CVYPerspective(CharViewBase *cv,double x_vanish, double y_vanish) {
+void CVYPerspective(CharViewBase *cv,bigreal x_vanish, bigreal y_vanish) {
     SplineSet *spl;
     struct context c;
     struct vanishing_point vanish;

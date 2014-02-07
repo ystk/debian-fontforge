@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -573,8 +573,8 @@ return(NULL);
     }
     undo->u.state.images = ImageListCopy(cv->layerheads[cv->drawmode]->images);
 #ifdef FONTFORGE_CONFIG_TYPE3
-    BrushCopy(&undo->u.state.fill_brush,&cv->layerheads[cv->drawmode]->fill_brush);
-    PenCopy(&undo->u.state.stroke_pen,&cv->layerheads[cv->drawmode]->stroke_pen);
+    BrushCopy(&undo->u.state.fill_brush,&cv->layerheads[cv->drawmode]->fill_brush,NULL);
+    PenCopy(&undo->u.state.stroke_pen,&cv->layerheads[cv->drawmode]->stroke_pen,NULL);
     undo->u.state.dofill = cv->layerheads[cv->drawmode]->dofill;
     undo->u.state.dostroke = cv->layerheads[cv->drawmode]->dostroke;
     undo->u.state.fillfirst = cv->layerheads[cv->drawmode]->fillfirst;
@@ -649,8 +649,8 @@ return(NULL);
     }
     undo->u.state.images = ImageListCopy(sc->layers[layer].images);
 #ifdef FONTFORGE_CONFIG_TYPE3
-    BrushCopy(&undo->u.state.fill_brush,&sc->layers[layer].fill_brush);
-    PenCopy(&undo->u.state.stroke_pen,&sc->layers[layer].stroke_pen);
+    BrushCopy(&undo->u.state.fill_brush,&sc->layers[layer].fill_brush,NULL);
+    PenCopy(&undo->u.state.stroke_pen,&sc->layers[layer].stroke_pen,NULL);
     undo->u.state.dofill = sc->layers[layer].dofill;
     undo->u.state.dostroke = sc->layers[layer].dostroke;
     undo->u.state.fillfirst = sc->layers[layer].fillfirst;
@@ -1558,6 +1558,8 @@ return;
 	    ClipboardAddDataType("image/eps",&copybuffer,0,sizeof(char),
 		    copybuffer2eps,noop);
 #ifndef _NO_LIBXML
+	    ClipboardAddDataType("image/svg+xml",&copybuffer,0,sizeof(char),
+		    copybuffer2svg,noop);
 	    ClipboardAddDataType("image/svg",&copybuffer,0,sizeof(char),
 		    copybuffer2svg,noop);
 #endif
@@ -1614,6 +1616,7 @@ return( cur->undotype==ut_state || cur->undotype==ut_tstate ||
 	cur->undotype==ut_width || cur->undotype==ut_vwidth ||
 	cur->undotype==ut_lbearing || cur->undotype==ut_rbearing ||
 	cur->undotype==ut_hints ||
+	cur->undotype==ut_bitmap || cur->undotype==ut_bitmapsel ||
 	cur->undotype==ut_anchors || cur->undotype==ut_noop );
 }
 
@@ -1718,8 +1721,8 @@ void CopyReference(SplineChar *sc) {
     copybuffer.copied_from = sc->parent;
 #ifdef FONTFORGE_CONFIG_TYPE3
     if ( ly_fore<sc->layer_cnt ) {
-	BrushCopy(&copybuffer.u.state.fill_brush, &sc->layers[ly_fore].fill_brush);
-	PenCopy(&copybuffer.u.state.stroke_pen, &sc->layers[ly_fore].stroke_pen);
+	BrushCopy(&copybuffer.u.state.fill_brush, &sc->layers[ly_fore].fill_brush,NULL);
+	PenCopy(&copybuffer.u.state.stroke_pen, &sc->layers[ly_fore].stroke_pen,NULL);
 	copybuffer.u.state.dofill = sc->layers[ly_fore].dofill;
 	copybuffer.u.state.dostroke = sc->layers[ly_fore].dostroke;
 	copybuffer.u.state.fillfirst = sc->layers[ly_fore].fillfirst;
@@ -1784,8 +1787,8 @@ void CopySelected(CharViewBase *cv,int doanchors) {
     }
 #ifdef FONTFORGE_CONFIG_TYPE3
     if ( cv->drawmode==dm_fore || cv->drawmode==dm_back ) {
-	BrushCopy(&copybuffer.u.state.fill_brush, &cv->layerheads[cv->drawmode]->fill_brush);
-	PenCopy(&copybuffer.u.state.stroke_pen, &cv->layerheads[cv->drawmode]->stroke_pen);
+	BrushCopy(&copybuffer.u.state.fill_brush, &cv->layerheads[cv->drawmode]->fill_brush,NULL);
+	PenCopy(&copybuffer.u.state.stroke_pen, &cv->layerheads[cv->drawmode]->stroke_pen,NULL);
 	copybuffer.u.state.dofill = cv->layerheads[cv->drawmode]->dofill;
 	copybuffer.u.state.dostroke = cv->layerheads[cv->drawmode]->dostroke;
 	copybuffer.u.state.fillfirst = cv->layerheads[cv->drawmode]->fillfirst;
@@ -1864,8 +1867,8 @@ static Undoes *SCCopyAllLayer(SplineChar *sc,enum fvcopy_type full,int layer) {
 #ifdef FONTFORGE_CONFIG_TYPE3
 	if ( layer<sc->layer_cnt ) {
 	    cur->u.state.images = ImageListCopy(sc->layers[layer].images);
-	    BrushCopy(&cur->u.state.fill_brush, &sc->layers[layer].fill_brush);
-	    PenCopy(&cur->u.state.stroke_pen, &sc->layers[layer].stroke_pen);
+	    BrushCopy(&cur->u.state.fill_brush, &sc->layers[layer].fill_brush,NULL);
+	    PenCopy(&cur->u.state.stroke_pen, &sc->layers[layer].stroke_pen,NULL);
 	    cur->u.state.dofill = sc->layers[layer].dofill;
 	    cur->u.state.dostroke = sc->layers[layer].dostroke;
 	    cur->u.state.fillfirst = sc->layers[layer].fillfirst;
@@ -2030,7 +2033,7 @@ static void PasteNonExistantRefCheck(SplineChar *sc,Undoes *paster,RefChar *ref,
 		*refstate |= 2;
 	}
 	if ( (*refstate&1) || yes<=1 ) {
-	    new = SplinePointListTransform(SplinePointListCopy(fromsc->layers[ly_fore].splines),ref->transform,true);
+	    new = SplinePointListTransform(SplinePointListCopy(fromsc->layers[ly_fore].splines),ref->transform,tpt_AllPoints);
 	    SplinePointListSelect(new,true);
 	    if ( new!=NULL ) {
 		for ( spl = new; spl->next!=NULL; spl = spl->next );
@@ -2046,36 +2049,40 @@ static void SCCheckXClipboard(SplineChar *sc,int layer,int doclear) {
     char *paste;
     FILE *temp;
     GImage *image;
+    int sx=0, s_x=0;
 
     if ( no_windowing_ui )
 return;
     type = 0;
-#ifndef _NO_LIBPNG
-    if ( ClipboardHasType("image/png") )
-	type = 1;
-    else
-#endif
 #ifndef _NO_LIBXML
     /* SVG is a better format (than eps) if we've got it because it doesn't */
     /*  force conversion of quadratic to cubic and back */
-    if ( HasSVG() && ClipboardHasType("image/svg") )
-	type = 2;
+    if ( HasSVG() && ((sx = ClipboardHasType("image/svg+xml")) ||
+			(s_x = ClipboardHasType("image/svg-xml")) ||
+			ClipboardHasType("image/svg")) )
+	type = sx ? 1 : s_x ? 2 : 3;
     else
 #endif
-    if ( ClipboardHasType("image/bmp") )
-	type = 3;
-    else if ( ClipboardHasType("image/eps") )
+    if ( ClipboardHasType("image/eps") )
 	type = 4;
     else if ( ClipboardHasType("image/ps") )
 	type = 5;
+#ifndef _NO_LIBPNG
+    else if ( ClipboardHasType("image/png") )
+	type = 6;
+#endif
+    else if ( ClipboardHasType("image/bmp") )
+	type = 7;
 
     if ( type==0 )
 return;
 
-    paste = ClipboardRequest(type==1?"image/png":
-		type==2?"image/svg":
-		type==3?"image/bmp":
-		type==4?"image/eps":"image/ps",&len);
+    paste = ClipboardRequest(type==1?"image/svg+xml":
+		type==2?"image/svg-xml":
+		type==3?"image/svg":
+		type==4?"image/eps":
+		type==5?"image/ps":
+		type==6?"image/png":"image/bmp",&len);
     if ( paste==NULL )
 return;
 
@@ -2083,15 +2090,15 @@ return;
     if ( temp!=NULL ) {
 	fwrite(paste,1,len,temp);
 	rewind(temp);
-	if ( type>=4 ) {	/* eps/ps */
+	if ( type==4 || type==5 ) {	/* eps/ps */
 	    SCImportPSFile(sc,layer,temp,doclear,-1);
 #ifndef _NO_LIBXML
-	} else if ( type==2 ) {
+	} else if ( type<=3 ) {
 	    SCImportSVG(sc,layer,NULL,paste,len,doclear);
 #endif
 	} else {
 #ifndef _NO_LIBPNG
-	    if ( type==1 )
+	    if ( type==6 )
 		image = GImageRead_Png(temp);
 	    else
 #endif
@@ -2330,7 +2337,7 @@ static void _PasteToSC(SplineChar *sc,Undoes *paster,FontViewBase *fv,int pastei
 		transform[0] = transform[3] = 1; transform[1] = transform[2] = transform[5] = 0;
 		transform[4] = width;
 		sc->layers[layer].splines = SplinePointListTransform(
-			sc->layers[layer].splines,transform,true);
+			sc->layers[layer].splines,transform,tpt_AllPoints);
 		for ( ref = sc->layers[layer].refs; ref!=NULL; ref=ref->next ) {
 		    ref->transform[4] += width;
 		    SCReinstanciateRefChar(sc,ref,layer);
@@ -2348,8 +2355,8 @@ static void _PasteToSC(SplineChar *sc,Undoes *paster,FontViewBase *fv,int pastei
 		sc->layers[layer].refs==NULL && sc->layers[layer].images==NULL &&
 		sc->parent->multilayer ) {
 	    /* pasting into an empty layer sets the fill/stroke */
-	    BrushCopy(&sc->layers[layer].fill_brush, &paster->u.state.fill_brush);
-	    PenCopy(&sc->layers[layer].stroke_pen, &paster->u.state.stroke_pen);
+	    BrushCopy(&sc->layers[layer].fill_brush, &paster->u.state.fill_brush,NULL);
+	    PenCopy(&sc->layers[layer].stroke_pen, &paster->u.state.stroke_pen,NULL);
 	    sc->layers[layer].dofill = paster->u.state.dofill;
 	    sc->layers[layer].dostroke = paster->u.state.dostroke;
 	    sc->layers[layer].fillfirst = paster->u.state.fillfirst;
@@ -2373,7 +2380,7 @@ static void _PasteToSC(SplineChar *sc,Undoes *paster,FontViewBase *fv,int pastei
 	    if ( (pasteinto==2 || pasteinto==3 ) && (xoff!=0 || yoff!=0)) {
 		transform[0] = transform[3] = 1; transform[1] = transform[2] = 0;
 		transform[4] = xoff; transform[5] = yoff;
-		temp = SplinePointListTransform(temp,transform,true);
+		temp = SplinePointListTransform(temp,transform,tpt_AllPoints);
 	    }
 	    if ( paster->was_order2 != sc->layers[layer].order2 )
 		temp = SplineSetsConvertOrder(temp,sc->layers[layer].order2);
@@ -2978,8 +2985,8 @@ return;
 	if ( wasemptylayer && cv->layerheads[dm_fore]->images==NULL &&
 		cvsc->parent->multilayer ) {
 	    /* pasting into an empty layer sets the fill/stroke */
-	    BrushCopy(&cv->layerheads[dm_fore]->fill_brush, &paster->u.state.fill_brush);
-	    PenCopy(&cv->layerheads[dm_fore]->stroke_pen, &paster->u.state.stroke_pen);
+	    BrushCopy(&cv->layerheads[dm_fore]->fill_brush, &paster->u.state.fill_brush,NULL);
+	    PenCopy(&cv->layerheads[dm_fore]->stroke_pen, &paster->u.state.stroke_pen,NULL);
 	    cv->layerheads[dm_fore]->dofill = paster->u.state.dofill;
 	    cv->layerheads[dm_fore]->dostroke = paster->u.state.dostroke;
 	    cv->layerheads[dm_fore]->fillfirst = paster->u.state.fillfirst;
@@ -3087,7 +3094,7 @@ return;
 		else
 		    sc = NULL;
 		if ( sc!=NULL ) {
-		    new = SplinePointListTransform(SplinePointListCopy(sc->layers[ly_back].splines),refs->transform,true);
+		    new = SplinePointListTransform(SplinePointListCopy(sc->layers[ly_back].splines),refs->transform,tpt_AllPoints);
 		    SplinePointListSelect(new,true);
 		    if ( new!=NULL ) {
 			for ( spl = new; spl->next!=NULL; spl = spl->next );

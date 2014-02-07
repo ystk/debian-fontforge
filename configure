@@ -708,7 +708,7 @@ PACKAGE_STRING=
 PACKAGE_BUGREPORT=
 PACKAGE_URL=
 
-ac_unique_file="fontforge/pfaedit.h"
+ac_unique_file="fontforge/fontforge.h"
 # Factoring default headers for most tests.
 ac_includes_default="\
 #include <stdio.h>
@@ -4654,22 +4654,19 @@ case "$host" in
  if test "$CPPFLAGS" \!= "" >/dev/null ; then
   TrustUser="yes"
  elif test -d /sw/include >/dev/null ; then
-  CPPFLAGS="$CPPFLAGS -idirafter /sw/include"
+  CPPFLAGS="$CPPFLAGS -I /sw/include"
   gww_extraincludes="/sw/include"
  elif test -d /opt/local/include >/dev/null ; then
-  CPPFLAGS="$CPPFLAGS -idirafter /opt/local/include"
+  CPPFLAGS="$CPPFLAGS -I /opt/local/include"
   gww_extraincludes="/opt/local/include";
  fi
- rmlibs=""
  if test "$oldLDFLAGS" \!= "" >/dev/null ; then
   TrustUser="yes"
  elif test -d /sw/lib >/dev/null ; then
   LDFLAGS="$LDFLAGS -L/sw/lib"
-  rmlibs="-L/sw/lib"
   gww_rpath="-rpath /sw/lib"
  elif test -d /opt/local/lib >/dev/null ; then
   LDFLAGS="$LDFLAGS -L/opt/local/lib"
-  rmlibs="-L/opt/local/lib"
   gww_rpath="-rpath /opt/local/lib"
  fi
  LIBS="-Wl,/System/Library/Frameworks/Carbon.framework/Carbon $LIBS"
@@ -5702,7 +5699,7 @@ ia64-*-hpux*)
   ;;
 *-*-irix6*)
   # Find out which ABI we are using.
-  echo '#line 5705 "configure"' > conftest.$ac_ext
+  echo '#line 5702 "configure"' > conftest.$ac_ext
   if { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_compile\""; } >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -7729,11 +7726,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:7732: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:7729: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:7736: \$? = $ac_status" >&5
+   echo "$as_me:7733: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -8019,11 +8016,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:8022: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:8019: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:8026: \$? = $ac_status" >&5
+   echo "$as_me:8023: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -8123,11 +8120,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:8126: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:8123: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:8130: \$? = $ac_status" >&5
+   echo "$as_me:8127: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -10161,7 +10158,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<EOF
-#line 10164 "configure"
+#line 10161 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -10261,7 +10258,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<EOF
-#line 10264 "configure"
+#line 10261 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -12606,11 +12603,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:12609: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:12606: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:12613: \$? = $ac_status" >&5
+   echo "$as_me:12610: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -12710,11 +12707,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:12713: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:12710: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:12717: \$? = $ac_status" >&5
+   echo "$as_me:12714: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -14308,11 +14305,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:14311: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:14308: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:14315: \$? = $ac_status" >&5
+   echo "$as_me:14312: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -14412,11 +14409,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:14415: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:14412: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:14419: \$? = $ac_status" >&5
+   echo "$as_me:14416: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -16590,11 +16587,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:16593: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:16590: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:16597: \$? = $ac_status" >&5
+   echo "$as_me:16594: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -16880,11 +16877,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:16883: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:16880: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:16887: \$? = $ac_status" >&5
+   echo "$as_me:16884: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -16984,11 +16981,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:16987: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:16984: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:16991: \$? = $ac_status" >&5
+   echo "$as_me:16988: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -19983,7 +19980,7 @@ fi
   if $python_prog -c "import distutils.sysconfig ; print(distutils.sysconfig.get_config_var('VERSION'))" ; then
     PyVersion=`$python_prog -c "import distutils.sysconfig ; print(distutils.sysconfig.get_config_var('VERSION'))"`
     PyMajorVersion=`echo $PyVersion |sed -e 's/\..*//'`
-    PySubVersion=`echo $PyVersion |sed -e 's/\(2\|3\)\.//'`
+    PySubVersion=`echo $PyVersion |sed -e 's/2\.//' -e 's/3\.//'`
     PyName="python$PyVersion"
     if test "$PySubVersion" = "" ; then
       python="no"
@@ -20475,13 +20472,13 @@ else
 
 fi
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for png_create_read_struct in -lpng" >&5
-$as_echo_n "checking for png_create_read_struct in -lpng... " >&6; }
-if test "${ac_cv_lib_png_png_create_read_struct+set}" = set; then :
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for png_create_read_struct in -lpng16" >&5
+$as_echo_n "checking for png_create_read_struct in -lpng16... " >&6; }
+if test "${ac_cv_lib_png16_png_create_read_struct+set}" = set; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
-LIBS="-lpng -lz -lm $LIBS"
+LIBS="-lpng16 -lz -lm $LIBS"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -20501,18 +20498,60 @@ return png_create_read_struct ();
 }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_png_png_create_read_struct=yes
+  ac_cv_lib_png16_png_create_read_struct=yes
 else
-  ac_cv_lib_png_png_create_read_struct=no
+  ac_cv_lib_png16_png_create_read_struct=no
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 LIBS=$ac_check_lib_save_LIBS
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_png_png_create_read_struct" >&5
-$as_echo "$ac_cv_lib_png_png_create_read_struct" >&6; }
-if test "x$ac_cv_lib_png_png_create_read_struct" = x""yes; then :
-  :
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_png16_png_create_read_struct" >&5
+$as_echo "$ac_cv_lib_png16_png_create_read_struct" >&6; }
+if test "x$ac_cv_lib_png16_png_create_read_struct" = x""yes; then :
+  $as_echo "#define _LIBPNG16 1" >>confdefs.h
+
+else
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for png_create_read_struct in -lpng15" >&5
+$as_echo_n "checking for png_create_read_struct in -lpng15... " >&6; }
+if test "${ac_cv_lib_png15_png_create_read_struct+set}" = set; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lpng15 -lz -lm $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char png_create_read_struct ();
+int
+main ()
+{
+return png_create_read_struct ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_png15_png_create_read_struct=yes
+else
+  ac_cv_lib_png15_png_create_read_struct=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_png15_png_create_read_struct" >&5
+$as_echo "$ac_cv_lib_png15_png_create_read_struct" >&6; }
+if test "x$ac_cv_lib_png15_png_create_read_struct" = x""yes; then :
+  $as_echo "#define _LIBPNG15 1" >>confdefs.h
+
 else
 
  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for png_create_read_struct in -lpng14" >&5
@@ -20596,7 +20635,51 @@ if test "x$ac_cv_lib_png12_png_create_read_struct" = x""yes; then :
   $as_echo "#define _LIBPNG12 1" >>confdefs.h
 
 else
+
+   { $as_echo "$as_me:${as_lineno-$LINENO}: checking for png_create_read_struct in -lpng" >&5
+$as_echo_n "checking for png_create_read_struct in -lpng... " >&6; }
+if test "${ac_cv_lib_png_png_create_read_struct+set}" = set; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lpng -lz -lm $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char png_create_read_struct ();
+int
+main ()
+{
+return png_create_read_struct ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_png_png_create_read_struct=yes
+else
+  ac_cv_lib_png_png_create_read_struct=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_png_png_create_read_struct" >&5
+$as_echo "$ac_cv_lib_png_png_create_read_struct" >&6; }
+if test "x$ac_cv_lib_png_png_create_read_struct" = x""yes; then :
+  :
+else
   $as_echo "#define _NO_LIBPNG 1" >>confdefs.h
+
+fi
+
+fi
 
 fi
 
@@ -21619,7 +21702,6 @@ if test "${with_regular_link+set}" = set; then :
   withval=$with_regular_link;
     if test "$withval" != "no" >/dev/null 2>&1 ; then
 	gww_regular_link="yes"
-	rmlibs=""
 	$as_echo "#define NODYNAMIC 1" >>confdefs.h
 
 	gww_rpath=""
@@ -22897,6 +22979,10 @@ fi
 
 
 MACKEYS=
+if ! msgfmt --help >/dev/null 2>&1 ; then
+
+  gww_has_gettext="no";
+fi
 if test "$gww_has_gettext" = "yes" >/dev/null 2>&1 ; then
  if test "$gww_ismac" = "yes" >/dev/null 2>&1 ; then
   mofiles="$(cd $ac_confdir/po/mackeys && ls *.po | sed -e 's#\.po#\.mo#g')"
@@ -23003,11 +23089,6 @@ GTFF=
 if test -e gtkui/Makefile.in -a \( -e /usr/include/gtk-2.0/gtk/gtk.h -o -e /sw/include/gtk-2.0/gtk/gtk.h \) ; then
   GTFF=gtkui/Makefile
 fi
-
-if test "$rmlibs" != "" ; then
-  LDFLAGS=`echo $LDFLAGS | sed -e "s%$rmlibs%%"`
-fi
-
 
 if test "$gww_archlist" != "" ; then
   CFLAGS="$CFLAGS $gww_archlist"

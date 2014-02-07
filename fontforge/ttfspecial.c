@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "pfaedit.h"
+#include "fontforge.h"
 #include <math.h>
 #include <time.h>
 #include <utype.h>
@@ -1331,7 +1331,7 @@ static void pfed_read_glyph_layer(FILE *ttf,struct ttfinfo *info,Layer *ly,
 	    if ( contours[i].name_off!=0 )
 		contours[i].ss->contour_name = pfed_read_utf8(ttf,base+contours[i].name_off);
 	    pfed_read_normal_contour(ttf,contours[i].ss,base+contours[i].data_off,type);
-	} else {			/* Spiros are actually bound to an already existing layer and don't have an independant existance yet */
+	} else {			/* Spiros are actually bound to an already existing layer and don't have an independent existance yet */
 	    contours[i].ss = ss;
 	    if ( ss!=NULL ) {
 		pfed_read_spiro_contour(ttf,ss,base+contours[i].data_off,type);

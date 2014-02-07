@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -306,7 +306,7 @@ void _SCAutoTrace(SplineChar *sc, int layer, char **args) {
 	    transform[1] = transform[2] = 0;
 	    transform[4] = images->xoff;
 	    transform[5] = images->yoff - images->yscale*ib->height;
-	    new = SplinePointListTransform(new,transform,true);
+	    new = SplinePointListTransform(new,transform,tpt_AllPoints);
 	    if ( sc->layers[layer].order2 ) {
 		SplineSet *o2 = SplineSetsTTFApprox(new);
 		SplinePointListsFree(new);
@@ -422,7 +422,7 @@ return;
 		transform[1] = transform[2] = 0;
 		transform[4] = images->xoff;
 		transform[5] = images->yoff - images->yscale*ib->height;
-		new = SplinePointListTransform(new,transform,true);
+		new = SplinePointListTransform(new,transform,tpt_AllPoints);
 		if ( sc->layers[layer].order2 ) {
 		    SplineSet *o2 = SplineSetsTTFApprox(new);
 		    SplinePointListsFree(new);

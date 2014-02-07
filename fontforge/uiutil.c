@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "pfaeditui.h"
+#include "fontforgeui.h"
 #include <gfile.h>
 #include <stdarg.h>
 #include <unistd.h>
@@ -516,7 +516,7 @@ return( false );
 static int warnings_e_h(GWindow gw, GEvent *event) {
 
     if (( event->type==et_mouseup || event->type==et_mousedown ) &&
-	    (event->u.mouse.button==4 || event->u.mouse.button==5) ) {
+	    (event->u.mouse.button>=4 && event->u.mouse.button<=7) ) {
 return( GGadgetDispatchEvent(errdata.vsb,event));
     }
 
@@ -660,7 +660,7 @@ static int warningsv_e_h(GWindow gw, GEvent *event) {
     extern GBox _ggadget_Default_Box;
 
     if (( event->type==et_mouseup || event->type==et_mousedown ) &&
-	    (event->u.mouse.button==4 || event->u.mouse.button==5) ) {
+	    (event->u.mouse.button>=4 && event->u.mouse.button<=7) ) {
 return( GGadgetDispatchEvent(errdata.vsb,event));
     }
 
@@ -921,7 +921,7 @@ return( gwwv_save_filename(title,defaultfile,initial_filter) );
 }
 
 static void tinysleep(int microsecs) {
-    #if !defined(__MINGW32__)
+#if !defined(__MINGW32__)
     fd_set none;
     struct timeval timeout;
 
@@ -930,7 +930,7 @@ static void tinysleep(int microsecs) {
     timeout.tv_usec = microsecs;
 
     select(1,&none,&none,&none,&timeout);
-    #endif
+#endif
 }
 
 static void allow_events(void) {

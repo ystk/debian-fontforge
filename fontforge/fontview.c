@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "pfaeditui.h"
+#include "fontforgeui.h"
 #include "groups.h"
 #include "psfont.h"
 #include <gfile.h>
@@ -43,7 +43,7 @@ char *RecentFiles[RECENT_MAX] = { NULL };
 int save_to_dir = 0;			/* use sfdir rather than sfd */
 unichar_t *script_menu_names[SCRIPT_MENU_MAX];
 char *script_filenames[SCRIPT_MENU_MAX];
-extern int onlycopydisplayed, copymetadata, copyttfinstr;
+extern int onlycopydisplayed, copymetadata, copyttfinstr, add_char_to_name_list;
 extern struct compressors compressors[];
 int home_char='A';
 int compact_font_on_open=0;
@@ -245,9 +245,9 @@ static void FVDrawGlyph(GWindow pixmap, FontView *fv, int index, int forcebg ) {
 /* When reencoding a font we can find times where index>=show->charcnt */
 	} else if ( fv->show!=NULL && feat_gid<fv->show->glyphcnt && feat_gid!=-1 &&
 		fv->show->glyphs[feat_gid]!=NULL ) {
-	    /* If fontview is set to display an embedded bitmap font (not a temporary font,
-	    /* rasterized specially for this purpose), then we can't use it directly, as bitmap
-	    /* glyphs may contain selections and references. So create a temporary copy of
+	    /* If fontview is set to display an embedded bitmap font (not a temporary font, */
+	    /* rasterized specially for this purpose), then we can't use it directly, as bitmap */
+	    /* glyphs may contain selections and references. So create a temporary copy of */
 	    /* the glyph merging all such elements into a single bitmap */
 	    bdfc = fv->show->piecemeal ? 
 		fv->show->glyphs[feat_gid] : BDFGetMergedChar( fv->show->glyphs[feat_gid] );
@@ -896,15 +896,19 @@ return;
 static void _MenuExit(void *junk) {
     FontView *fv, *next;
 
+    LastFonts_Activate();
     for ( fv = fv_list; fv!=NULL; fv = next ) {
 	next = (FontView *) (fv->b.next);
-	if ( !_FVMenuClose(fv))
+	if ( !_FVMenuClose(fv)) {
+	    LastFonts_End(false);
 return;
+	}
 	if ( fv->b.nextsame!=NULL || fv->b.sf->fv!=&fv->b ) {
 	    GDrawSync(NULL);
 	    GDrawProcessPendingEvents(NULL);
 	}
     }
+    LastFonts_End(true);
     exit(0);
 }
 
@@ -1580,13 +1584,14 @@ return( NULL );
 	    ++name;
 	} else if ( ch=='[' ) {
 	    /* [<char>...] matches the chars
-	    /* [<char>-<char>...] matches any char within the range (inclusive)
-	    /* the above may be concattenated and the resultant pattern matches
-	    /*		anything thing which matches any of them.
-	    /* [^<char>...] matches any char which does not match the rest of
-	    /*		the pattern
-	    /* []...] as a special case a ']' immediately after the '[' matches
-	    /*		itself and does not end the pattern */
+	     * [<char>-<char>...] matches any char within the range (inclusive)
+	     * the above may be concattenated and the resultant pattern matches
+	     *		anything thing which matches any of them.
+	     * [^<char>...] matches any char which does not match the rest of
+	     *		the pattern
+	     * []...] as a special case a ']' immediately after the '[' matches
+	     *		itself and does not end the pattern
+	     */
 	    int found = 0, not=0;
 	    ++pattern;
 	    if ( pattern[0]=='^' ) { not = 1; ++pattern; }
@@ -3970,6 +3975,8 @@ static void edlistcheck(GWindow gw,struct gmenuitem *mi,GEvent *e) {
 		    !GDrawSelectionHasType(fv->gw,sn_clipboard,"image/png") &&
 #endif
 #ifndef _NO_LIBXML
+		    !GDrawSelectionHasType(fv->gw,sn_clipboard,"image/svg+xml") &&
+		    !GDrawSelectionHasType(fv->gw,sn_clipboard,"image/svg-xml") &&
 		    !GDrawSelectionHasType(fv->gw,sn_clipboard,"image/svg") &&
 #endif
 		    !GDrawSelectionHasType(fv->gw,sn_clipboard,"image/bmp") &&
@@ -5239,12 +5246,38 @@ static GMenuItem2 cdlist[] = {
     { { (unichar_t *) N_("_Change Supplement..."), NULL, COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'I' }, H_("Change Supplement...|No Shortcut"), NULL, NULL, FVMenuChangeSupplement, MID_ChangeSupplement },
     { { (unichar_t *) N_("C_ID Font Info..."), NULL, COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'I' }, H_("CID Font Info...|No Shortcut"), NULL, NULL, FVMenuCIDFontInfo, MID_CIDFontInfo },
     { NULL },				/* Extra room to show sub-font names */
-    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
-    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
-    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
-    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
-    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
-    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
+    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
+    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
+    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
+    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
+    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
+    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
+    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
+    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
+    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
+    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
+    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
+    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
+    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
+    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
+    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
+    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
+    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
+    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
+    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
+    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
+    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
+    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
+    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
+    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
+    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
+    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
+    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
+    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
+    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
+    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
+    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
+    { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL }, { NULL },
     { NULL }
 };
 
@@ -6817,9 +6850,9 @@ static void FVResize(FontView *fv,GEvent *event) {
 	if ( cc<=0 ) cc = 1;
 	if ( rc<=0 ) rc = 1;
 	GDrawGetSize(GDrawGetRoot(NULL),&screensize);
-	if ( cc*fv->cbw+GDrawPointsToPixels(fv->gw,_GScrollBar_Width)+10>screensize.width )
+	if ( cc*fv->cbw+GDrawPointsToPixels(fv->gw,_GScrollBar_Width)>screensize.width )
 	    --cc;
-	if ( rc*fv->cbh+fv->mbh+fv->infoh+20>screensize.height )
+	if ( rc*fv->cbh+fv->mbh+fv->infoh+10>screensize.height )
 	    --rc;
 	GDrawResize(fv->gw,
 		cc*fv->cbw+1+GDrawPointsToPixels(fv->gw,_GScrollBar_Width),
@@ -6943,7 +6976,7 @@ static int v_e_h(GWindow gw, GEvent *event) {
     FontView *fv = (FontView *) GDrawGetUserData(gw);
 
     if (( event->type==et_mouseup || event->type==et_mousedown ) &&
-	    (event->u.mouse.button==4 || event->u.mouse.button==5) ) {
+	    (event->u.mouse.button>=4 && event->u.mouse.button<=7) ) {
 return( GGadgetDispatchEvent(fv->vsb,event));
     }
 
@@ -7063,7 +7096,7 @@ static int fv_e_h(GWindow gw, GEvent *event) {
     FontView *fv = (FontView *) GDrawGetUserData(gw);
 
     if (( event->type==et_mouseup || event->type==et_mousedown ) &&
-	    (event->u.mouse.button==4 || event->u.mouse.button==5) ) {
+	    (event->u.mouse.button>=4 && event->u.mouse.button<=7) ) {
 return( GGadgetDispatchEvent(fv->vsb,event));
     }
 
@@ -7117,6 +7150,9 @@ return( true );
 static void FontViewOpenKids(FontView *fv) {
     int k, i;
     SplineFont *sf = fv->b.sf, *_sf;
+#if defined(__Mac)
+    int cnt= 0;
+#endif
 
     if ( sf->cidmaster!=NULL )
 	sf = sf->cidmaster;
@@ -7127,6 +7163,11 @@ static void FontViewOpenKids(FontView *fv) {
 	for ( i=0; i<_sf->glyphcnt; ++i )
 	    if ( _sf->glyphs[i]!=NULL && _sf->glyphs[i]->wasopen ) {
 		_sf->glyphs[i]->wasopen = false;
+#if defined(__Mac)
+		/* If we open a bunch of charviews all at once on the mac, X11*/
+		/*  crashes */ /* But opening one seems ok */
+		if ( ++cnt==1 )
+#endif
 		CharViewCreate(_sf->glyphs[i],fv,-1);
 	    }
 	++k;
@@ -7577,8 +7618,8 @@ void KFFontViewInits(struct kf_dlg *kf,GGadget *drawable) {
     kf->guts = drawable;
 
     ps = kf->sf->display_size; kf->sf->display_size = -24;
-    kf->first_fv = __FontViewCreate(kf->sf);
-    kf->second_fv = __FontViewCreate(kf->sf);
+    kf->first_fv = __FontViewCreate(kf->sf); kf->first_fv->b.container = (struct fvcontainer *) kf;
+    kf->second_fv = __FontViewCreate(kf->sf); kf->second_fv->b.container = (struct fvcontainer *) kf;
 
     kf->infoh = infoh = 1+GDrawPointsToPixels(NULL,fv_fontsize);
     kf->first_fv->mbh = kf->mbh;
@@ -7586,11 +7627,13 @@ void KFFontViewInits(struct kf_dlg *kf,GGadget *drawable) {
     pos.width = 16*kf->first_fv->cbw+1;
     pos.height = 4*kf->first_fv->cbh+1;
 
+    GDrawSetUserData(dw,kf->first_fv);
     FVCopyInnards(kf->first_fv,&pos,infoh,fvorig,dw,kf->def_layer,(struct fvcontainer *) kf);
     pos.height = 4*kf->first_fv->cbh+1;		/* We don't know the real fv->cbh until after creating the innards. The size of the last window is probably wrong, we'll fix later */
     kf->second_fv->mbh = kf->mbh;
     kf->label2_y = pos.y + pos.height+2;
     pos.y = kf->label2_y + kf->fh + 2;
+    GDrawSetUserData(dw,kf->second_fv);
     FVCopyInnards(kf->second_fv,&pos,infoh,fvorig,dw,kf->def_layer,(struct fvcontainer *) kf);
 
     kf->sf->display_size = ps;
@@ -7726,7 +7769,7 @@ return( true );
     gs = (struct gsd *) (active_fv->b.container);
 
     if (( event->type==et_mouseup || event->type==et_mousedown ) &&
-	    (event->u.mouse.button==4 || event->u.mouse.button==5) ) {
+	    (event->u.mouse.button>=4 && event->u.mouse.button<=7) ) {
 return( GGadgetDispatchEvent(active_fv->vsb,event));
     }
 
@@ -7921,17 +7964,13 @@ char *GlyphSetFromSelection(SplineFont *sf,int def_layer,char *current) {
 		if ( gs.fv->b.selected[enc] &&
 			(gid=gs.fv->b.map->map[enc])!=-1 &&
 			(sc = sf->glyphs[gid])!=NULL ) {
+		    char *repr = SCNameUniStr( sc );
 		    if ( ret==NULL )
-			len += strlen(sc->name)+7;
+			len += strlen(repr)+2;
 		    else {
-			strcpy(rpt,sc->name);
-			rpt += strlen(sc->name);
-			if ( sc->unicodeenc>32 && sc->unicodeenc!=')' &&
-				(!isalpha(sc->unicodeenc) || sc->unicodeenc>0x7f)) {
-			    *rpt++ = '(';
-			    rpt = utf8_idpb(rpt,sc->unicodeenc);
-			    *rpt++ = ')';
-			}
+			strcpy(rpt,repr);
+			rpt += strlen( repr );
+			free(repr);
 			*rpt++ = ' ';
 		    }
 		}

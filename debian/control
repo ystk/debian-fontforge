@@ -5,14 +5,15 @@ Maintainer: Debian Fonts Task Force <pkg-fonts-devel@lists.alioth.debian.org>
 Uploaders: Christian Perrier <bubulle@debian.org>,
 	   Davide Viti <zinosat@tiscali.it>,
 	   Kęstutis Biliūnas <kebil@kaunas.init.lt>,
-	   Rogério Brito <rbrito@ime.usp.br>
+	   Rogério Brito <rbrito@ime.usp.br>,
+           Daniel Kahn Gillmor <dkg@fifthhorseman.net>
 Dm-Upload-Allowed: yes
-XS-Python-Version: all
+X-Python-Version: >= 2.7
 Build-Depends: debhelper (>= 7),
                autotools-dev,
-               libjpeg62-dev,
+               libjpeg-dev,
                libtiff4-dev,
-               libpng12-dev,
+               libpng-dev,
                libgif-dev,
                libxt-dev,
                libfreetype6-dev,
@@ -23,15 +24,14 @@ Build-Depends: debhelper (>= 7),
                libxml2-dev,
                libuninameslist-dev,
                libspiro-dev,
-               python-all-dev,
-               python-support,
+               python-dev (>= 2.6.6-3~),
                libpango1.0-dev,
                libcairo2-dev,
                chrpath
-Standards-Version: 3.9.1
+Standards-Version: 3.9.3
 Homepage: http://fontforge.sourceforge.net/
-Vcs-svn: svn://svn.debian.org/pkg-fonts/packages/fontforge/
-Vcs-Browser: http://svn.debian.org/wsvn/pkg-fonts/packages/fontforge/
+Vcs-Git: git://git.debian.org/pkg-fonts/fontforge/
+Vcs-Browser: http://anonscm.debian.org/gitweb/?p=pkg-fonts/fontforge.git;a=summary
 
 Package: fontforge
 Architecture: any
@@ -121,7 +121,7 @@ Architecture: any
 Depends: ${misc:Depends},
 	 ${shlibs:Depends},
 	 ${python:Depends},
-	 libfontforge1
+	 libfontforge1 (= ${binary:Version})
 XB-Python-Version: ${python:Versions}
 Provides: ${python:Provides}
 Section: python
@@ -133,3 +133,17 @@ Description: font editor - Python bindings
  .
  This package provides the Python modules (the libraries fontforge and
  psMat) to access a FontForge program for font manipulations.
+
+Package: fontforge-dbg
+Section: debug
+Architecture: any
+Priority: extra
+Depends: ${misc:Depends},
+         fontforge (= ${binary:Version})
+Description: debugging symbols for fontforge
+ Besides being a font editor, FontForge is also a font format
+ converter, and can convert among PostScript (ASCII & binary Type 1,
+ some Type 3s, some Type 0s), TrueType, and OpenType (Type2),
+ CID-keyed, SVG, CFF and multiple-master fonts.
+ .
+ This package contains the debugging symbols for fontforge.

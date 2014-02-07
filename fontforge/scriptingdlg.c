@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2010 by George Williams */
+/* Copyright (C) 2002-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -27,7 +27,7 @@
 
 #if !defined(_NO_FFSCRIPT) || !defined(_NO_PYTHON)
 
-#include "pfaeditui.h"
+#include "fontforgeui.h"
 #include <gresource.h>
 #include <utype.h>
 #include <ustring.h>

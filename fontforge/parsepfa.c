@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "pfaedit.h"
+#include "fontforge.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -2569,7 +2569,7 @@ return;
 FontDict *_ReadPSFont(FILE *in) {
     FILE *temp;
     struct fontparse fp;
-    char *oldloc;
+    char oldloc[24];
     struct stat b;
 
     temp = tmpfile();
@@ -2579,7 +2579,8 @@ FontDict *_ReadPSFont(FILE *in) {
 return(NULL);
     }
 
-    oldloc = setlocale(LC_NUMERIC,"C");
+    strcpy( oldloc,setlocale(LC_NUMERIC,NULL) );
+    setlocale(LC_NUMERIC,"C");
     memset(&fp,'\0',sizeof(fp));
     fp.fd = fp.mainfd = PSMakeEmptyFont();
     fp.fdindex = -1;

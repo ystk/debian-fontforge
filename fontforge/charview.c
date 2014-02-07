@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -25,7 +25,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "pfaeditui.h"
+#include "fontforgeui.h"
 #include <math.h>
 #include <locale.h>
 #include <ustring.h>
@@ -70,6 +70,7 @@ float arrowAccelFactor=10.;
 float snapdistance=3.5;
 int updateflex = false;
 extern int clear_tt_instructions_when_needed;
+int interpCPsOnMotion=false;
 int default_cv_width = 540;
 int default_cv_height = 540;
 
@@ -1312,7 +1313,7 @@ static void CVShowDHint ( CharView *cv, GWindow pixmap, DStemInfo *dstem ) {
     BasePoint bp[4];
     HintInstance *hi;
     double roff;
-    
+
     roff =  ( dstem->right.x - dstem->left.x ) * dstem->unit.x +
             ( dstem->right.y - dstem->left.y ) * dstem->unit.y;
 
@@ -1983,7 +1984,7 @@ return;
 	} else
 	    head = tail = temp;
     }
-    head = SplinePointListTransform(head,trans,true);
+    head = SplinePointListTransform(head,trans,tpt_AllPoints);
     CVDrawSplineSet(cv,pixmap,head,anchoredoutlinecol,
 	    false,clip);
     SplinePointListsFree(head);
@@ -2588,7 +2589,8 @@ static void _CVFit(CharView *cv,DBounds *b, int integral) {
 	}
     }
 
-    cv->xoff = -left *cv->scale + offset;
+    /* Center glyph horizontally */
+    cv->xoff = ( (cv->width-offset) - (right*cv->scale) )/2 + offset  - b->minx*cv->scale;
     if ( hsmall )
 	cv->yoff = -bottom*cv->scale;
     else
@@ -2606,11 +2608,14 @@ static void CVFit(CharView *cv) {
 	b.maxy =cv->b.sc->parent->ascent;
 	b.miny = -cv->b.sc->parent->descent;
     }
-    if ( b.miny>=0 ) b.miny = -cv->b.sc->parent->descent;
-    if ( b.minx>0 ) b.minx = 0;
-    if ( b.maxx<0 ) b.maxx = 0;
-    if ( b.maxy<0 ) b.maxy = 0;
-    if ( b.maxx<cv->b.sc->width ) b.maxx = cv->b.sc->width;
+    /* FF used to normalize bounding boxes making maxx positive. But this */
+    /* may result into an incorrect positioning for combining marks, which */
+    /* usually have both bearings negative. So keep negative values as they are. */
+    /* As for the Y axis, we only ensure the minimum value doesn't exceed zero, */
+    /* so that the baseline is always visible. */
+
+    if ( b.miny>0 ) b.miny = 0;
+
     /* Now give some extra space around the interesting stuff */
     center = (b.maxx+b.minx)/2;
     b.minx = center - (center - b.minx)*1.2;
@@ -3782,8 +3787,10 @@ void CVSetCharChanged(CharView *cv,int changed) {
 		/* Do nothing */;
 	    else if ( sc->parent->multilayer || sc->parent->strokedfont || sc->layers[cvlayer].order2 )
 		sc->changed_since_search = true;
-	    else if ( cv->b.drawmode==dm_fore )
-		sc->changed_since_search = sc->changedsincelasthinted = true;
+	    else if ( cv->b.drawmode==dm_fore ) {
+		sc->changed_since_search = true;
+		_SCHintsChanged(cv->b.sc);
+	    }
 	    sc->changed_since_autosave = true;
 	    sf->changed_since_autosave = true;
 	    sf->changed_since_xuidchanged = true;
@@ -3791,7 +3798,6 @@ void CVSetCharChanged(CharView *cv,int changed) {
 		sf->cidmaster->changed_since_autosave = true;
 		sf->cidmaster->changed_since_xuidchanged = true;
 	    }
-	    _SCHintsChanged(cv->b.sc);
 	}
 	if ( cv->b.drawmode!=dm_grid ) {
 	    cv->needsrasterize = true;
@@ -3846,14 +3852,13 @@ static void _SC_CharChangedUpdate(SplineChar *sc,int layer,int changed) {
 		changed==1 && !sc->parent->strokedfont &&
 		layer>=0 &&
 		!sc->layers[layer].background && !sc->layers[layer].order2 )
-	    sc->changedsincelasthinted = true;
+	    _SCHintsChanged(sc);
 	sc->changed_since_search = true;
 	sf->changed = true;
 	sf->changed_since_autosave = true;
 	sf->changed_since_xuidchanged = true;
 	if ( layer>=0 )
 	    SCTickValidationState(sc,layer);
-	_SCHintsChanged(sc);
     }
     if ( sf->cidmaster!=NULL )
 	sf->cidmaster->changed = sf->cidmaster->changed_since_autosave =
@@ -4004,9 +4009,11 @@ return;
     /*  current point as it moves across the screen (jerkily) */
     if ( cv->active_tool == cvt_hand || cv->active_tool == cvt_freehand )
 	/* Don't snap to points */;
+#if 0
     else if ( cv->active_tool == cvt_pointer &&
 	    ( cv->p.nextcp || cv->p.prevcp))
 	/* Don't snap to points when moving control points */;
+#endif
     else if ( !cv->joinvalid ||
 	    ((!cv->b.sc->inspiro || has_spiro) && !CheckPoint(&fs,&cv->joinpos,NULL)) ||
 	    (  cv->b.sc->inspiro && has_spiro  && !CheckSpiroPoint(&fs,&cv->joincp,NULL,0))) {
@@ -4017,12 +4024,29 @@ return;
 		(cv->b.layerheads[cv->b.drawmode]->undoes->undotype==ut_state ||
 		 cv->b.layerheads[cv->b.drawmode]->undoes->undotype==ut_tstate ))
 	    spl = cv->b.layerheads[cv->b.drawmode]->undoes->u.state.splines;
-	if ( cv->active_tool != cvt_knife && cv->active_tool != cvt_ruler )
+	if ( cv->active_tool != cvt_knife && cv->active_tool != cvt_ruler ) {
+	    if ( cv->active_tool == cvt_pointer && ( cv->p.nextcp || cv->p.prevcp ))
+		fs.select_controls = true;
 	    NearSplineSetPoints(&fs,spl,cv->b.sc->inspiro && has_spiro);
-	else 
+	} else
 	    InSplineSet(&fs,spl,cv->b.sc->inspiro && has_spiro);
     }
-    if ( p.sp!=NULL && p.sp!=cv->active_sp ) {		/* Snap to points */
+    /* p.sp and cv->p.sp may correspond to different undo states, thus being */
+    /* different objects even while describing essentially the same point. */
+    /* So compare point coordinates rather than the points themselves */
+    if ( (cv->p.nextcp || cv->p.prevcp) && p.nextcp &&
+	    p.sp!=NULL && cv->p.sp != NULL &&
+	    p.sp->me.x == cv->p.sp->me.x && p.sp->me.y == cv->p.sp->me.y ) {
+	/* If either control point selected, then snap to it or its brother */
+	/*  when close */
+	p.cx = p.sp->nextcp.x;
+	p.cy = p.sp->nextcp.y;
+    } else if (( cv->p.nextcp || cv->p.prevcp) && p.prevcp &&
+	    p.sp!=NULL && cv->p.sp != NULL &&
+	    p.sp->me.x == cv->p.sp->me.x && p.sp->me.y == cv->p.sp->me.y ) {
+	p.cx = p.sp->prevcp.x;
+	p.cy = p.sp->prevcp.y;
+    } else if ( p.sp!=NULL && p.sp!=cv->active_sp ) {		/* Snap to points */
 	p.cx = p.sp->me.x;
 	p.cy = p.sp->me.y;
     } else if ( p.spiro!=NULL && p.spiro!=cv->active_cp ) {
@@ -4096,9 +4120,12 @@ return;
     }
 }
 
-static void CVMagnify(CharView *cv, real midx, real midy, int bigger) {
+static void CVMagnify(CharView *cv, real midx, real midy, int bigger, int LockPosition) {
     static float scales[] = { 1, 2, 3, 4, 6, 8, 11, 16, 23, 32, 45, 64, 90, 128, 181, 256, 512, 1024, 0 };
+    float oldscale;
     int i, j;
+
+    oldscale = cv->scale;
 
     if ( bigger!=0 ) {
 	if ( cv->scale>=1 ) {
@@ -4132,8 +4159,18 @@ static void CVMagnify(CharView *cv, real midx, real midy, int bigger) {
 		cv->scale = 1/scales[-j];
 	}
     }
-    cv->xoff = -(rint(midx*cv->scale) - cv->width/2);
-    cv->yoff = -(rint(midy*cv->scale) - cv->height/2);
+
+    if (LockPosition) {
+	float mousex = rint(midx * oldscale + cv->xoff);
+	float mousey = rint(midy * oldscale + cv->yoff - cv->height);
+	cv->xoff = mousex - midx*cv->scale;
+	cv->yoff = mousey - midy*cv->scale + cv->height;
+    }
+    else {
+        cv->xoff = -(rint(midx*cv->scale) - cv->width/2);
+        cv->yoff = -(rint(midy*cv->scale) - cv->height/2);
+    }
+
     CVNewScale(cv);
 }
 
@@ -4178,9 +4215,9 @@ static void CVMouseUp(CharView *cv, GEvent *event ) {
 	if ( cv->p.x>=event->u.mouse.x-6 && cv->p.x<=event->u.mouse.x+6 &&
 		 cv->p.y>=event->u.mouse.y-6 && cv->p.y<=event->u.mouse.y+6 ) {
 	    real cx, cy;
-	    cx = (event->u.mouse.x-cv->xoff)/cv->scale ;
+	    cx = (event->u.mouse.x-cv->xoff)/cv->scale;
 	    cy = (cv->height-event->u.mouse.y-cv->yoff)/cv->scale ;
-	    CVMagnify(cv,cx,cy,cv->active_tool==cvt_minify?-1:1);
+	    CVMagnify(cv,cx,cy,cv->active_tool==cvt_minify?-1:1,event->u.mouse.button>3);
         } else {
 	    DBounds b;
 	    double oldscale = cv->scale;
@@ -4322,9 +4359,16 @@ static int v_e_h(GWindow gw, GEvent *event) {
 
     GGadgetPopupExternalEvent(event);
     if (( event->type==et_mouseup || event->type==et_mousedown ) &&
-	    (event->u.mouse.button==4 || event->u.mouse.button==5) ) {
-	if ( !(event->u.mouse.state&(ksm_shift|ksm_control)) )	/* bind shift to magnify/minify */
+	    (event->u.mouse.button>=4 && event->u.mouse.button<=7 ) ) {
+	if ( !(event->u.mouse.state&(ksm_control)) )	/* bind control to magnify/minify */
+	{
+	    int ish = event->u.mouse.button>5;
+	    if ( event->u.mouse.state&ksm_shift ) ish = !ish;
+	    if ( ish ) /* bind shift to vertical scrolling */
+return( GGadgetDispatchEvent(cv->hsb,event));
+	    else
 return( GGadgetDispatchEvent(cv->vsb,event));
+	}
     }
 
     switch ( event->type ) {
@@ -4510,7 +4554,7 @@ return;
 	r.y = cv->mbh; r.height = cv->infoh;
 #endif
 	GDrawPushClip(pixmap,&expose->u.expose.rect,&old2);
-    
+
 	GDrawDrawLine(pixmap,0,cv->mbh+cv->infoh-1,8096,cv->mbh+cv->infoh-1,def_fg);
 	GDrawDrawImage(pixmap,&GIcon_rightpointer,NULL,RPT_BASE,cv->mbh+2);
 	GDrawDrawImage(pixmap,&GIcon_selectedpoint,NULL,SPT_BASE,cv->mbh+2);
@@ -4581,7 +4625,7 @@ return;
 	GGadgetMove(cv->hsb,0,size.height-sbsize);
 	GGadgetResize(cv->hsb,sbwidth,sbsize);
 	cv->width = newwidth; cv->height = newheight;
-	CVFit(cv);
+	/*CVFit(cv);*/ CVNewScale(cv);
 	CVPalettesRaise(cv);
 	if ( cv->b.container == NULL && ( default_cv_width!=size.width || default_cv_height!=size.height )) {
 	    default_cv_width = size.width;
@@ -4804,7 +4848,12 @@ static int cv_e_h(GWindow gw, GEvent *event) {
     CharView *cv = (CharView *) GDrawGetUserData(gw);
 
     if (( event->type==et_mouseup || event->type==et_mousedown ) &&
-	    (event->u.mouse.button==4 || event->u.mouse.button==5) ) {
+	    (event->u.mouse.button>=4 && event->u.mouse.button<=7) ) {
+	int ish = event->u.mouse.button>5;
+	if ( event->u.mouse.state&ksm_shift ) ish = !ish;
+	if ( ish ) /* bind shift to vertical scrolling */
+return( GGadgetDispatchEvent(cv->hsb,event));
+	else
 return( GGadgetDispatchEvent(cv->vsb,event));
     }
 
@@ -5208,9 +5257,35 @@ static void CVMenuExport(GWindow gw,struct gmenuitem *mi,GEvent *e) {
     CVExport(cv);
 }
 
+static void CVInkscapeAdjust(CharView *cv) {
+    /* Inkscape considers different coordinates useful. That is to say, */
+    /*  Inkscape views the world as a blank sheet of paper and often */
+    /*  put things outside the [0,1000] range (especially in Y) that */
+    /*  FF uses. So after doing a Paste, or Import or something similar */
+    /*  check and see if the image is completely out of view, and if so */
+    /*  then adjust the view field */
+    DBounds b;
+    int layer = CVLayer((CharViewBase *) cv);
+
+    if (layer != -1) SplineCharLayerQuickBounds(cv->b.sc,layer,&b);
+    else {
+        b.minx = b.miny = 1e10;
+        b.maxx = b.maxy = -1e10;
+	SplineSetQuickBounds(cv->b.sc->parent->grid.splines,&b);
+    }
+
+    b.minx *= cv->scale; b.maxx *= cv->scale;
+    b.miny *= cv->scale; b.maxy *= cv->scale;
+
+    if ( b.minx + cv->xoff < 0 || b.miny + cv->yoff < 0 ||
+	    b.maxx + cv->xoff > cv->width || b.maxy + cv->yoff > cv->height )
+	CVFit(cv);
+}
+
 static void CVMenuImport(GWindow gw,struct gmenuitem *mi,GEvent *e) {
     CharView *cv = (CharView *) GDrawGetUserData(gw);
     CVImport(cv);
+    CVInkscapeAdjust(cv);
 }
 
 static void CVMenuRevert(GWindow gw,struct gmenuitem *mi,GEvent *e) {
@@ -5408,7 +5483,7 @@ static void _CVMenuScale(CharView *cv, int mid) {
 	c.y = (cv->height/2-cv->yoff)/cv->scale;
 	if ( CVAnySel(cv,NULL,NULL,NULL,NULL))
 	    CVFindCenter(cv,&c,false);
-	CVMagnify(cv,c.x,c.y, mid==MID_ZoomOut?-1:1);
+	CVMagnify(cv,c.x,c.y, mid==MID_ZoomOut?-1:1,0);
     }
 }
 
@@ -6053,7 +6128,7 @@ void CVShowPoint(CharView *cv, BasePoint *me) {
     x =  cv->xoff + rint(me->x*cv->scale);
     y = -cv->yoff + cv->height - rint(me->y*cv->scale);
     if ( x<fudge || y<fudge || x>cv->width-fudge || y>cv->height-fudge )
-	CVMagnify(cv,me->x,me->y,0);
+	CVMagnify(cv,me->x,me->y,0,0);
 }
 
 static void CVSelectContours(CharView *cv,struct gmenuitem *mi) {
@@ -6174,7 +6249,7 @@ return;
 	x =  cv->xoff + rint(other->x*cv->scale);
 	y = -cv->yoff + cv->height - rint(other->y*cv->scale);
 	if ( x<40 || y<40 || x>cv->width-40 || y>cv->height-40 )
-	    CVMagnify(cv,other->x,other->y,0);
+	    CVMagnify(cv,other->x,other->y,0,0);
     }
 
     CVInfoDraw(cv,cv->gw);
@@ -6248,7 +6323,7 @@ return;
 	x =  cv->xoff + rint(other->me.x*cv->scale);
 	y = -cv->yoff + cv->height - rint(other->me.y*cv->scale);
 	if ( x<40 || y<40 || x>cv->width-40 || y>cv->height-40 )
-	    CVMagnify(cv,other->me.x,other->me.y,0);
+	    CVMagnify(cv,other->me.x,other->me.y,0,0);
     }
 
     CVInfoDraw(cv,cv->gw);
@@ -6475,6 +6550,7 @@ static void _CVPaste(CharView *cv) {
 static void CVPaste(GWindow gw,struct gmenuitem *mi,GEvent *e) {
     CharView *cv = (CharView *) GDrawGetUserData(gw);
     _CVPaste(cv);
+    CVInkscapeAdjust(cv);
 }
 
 static void _CVMerge(CharView *cv,int elide) {
@@ -6559,6 +6635,12 @@ static void CVSelectAll(GWindow gw,struct gmenuitem *mi,GEvent *e) {
 	mask = 1;
     else if ( mi->mid==MID_SelectAnchors )
 	mask = 2;
+    else if ( mi->mid==MID_SelAll ) {
+	mask = 1;
+	if (cv->b.drawmode==dm_fore) mask+=2;
+	/* TODO! Should we also check if this is the right foreground layer? */
+    }
+
     if ( CVSetSel(cv,mask))
 	SCUpdateAll(cv->b.sc);
 }
@@ -6732,6 +6814,8 @@ static void cv_edlistcheck(CharView *cv,struct gmenuitem *mi,GEvent *e,int is_cv
 		    !GDrawSelectionHasType(cv->gw,sn_clipboard,"image/png") &&
 #endif
 #ifndef _NO_LIBXML
+		    !GDrawSelectionHasType(cv->gw,sn_clipboard,"image/svg+xml") &&
+		    !GDrawSelectionHasType(cv->gw,sn_clipboard,"image/svg-xml") &&
 		    !GDrawSelectionHasType(cv->gw,sn_clipboard,"image/svg") &&
 #endif
 		    !GDrawSelectionHasType(cv->gw,sn_clipboard,"image/bmp") &&
@@ -6781,7 +6865,7 @@ static void CVMenuAcceptableExtrema(GWindow gw,struct gmenuitem *mi,GEvent *e) {
 	}
     }
 }
-    
+
 static void _CVMenuPointType(CharView *cv,struct gmenuitem *mi) {
     int pointtype = mi->mid==MID_Corner?pt_corner:mi->mid==MID_Tangent?pt_tangent:
 	    mi->mid==MID_Curve?pt_curve:pt_hvcurve;
@@ -7148,7 +7232,7 @@ static void TransRef(RefChar *ref,real transform[6], enum fvtrans_flags flags) {
     real t[6];
 
     for ( j=0; j<ref->layer_cnt; ++j )
-	SplinePointListTransform(ref->layers[j].splines,transform,true);
+	SplinePointListTransform(ref->layers[j].splines,transform,tpt_AllPoints);
     t[0] = ref->transform[0]*transform[0] +
 		ref->transform[1]*transform[2];
     t[1] = ref->transform[0]*transform[1] +
@@ -7184,11 +7268,12 @@ void CVTransFunc(CharView *cv,real transform[6], enum fvtrans_flags flags) {
     if ( cv->b.sc->inspiro && hasspiro() )
 	SplinePointListSpiroTransform(ly->splines,transform,!anysel);
     else
-	SplinePointListTransform(ly->splines,transform,!anysel);
+	SplinePointListTransform(ly->splines,transform,!anysel?tpt_AllPoints:
+		interpCPsOnMotion?tpt_OnlySelectedInterpCPs:tpt_OnlySelected);
     if ( flags&fvt_round_to_int )
 	SplineSetsRound2Int(ly->splines,1.0,cv->b.sc->inspiro && hasspiro(),!anysel);
     if ( ly->images!=NULL ) {
-	ImageListTransform(ly->images,transform);
+	ImageListTransform(ly->images,transform,!anysel);
 	SCOutOfDateBackground(cv->b.sc);
     }
     for ( refs = ly->refs; refs!=NULL; refs=refs->next )
@@ -7241,7 +7326,7 @@ void CVTransFunc(CharView *cv,real transform[6], enum fvtrans_flags flags) {
 	    for ( img = cv->b.sc->layers[l].images; img!=NULL; img=img->next )
 		BackgroundImageTransform(cv->b.sc, img, transform);
 	    SplinePointListTransform(cv->b.sc->layers[l].splines,
-		    transform,true);
+		    transform,tpt_AllPoints);
 	    for ( refs=cv->b.sc->layers[l].refs; refs!=NULL; refs=refs->next )
 		TransRef(refs,transform,flags);
 	}
@@ -7812,7 +7897,7 @@ static int IOSA_OK(GGadget *g, GEvent *e) {
 	}
 	if ( err )
 return(true);
-	if ( SplineSolveFull(&iosa->s->splines[which],val,ts)==0 ) {
+	if ( CubicSolve(&iosa->s->splines[which],val,ts)==0 ) {
 	    ff_post_error(_("Out of Range"),_("The spline does not reach %g"), (double) val );
 return( true );
 	}
@@ -7834,7 +7919,7 @@ return( true );
 return( true );
 	    }
 	    iosa->s = sp->next;
-	    if ( SplineSolveFull(&iosa->s->splines[which],val,ts)==0 ) {
+	    if ( CubicSolve(&iosa->s->splines[which],val,ts)==0 ) {
 		/* Odd. We found one earlier */
 		CVCharChangedUpdate(&iosa->cv->b);
 return( true );
@@ -7930,7 +8015,7 @@ return;		/* Need a spline */
     label[0].text_is_1byte = true;
     label[0].text_in_resource = true;
     gcd[0].gd.label = &label[0];
-    gcd[0].gd.pos.x = 5; gcd[0].gd.pos.y = 5; 
+    gcd[0].gd.pos.x = 5; gcd[0].gd.pos.y = 5;
     gcd[0].gd.flags = gg_enabled|gg_visible|gg_cb_on;
     gcd[0].gd.cid = CID_XR;
     gcd[0].gd.handle_controlevent = IOSA_RadioChange;
@@ -7941,7 +8026,7 @@ return;		/* Need a spline */
     label[1].text_is_1byte = true;
     label[1].text_in_resource = true;
     gcd[1].gd.label = &label[1];
-    gcd[1].gd.pos.x = 5; gcd[1].gd.pos.y = 32; 
+    gcd[1].gd.pos.x = 5; gcd[1].gd.pos.y = 32;
     gcd[1].gd.flags = gg_enabled|gg_visible|gg_rad_continueold ;
     gcd[1].gd.cid = CID_YR;
     gcd[1].gd.handle_controlevent = IOSA_RadioChange;
@@ -8011,7 +8096,7 @@ return;		/* Need a spline */
     topbox[0].gd.flags = gg_enabled|gg_visible;
     topbox[0].gd.u.boxelements = varray;
     topbox[0].creator = GHVGroupCreate;
-	
+
 
     GGadgetsCreate(iosa.gw,topbox);
     GHVBoxSetExpandableRow(topbox[0].ret,1);
@@ -8237,7 +8322,7 @@ return;
 
     if ( !refchanged )
 	CVPreserveState(&cv->b);
-	
+
     cv->b.layerheads[cv->b.drawmode]->splines = SplineSetsCorrect(cv->b.layerheads[cv->b.drawmode]->splines,&changed);
     if ( changed || refchanged )
 	CVCharChangedUpdate(&cv->b);
@@ -8587,17 +8672,17 @@ static void CVMenuClearHints(GWindow gw,struct gmenuitem *mi,GEvent *e) {
     SCUpdateAll(cv->b.sc);
 }
 
-/* This is an improved version of the older CVTwoForePointsSelected function.
-/* Unlike the former, it doesn't just check if there are exactly two points
-/* selected, but rather returns the number of selected points (whatever this
-/* number can be) and puts references to those points into an array. It is up
-/* to the calling code to see if the returned result is satisfiable (there
-/* should be exactly two points selected for specifying a vertical or
+/* This is an improved version of the older CVTwoForePointsSelected function. */
+/* Unlike the former, it doesn't just check if there are exactly two points   */
+/* selected, but rather returns the number of selected points (whatever this  */
+/* number can be) and puts references to those points into an array. It is up */
+/* to the calling code to see if the returned result is satisfiable (there    */
+/* should be exactly two points selected for specifying a vertical or         */
 /* horizontal stem and four points for a diagonal stem). */
 static int CVNumForePointsSelected(CharView *cv, BasePoint **bp) {
     SplineSet *spl;
     SplinePoint *test, *first;
-    BasePoint *bps[4];
+    BasePoint *bps[5];
     int i, cnt;
 
     if ( cv->b.drawmode!=dm_fore )
@@ -8632,9 +8717,9 @@ static void CVMenuAddHint(GWindow gw,struct gmenuitem *mi,GEvent *e) {
 
     num = CVNumForePointsSelected( cv,bp );
 
-    /* We need exactly 2 points to specify a horizontal or vertical stem
+    /* We need exactly 2 points to specify a horizontal or vertical stem */
     /* and exactly 4 points to specify a diagonal stem */
-    if ( !(num == 2 && mi->mid != MID_AddDHint) && 
+    if ( !(num == 2 && mi->mid != MID_AddDHint) &&
          !(num == 4 && mi->mid == MID_AddDHint))
 return;
 
@@ -8669,7 +8754,7 @@ return;
     } else {
 	if ( !PointsDiagonalable( cv->b.sc->parent,bp,&unit ))
 return;
-	/* No additional tests, as the points should have already been
+	/* No additional tests, as the points should have already been */
         /* reordered by PointsDiagonalable */
         d = chunkalloc(sizeof(DStemInfo));
         d->where = NULL;
@@ -8683,8 +8768,8 @@ return;
             MergeDStemInfo( cv->b.sc->parent,&cv->b.sc->dstem,d );
     }
     cv->b.sc->manualhints = true;
-    
-    /* Hint Masks are not relevant for diagonal stems, so modifying
+
+    /* Hint Masks are not relevant for diagonal stems, so modifying */
     /* diagonal stems should not affect them */
     if ( (mi->mid==MID_AddVHint) || (mi->mid==MID_AddHHint) ) {
         if ( h!=NULL && cv->b.sc->parent->mm==NULL )
@@ -8717,7 +8802,7 @@ static void htlistcheck(GWindow gw,struct gmenuitem *mi,GEvent *e) {
     int i=0, num = 0;
 
     for (i=0; i<4; i++) {bp[i]=NULL;}
-    
+
     num = CVNumForePointsSelected(cv,bp);
 
     for ( mi = mi->sub; mi->ti.text!=NULL || mi->ti.line ; ++mi ) {
@@ -9137,13 +9222,13 @@ static void CVMenuCenter(GWindow gw,struct gmenuitem *mi,GEvent *e) {
 	SplineSet *base, *temp;
 	base = LayerAllSplines(cv->b.layerheads[cv->b.drawmode]);
 	transform[2] = tan( cv->b.sc->parent->italicangle * 3.1415926535897932/180.0 );
-	temp = SplinePointListTransform(SplinePointListCopy(base),transform,true);
+	temp = SplinePointListTransform(SplinePointListCopy(base),transform,tpt_AllPoints);
 	transform[2] = 0;
 	LayerUnAllSplines(cv->b.layerheads[cv->b.drawmode]);
 	SplineSetFindBounds(temp,&bb);
 	SplinePointListsFree(temp);
     }
-	
+
     if ( mi->mid==MID_Center )
 	transform[4] = (cv->b.sc->width-(bb.maxx-bb.minx))/2 - bb.minx;
     else
@@ -9454,7 +9539,7 @@ static void orlistcheck(GWindow gw,struct gmenuitem *mi,GEvent *e) {
 	islast = r->next==NULL;
     } else if ( im!=NULL ) {
 	isfirst = cv->b.layerheads[cv->b.drawmode]->images==im;
-	islast = im->next!=NULL;
+	islast = im->next==NULL;
     }
 
     for ( mi = mi->sub; mi->ti.text!=NULL || mi->ti.line ; ++mi ) {
@@ -9775,7 +9860,7 @@ static GMenuItem2 swlist[] = {
     { { (unichar_t *) N_("Snap Outlines to Pi_xel Grid"), NULL, COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 1, 0, 0, 0, 1, 1, 0, 'R' }, H_("Snap Outlines to Pixel Grid|No Shortcut"), NULL, NULL, CVMenuSnapOutlines, MID_SnapOutlines },
     NULL
 };
-    
+
 static GMenuItem2 vwlist[] = {
     { { (unichar_t *) N_("_Fit"), (GImage *) "viewfit.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'F' }, H_("Fit|Ctl+F"), NULL, NULL, CVMenuScale, MID_Fit },
     { { (unichar_t *) N_("Z_oom out"), (GImage *) "viewzoomout.png", COLOR_DEFAULT, COLOR_DEFAULT, NULL, NULL, 0, 1, 0, 0, 0, 0, 1, 1, 0, 'o' }, H_("Zoom out|Alt+Ctl+-"), NULL, NULL, CVMenuScale, MID_ZoomOut },

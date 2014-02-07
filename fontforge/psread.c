@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "pfaedit.h"
+#include "fontforge.h"
 #include <math.h>
 #include <locale.h>
 #include <ustring.h>
@@ -50,12 +50,6 @@ typedef struct io {
     int advance_width;		/* Can be set from a PS comment by MF2PT1 */
 } IO;
 
-typedef struct growbuf {
-    char *pt;
-    char *base;
-    char *end;
-} GrowBuf;
-
 #define GARBAGE_MAX	64
 struct garbage {
     int cnt;
@@ -64,30 +58,12 @@ struct garbage {
     int16 cnts[GARBAGE_MAX];
 };
 
-static void GrowBuffer(GrowBuf *gb,int len) {
-    if ( len<400 ) len = 400;
-    if ( gb->base==NULL ) {
-	gb->base = gb->pt = galloc(len);
-	gb->end = gb->base + len;
-    } else {
-	int off = gb->pt-gb->base;
-	len += (gb->end-gb->base);
-	gb->base = grealloc(gb->base,len);
-	gb->end = gb->base + len;
-	gb->pt = gb->base+off;
-    }
-}
-
 static void AddTok(GrowBuf *gb,char *buf,int islit) {
-    int len = islit + strlen(buf) + 1;
 
-    if ( gb->pt+len+1 >= gb->end )
-	GrowBuffer(gb,len+1);
     if ( islit )
-	*(gb->pt++) = '/';
-    strcpy(gb->pt,buf);
-    gb->pt += strlen(buf);
-    *gb->pt++ = ' ';
+	GrowBufferAdd(gb,'/');
+    GrowBufferAddStr(gb,buf);
+    GrowBufferAdd(gb,' ');
 }
 
 static struct pskeyval *lookup(struct pskeydict *dict,char *tokbuf) {
@@ -385,7 +361,7 @@ return;
     wrapper->top = io;
 }
 
-static int ioescapestopped(IO *wrapper, struct psstack *stack, int sp) {
+static int ioescapestopped(IO *wrapper, struct psstack *stack, int sp, const size_t bsize) {
     _IO *io = wrapper->top, *iop;
     int wasstopped;
 
@@ -396,7 +372,7 @@ static int ioescapestopped(IO *wrapper, struct psstack *stack, int sp) {
 	free(io);
 	if ( wasstopped ) {
 	    wrapper->top = iop;
-	    if ( sp<sizeof(stack)/sizeof(stack[0]) ) {
+	    if ( sp<(int)bsize ) {
 		stack[sp].type = ps_bool;
 		stack[sp++].u.tf = true;
 	    }
@@ -614,6 +590,11 @@ void MatInverse(real into[6], real orig[6]) {
 	into[4] = -orig[4]*into[0] - orig[5]*into[2];
 	into[5] = -orig[4]*into[1] - orig[5]*into[3];
     }
+}
+
+int MatIsIdentity(real transform[6]) {
+return( transform[0]==1 && transform[3]==1 && transform[1]==0 && transform[2]==0 &&
+	transform[4]==0 && transform[5]==0 );
 }
 
 static void ECCatagorizePoints( EntityChar *ec ) {
@@ -1298,7 +1279,7 @@ static void _InterpretPS(IO *wrapper, EntityChar *ec, RetStack *rs) {
     DashType dashes[DASH_MAX];
     int dash_offset = 0;
     Entity *ent;
-    char *oldloc;
+    char oldloc[24];
     int warned = 0;
     struct garbage tofrees;
     SplineSet *clippath = NULL;
@@ -1312,7 +1293,8 @@ static void _InterpretPS(IO *wrapper, EntityChar *ec, RetStack *rs) {
     tokbuf = galloc(tokbufsize);
 #endif
 
-    oldloc = setlocale(LC_NUMERIC,"C");
+    strcpy( oldloc,setlocale(LC_NUMERIC,NULL) );
+    setlocale(LC_NUMERIC,"C");
 
     memset(&gb,'\0',sizeof(GrowBuf));
     memset(&dict,'\0',sizeof(dict));
@@ -1898,7 +1880,7 @@ printf( "-%s-\n", toknames[tok]);
 	    }
 	  break;
 	  case pt_stop:
-	    sp = ioescapestopped(wrapper,stack,sp);
+	    sp = ioescapestopped(wrapper,stack,sp,sizeof(stack)/sizeof(stack[0]));
 	  break;
 	  case pt_load:
 	    if ( sp>=1 && stack[sp-1].type==ps_lit ) {
@@ -2975,9 +2957,9 @@ return( head );
 	    transform[4] = transform[5] = 0;
 	    MatInverse(inversetrans,transform);
 	    transed = SplinePointListTransform(SplinePointListCopy(
-		    sc->layers[layer].splines),inversetrans,true);
+		    sc->layers[layer].splines),inversetrans,tpt_AllPoints);
 	    for ( each = transed; each!=NULL; each=each->next ) {
-		temp = SplineSetStroke(each,&si,sc);
+		temp = SplineSetStroke(each,&si,sc->layers[layer].order2);
 		if ( new==NULL )
 		    new=temp;
 		else
@@ -2985,7 +2967,7 @@ return( head );
 		if ( temp!=NULL )
 		    for ( nlast=temp; nlast->next!=NULL; nlast=nlast->next );
 	    }
-	    new = SplinePointListTransform(new,transform,true);
+	    new = SplinePointListTransform(new,transform,tpt_AllPoints);
 	    SplinePointListsFree(transed);
 	    if ( handle_eraser && sc->layers[layer].stroke_pen.brush.col==0xffffff ) {
 		head = EraseStroke(sc,head,new);
@@ -3192,7 +3174,7 @@ SplinePointList *SplinesFromEntityChar(EntityChar *ec,int *flags,int is_stroked)
 #endif
 		MatInverse(inversetrans,ent->u.splines.transform);
 		transed = SplinePointListTransform(SplinePointListCopy(
-			ent->u.splines.splines),inversetrans,true);
+			ent->u.splines.splines),inversetrans,tpt_AllPoints);
 		for ( each = transed; each!=NULL; each=each->next ) {
 		    temp = SplineSetStroke(each,&si,false);
 		    if ( new==NULL )
@@ -3202,7 +3184,7 @@ SplinePointList *SplinesFromEntityChar(EntityChar *ec,int *flags,int is_stroked)
 		    if ( temp!=NULL )
 			for ( nlast=temp; nlast->next!=NULL; nlast=nlast->next );
 		}
-		new = SplinePointListTransform(new,ent->u.splines.transform,true);
+		new = SplinePointListTransform(new,ent->u.splines.transform,tpt_AllPoints);
 		SplinePointListsFree(transed);
 		if ( handle_eraser && ent->u.splines.stroke.col==0xffffff ) {
 		    head = EraseStroke(ec->sc,head,new);

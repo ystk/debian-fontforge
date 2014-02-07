@@ -1,11 +1,124 @@
-fontforge (0.0.20100501-5) unstable; urgency=medium
+fontforge (0.0.20120101+git-2) unstable; urgency=low
+
+  * Define SHELL in Makefiles. Thanks to Jakub Wilk for the patch
+    Closes: #671971
+
+ -- Christian Perrier <bubulle@debian.org>  Tue, 15 May 2012 22:21:12 +0200
+
+fontforge (0.0.20120101+git-1) unstable; urgency=low
+
+  * new upstream snapshot release from git (Closes: #656443)
+  * debian/patches: drop
+    001_Support-libpng-1.5-by-only-using-accessor-functions.diff and 
+    905_fix_selection_crashes.diff (applied upstream)
+  * Bump Standards-Version to 3.9.3 (no changes needed)
+  * change B-D from libpng12-dev to libpng-dev (Closes: #662330)
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Tue, 13 Mar 2012 21:59:30 -0400
+
+fontforge (0.0.20110222-9) UNRELEASED; urgency=low
+
+  * convert to git-based packaging 
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Mon, 06 Feb 2012 01:10:28 -0500
+
+fontforge (0.0.20110222-8) unstable; urgency=low
+
+  [ Daniel Kahn Gillmor ]
+  * Fix memory corruption when moving spline points via upstream patch by
+    Paul Flo Williams
+    Closes: #656359
+  * ensure fontforge-dbg gets symbols from X11-capable fontforge
+    Closes: #656498
+  
+ -- Christian Perrier <bubulle@debian.org>  Wed, 01 Feb 2012 20:40:49 +0100
+
+fontforge (0.0.20110222-7) unstable; urgency=low
+
+  * Build using dh_python2. Patch from Ubuntu.
+
+ -- Christian Perrier <bubulle@debian.org>  Sun, 08 Jan 2012 13:44:41 +0100
+
+fontforge (0.0.20110222-6) unstable; urgency=low
+
+  * Enable hardened build flags through dpkg-buildflags
+    Closes: #653534
+
+ -- Christian Perrier <bubulle@debian.org>  Thu, 29 Dec 2011 08:21:59 +0100
+
+fontforge (0.0.20110222-5) unstable; urgency=low
+
+  * Team upload
+  * Support libpng 1.5 by only using accessor functions to png structures
+    Thanks to Paul Flo Williams for the patch
+    Closes: #649950
+
+ -- Christian Perrier <bubulle@sesostris.kheops.frmug.org>  Wed, 14 Dec 2011 20:04:01 +0100
+
+fontforge (0.0.20110222-4) unstable; urgency=low
+
+  * If trans_alpha is NULL (likely due to optimized png), don't crash
+    Closes: #646619
+
+ -- Christian Perrier <bubulle@debian.org>  Wed, 26 Oct 2011 04:22:18 +0200
+
+fontforge (0.0.20110222-3) unstable; urgency=low
+
+  * Add a versioned dependency on libfontforge1 for python-fontforge
+    to avoid incompatible versions to be installed together.
+    Closes: #642936
+
+ -- Christian Perrier <bubulle@debian.org>  Mon, 26 Sep 2011 07:44:25 +0200
+
+fontforge (0.0.20110222-2) unstable; urgency=low
+
+  * Build-Depends on libjpeg-dev instead of libjpeg62-dev.
+    Closes: #633936
+  * Build-Depends on python-dev instead of python-all-dev
+    Closes: #605838
+  * Add build-indep and build-arch build targets
+
+ -- Christian Perrier <bubulle@debian.org>  Sat, 03 Sep 2011 11:00:05 +0200
+
+fontforge (0.0.20110222-1) unstable; urgency=low
+
+  * New upstream version. (Closes: #628111, #628839)
+    - debian/patches
+      + drop since merged to upstream
+        - 030_fix_stack_corruption.diff
+        - 031_fix_spline_creation.diff
+        - 110_fix_incorrect_locale_code.diff
+        - cve-2010-4259.patch
+  * Set "Priority: extra" for fontforge-dbg
+
+ -- Christian Perrier <bubulle@debian.org>  Sun, 05 Jun 2011 15:45:34 +0200
+
+fontforge (0.0.20100501-6) unstable; urgency=low
+
+  * Team upload.
+  * debian/rules
+    - fix wrong configure option (Closes: #625564) 
+    - "Getting rid of unneeded *.la / emptying dependency_libs", 
+      not install *.la files. Thanks to Neil Williams (Closes: #621285)
+    - specify "CONFIG_SHELL=/bin/bash" to avoid FTBFS (Closes: #621932)
+  * debian/patches
+    - add 901_ld_as_needed.diff to fix build failure with ld --as-needed.
+      Thanks to Matthias Klose (Closes: #605839)
+    - drop 023_fix_desktop_file.diff (Closes: #608432)
+  * debian/control
+    - add debug package for fontforge (Closes: #602069)
+    - bump up "Standards-Version: 3.9.2"
+
+ -- Hideki Yamane <henrich@debian.org>  Sat, 28 May 2011 21:24:48 +0900
+
+fontforge (0.0.20100501-5) unstable; urgency=low
 
   * Team upload.
   * debian/rules 
     - disable "--enable-double" that introduced in 0.0.20100501-3
      to avoid building ttf-dejavu failure (Closes: #609094)
 
- -- Hideki Yamane <henrich@debian.org>  Tue, 18 Jan 2011 23:29:31 +0900
+ -- Hideki Yamane <henrich@debian.org>  Fri, 07 Jan 2011 23:43:28 +0900
 
 fontforge (0.0.20100501-4) unstable; urgency=high
 

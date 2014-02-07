@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "pfaeditui.h"
+#include "fontforgeui.h"
 #include <ustring.h>
 #include <utype.h>
 #include <gkeysym.h>
@@ -336,7 +336,7 @@ static void Stroke_ShowNib(StrokeDlg *sd) {
 	transform[1] *= width;
 	transform[2] *= height;
 	transform[3] *= height;
-	SplinePointListTransform(ss,transform,true);
+	SplinePointListTransform(ss,transform,tpt_AllPoints);
 	sd->dummy_sf.grid.splines = ss;
     }
     GDrawRequestExpose(sd->cv_stroke.v,NULL,false);
@@ -567,7 +567,7 @@ struct cvcontainer_funcs stroke_funcs = {
 static void StrokeInit(StrokeDlg *sd) {
     real transform[6];
 
-    memset(sd,0,sizeof(*sd));
+    /*memset(sd,0,sizeof(*sd));*/
     sd->base.funcs = &stroke_funcs;
 
     {
@@ -623,10 +623,12 @@ static void StrokeInit(StrokeDlg *sd) {
     sd->dummy_map.enc = &custom;
 
     /* Default poly to a 50x50 square */
-    sd->old_poly = UnitShape( true );
-    memset(transform,0,sizeof(transform));
-    transform[0] = transform[3] = 25;
-    SplinePointListTransform(sd->old_poly,transform,true);
+    if ( sd->old_poly==NULL ) {
+	sd->old_poly = UnitShape( true );
+	memset(transform,0,sizeof(transform));
+	transform[0] = transform[3] = 25;
+	SplinePointListTransform(sd->old_poly,transform,tpt_AllPoints);
+    }
 }
 
 static int stroke_e_h(GWindow gw, GEvent *event) {
@@ -715,6 +717,10 @@ static void MakeStrokeDlg(void *cv,void (*strokeit)(void *,StrokeInfo *,int),Str
 	memset(&freehand_dlg,0,sizeof(freehand_dlg));
 	sd->si = si;
 	yoff = 18;
+    }
+    if ( sd->old_poly==NULL && si!=NULL && si->poly!=NULL ) {
+	sd->old_poly = si->poly;
+	si->poly = NULL;
     }
 
     if ( sd->gw==NULL ) {
@@ -805,8 +811,8 @@ static void MakeStrokeDlg(void *cv,void (*strokeit)(void *,StrokeInfo *,int),Str
 	    gcd[gcdoff].gd.cid = CID_CenterLine;
 	    gcd[gcdoff].gd.handle_controlevent = Stroke_CenterLine;
 	    gcd[gcdoff++].creator = GRadioCreate;
-	    pens[3] = NULL;
-	    pens[4] = &gcd[gcdoff-2]; pens[5] = &gcd[gcdoff-1]; pens[6] = NULL; pens[7] = NULL;
+	    pens[3] = NULL; pens[4] = GCD_Glue;
+	    pens[5] = &gcd[gcdoff-2]; pens[6] = &gcd[gcdoff-1]; pens[7] = NULL; pens[8] = NULL;
 	}
 
 	boxes[2].gd.flags = gg_enabled|gg_visible;
@@ -843,7 +849,7 @@ static void MakeStrokeDlg(void *cv,void (*strokeit)(void *,StrokeInfo *,int),Str
 	gcd[gcdoff++].creator = GLabelCreate;
 	swarray[swpos][0] = &gcd[gcdoff-1];
 
-	sprintf( axisbuf, "%g", (double) 2*def->minorradius );
+	sprintf( axisbuf, "%g", (double) (2*def->minorradius) );
 	label[gcdoff].text = (unichar_t *) axisbuf;
 	label[gcdoff].text_is_1byte = true;
 	gcd[gcdoff].gd.pos.width = 50;
@@ -1149,6 +1155,7 @@ static void MakeStrokeDlg(void *cv,void (*strokeit)(void *,StrokeInfo *,int),Str
     if ( si==NULL ) {
 	StrokeSetup(sd,GGadgetIsChecked( GWidgetGetControl(sd->gw,CID_Caligraphic))?si_caligraphic:
 		GGadgetIsChecked( GWidgetGetControl(sd->gw,CID_Circle))?si_std:
+		GGadgetIsChecked( GWidgetGetControl(sd->gw,CID_Polygon))?si_poly:
 		si_centerline);
 	GGadgetSetVisible( GWidgetGetControl(sd->gw,CID_Apply),strokeit==CVStrokeIt );
     } else {
@@ -1161,6 +1168,7 @@ static void MakeStrokeDlg(void *cv,void (*strokeit)(void *,StrokeInfo *,int),Str
     while ( !sd->done )
 	GDrawProcessOneEvent(NULL);
 
+    CVPalettesHideIfMine(&sd->cv_stroke);
     if ( strokeit!=NULL )
 	GDrawSetVisible(sd->gw,false);
     else
@@ -1849,6 +1857,13 @@ static struct gradient *GradientEdit(struct layer_dlg *ld,struct gradient *activ
 	CVPalettesHideIfMine(cv);
     }
     GDrawDestroyWindow(gdd.gw);
+    /* Now because the cv of the nested window is on the stack, we need to */
+    /*  handle its destruction HERE while that stack location still makes */
+    /*  sense. Can't do it in whoever calls us */
+    GDrawSync(NULL);
+    GDrawProcessPendingEvents(NULL);
+    GDrawSync(NULL);
+    GDrawProcessPendingEvents(NULL);
 return( gdd.active );
 }
 
@@ -1937,7 +1952,7 @@ return( true );
 return( true );
 	PatternSCBounds(patternsc,&b);
 	height = width * (b.maxy - b.miny)/(b.maxx - b.minx);
-	sprintf( buffer, "%g", height );
+	sprintf( buffer, "%g", (double) height );
 	GGadgetSetTitle8(GWidgetGetControl(gw,CID_THeight), buffer);
     }
 return( true );
@@ -1965,7 +1980,7 @@ return( true );
 return( true );
 	PatternSCBounds(patternsc,&b);
 	width = height * (b.maxx - b.minx)/(b.maxy - b.miny);
-	sprintf( buffer, "%g", width );
+	sprintf( buffer, "%g", (double) width );
 	GGadgetSetTitle8(GWidgetGetControl(gw,CID_TWidth), buffer);
     }
 return( true );
@@ -2138,12 +2153,12 @@ static struct pattern *PatternEdit(struct layer_dlg *ld,struct pattern *active) 
     if ( active!=NULL ) {
 	SplineChar *patternsc = SFGetChar(ld->sf,-1,active->pattern);
 	name = active->pattern;
-	sprintf( width, "%g", active->width );
-	sprintf( height, "%g", active->height );
+	sprintf( width, "%g", (double) active->width );
+	sprintf( height, "%g", (double) active->height );
 	sprintf( transform, "[%g %g %g %g %g %g]",
-		active->transform[0], active->transform[1],
-		active->transform[2], active->transform[3],
-		active->transform[4], active->transform[5]);
+		(double) active->transform[0], (double) active->transform[1],
+		(double) active->transform[2], (double) active->transform[3],
+		(double) active->transform[4], (double) active->transform[5]);
 	if ( patternsc!=NULL ) {
 	    DBounds b;
 	    PatternSCBounds(patternsc,&b);
@@ -2637,10 +2652,10 @@ int LayerDialog(Layer *layer,SplineFont *sf) {
     pos.height = GDrawPointsToPixels(NULL,LY_Height);
     ld.gw = gw = GDrawCreateTopWindow(NULL,&pos,layer_e_h,&ld,&wattrs);
 
-    ld.fillgrad = GradientCopy(layer->fill_brush.gradient);
-    ld.strokegrad = GradientCopy(layer->stroke_pen.brush.gradient);
-    ld.fillpat = PatternCopy(layer->fill_brush.pattern);
-    ld.strokepat = PatternCopy(layer->stroke_pen.brush.pattern);
+    ld.fillgrad = GradientCopy(layer->fill_brush.gradient,NULL);
+    ld.strokegrad = GradientCopy(layer->stroke_pen.brush.gradient,NULL);
+    ld.fillpat = PatternCopy(layer->fill_brush.pattern,NULL);
+    ld.strokepat = PatternCopy(layer->stroke_pen.brush.pattern,NULL);
 
     memset(&label,0,sizeof(label));
     memset(&gcd,0,sizeof(gcd));
@@ -3125,9 +3140,9 @@ int LayerDialog(Layer *layer,SplineFont *sf) {
     gcd[gcdoff++].creator = GLabelCreate;
     shvarray[k++] = &gcd[gcdoff-1];
 
-    sprintf( transbuf, "[%.4g %.4g %.4g %.4g]", layer->stroke_pen.trans[0],
-	    layer->stroke_pen.trans[1], layer->stroke_pen.trans[2],
-	    layer->stroke_pen.trans[3]);
+    sprintf( transbuf, "[%.4g %.4g %.4g %.4g]", (double) layer->stroke_pen.trans[0],
+	    (double) layer->stroke_pen.trans[1], (double) layer->stroke_pen.trans[2],
+	    (double) layer->stroke_pen.trans[3]);
     label[gcdoff].text = (unichar_t *) transbuf;
     label[gcdoff].text_is_1byte = true;
     gcd[gcdoff].gd.label = &label[gcdoff];

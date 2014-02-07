@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -91,7 +91,7 @@ enum cvtools { cvt_pointer, cvt_magnify,
 enum bvtools { bvt_pointer, bvt_magnify,
 	bvt_pencil, bvt_line,
 	bvt_shift, bvt_hand,
-	bvt_minify, bvt_eyedropper, bvt_max=bvt_eyedropper,
+	bvt_minify, bvt_max=bvt_minify, bvt_eyedropper,
 	bvt_setwidth, bvt_setvwidth,
 	bvt_rect, bvt_filledrect,
 	bvt_elipse, bvt_filledelipse,
@@ -378,8 +378,9 @@ struct genericchange {
     char *extension_for_letters, *extension_for_symbols;
     double stem_height_scale, stem_width_scale;
     double stem_height_add  , stem_width_add  ;
+    double stem_threshold;
     double serif_height_scale, serif_width_scale;
-    double seirf_height_add  , serif_width_add  ;
+    double serif_height_add  , serif_width_add  ;
     double hcounter_scale, hcounter_add;
     double lsb_scale, lsb_add;
     double rsb_scale, rsb_add;
@@ -474,7 +475,7 @@ extern void CopySelected(CharViewBase *cv,int doanchors);
 extern void CVCopyGridFit(CharViewBase *cv);
 extern void CopyWidth(CharViewBase *cv,enum undotype);
 extern void PasteToCV(CharViewBase *cv);
-extern void CVYPerspective(CharViewBase *cv,double x_vanish, double y_vanish);
+extern void CVYPerspective(CharViewBase *cv,bigreal x_vanish, bigreal y_vanish);
 extern void ScriptSCEmbolden(SplineChar *sc,int layer,enum embolden_type type,struct lcg_zones *zones);
 extern void CVEmbolden(CharViewBase *cv,enum embolden_type type,struct lcg_zones *zones);
 extern void SCCondenseExtend(struct counterinfo *ci,SplineChar *sc, int layer,
@@ -609,6 +610,7 @@ extern void AutoKern2BuildClasses(SplineFont *sf,int layer,
 	SplineChar **leftglyphs,SplineChar **rightglyphs,
 	struct lookup_subtable *sub,
 	int separation, int min_kern, int touching, int only_closer,
+	int autokern,
 	real good_enough);
 
 #endif

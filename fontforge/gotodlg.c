@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -25,7 +25,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "pfaeditui.h"
+#include "fontforgeui.h"
 #include <utype.h>
 #include <ustring.h>
 #include "unicoderange.h"
@@ -41,12 +41,14 @@ static GTextInfo *AvailableRanges(SplineFont *sf,EncMap *map) {
     int i, cnt, ch, pos;
 
     for ( i=cnt=0; unicoderange[i].name!=NULL; ++i ) {
-	ch = unicoderange[i].defined==-1 ? unicoderange[i].first : unicoderange[i].defined;
-	pos = SFFindSlot(sf,map,ch,NULL);
-	if ( pos!=-1 ) {
-	    ret[cnt].text = (unichar_t *) _(unicoderange[i].name);
-	    ret[cnt].text_is_1byte = true;
-	    ret[cnt++].userdata = (void *) (intpt) pos;
+	if ( unicoderange[i].display ) {
+	    ch = unicoderange[i].defined==-1 ? unicoderange[i].first : unicoderange[i].defined;
+	    pos = SFFindSlot(sf,map,ch,NULL);
+	    if ( pos!=-1 ) {
+	        ret[cnt].text = (unichar_t *) _(unicoderange[i].name);
+	        ret[cnt].text_is_1byte = true;
+	        ret[cnt++].userdata = (void *) (intpt) pos;
+	    }
 	}
     }
     qsort(ret,cnt,sizeof(GTextInfo),alpha);

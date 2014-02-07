@@ -1,4 +1,4 @@
-/* Copyright (C) 2006-2010 by George Williams */
+/* Copyright (C) 2006-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -82,7 +82,7 @@ static double FindNewT(double pos,const Spline1D *s,double old_t) {
     int i;
     double closest;
 
-    SplineSolveFull(s, pos, ts);
+    CubicSolve(s, pos, ts);
     closest = -1;
     for ( i=0; i<3 && ts[i]!=-1; ++i ) {
 	if ( ts[i]>old_t && ts[i]<=1 ) {
@@ -123,9 +123,9 @@ return( true );
 		if ( (dx=s->to->me.x-s->from->me.x)<0 ) dx = -dx;
 		if ( (dy=s->to->me.y-s->from->me.y)<0 ) dy = -dy;
 		if ( dx>dy )
-		    SplineSolveFull(&s->splines[0], here->x+err*offset[j], ts);
+		    CubicSolve(&s->splines[0], here->x+err*offset[j], ts);
 		else
-		    SplineSolveFull(&s->splines[1], here->y+err*offset[j], ts);
+		    CubicSolve(&s->splines[1], here->y+err*offset[j], ts);
 		for ( i=0; i<3 && ts[i]!=-1 ; ++i ) {
 		    test.x = ((s->splines[0].a*ts[i]+s->splines[0].b)*ts[i]+s->splines[0].c)*ts[i]+s->splines[0].d;
 		    test.y = ((s->splines[1].a*ts[i]+s->splines[1].b)*ts[i]+s->splines[1].c)*ts[i]+s->splines[1].d;
@@ -163,9 +163,9 @@ return( true );
 	for ( j=0; j<3; ++j ) {
 	    while ( s!=NULL ) {
 		if ( adx>ady )
-		    SplineSolveFull(&s->splines[0], here->x+err*offset[j], ts);
+		    CubicSolve(&s->splines[0], here->x+err*offset[j], ts);
 		else
-		    SplineSolveFull(&s->splines[1], here->y+err*offset[j], ts);
+		    CubicSolve(&s->splines[1], here->y+err*offset[j], ts);
 		for ( i=0; i<3 && ts[i]!=-1 ; ++i ) if ( ts[i]>=t ) {
 		    test.x = ((s->splines[0].a*ts[i]+s->splines[0].b)*ts[i]+s->splines[0].c)*ts[i]+s->splines[0].d;
 		    test.y = ((s->splines[1].a*ts[i]+s->splines[1].b)*ts[i]+s->splines[1].c)*ts[i]+s->splines[1].d;
@@ -944,12 +944,12 @@ static void GlyphDiffSCError(struct font_diff *fd, SplineChar *sc, char *format,
     va_list ap;
 
     if ( !fd->top_diff ) {
-	fprintf( fd->diffs, _("Outline Glyphs\n") );
+	fprintf( fd->diffs, "%s", _("Outline Glyphs\n") );
 	fd->top_diff = fd->diff = true;
     }
     if ( !fd->local_diff ) {
 	putc(' ',fd->diffs);
-	fprintf( fd->diffs, _("Glyph Differences\n") );
+	fprintf( fd->diffs, "%s", _("Glyph Differences\n") );
 	fd->local_diff = fd->diff = true;
     }
     va_start(ap,format);
@@ -1206,7 +1206,7 @@ static void comparefontglyphs(struct font_diff *fd) {
     for ( gid1=0; gid1<fd->sf1_glyphcnt; ++gid1 ) {
 	if ( (sc=sf1->glyphs[gid1])!=NULL && !sc->ticked ) {
 	    if ( !fd->top_diff )
-		fprintf( fd->diffs, _("Outline Glyphs\n") );
+		fprintf( fd->diffs, "%s", _("Outline Glyphs\n") );
 	    if ( !fd->local_diff ) {
 		putc(' ',fd->diffs);
 		fprintf( fd->diffs, _("Glyphs in %s but not in %s\n"), fd->name1, fd->name2 );
@@ -1221,7 +1221,7 @@ static void comparefontglyphs(struct font_diff *fd) {
     for ( gid2=0; gid2<sf2->glyphcnt; ++gid2 )
 	if ( (sc=sf2->glyphs[gid2])!=NULL && !sc->ticked ) {
 	    if ( !fd->top_diff )
-		fprintf( fd->diffs, _("Outline Glyphs\n") );
+		fprintf( fd->diffs, "%s", _("Outline Glyphs\n") );
 	    if ( !fd->local_diff ) {
 		putc(' ',fd->diffs);
 		fprintf( fd->diffs, _("Glyphs in %s but not in %s\n"), fd->name2, fd->name1 );
@@ -1235,11 +1235,11 @@ static void comparefontglyphs(struct font_diff *fd) {
 
     if ( sf1->ascent+sf1->descent != sf2->ascent+sf2->descent ) {
 	if ( !fd->top_diff )
-	    fprintf( fd->diffs, _("Outline Glyphs\n") );
+	    fprintf( fd->diffs, "%s", _("Outline Glyphs\n") );
 	putc(' ',fd->diffs);
-	fprintf( fd->diffs, _("Glyph Differences\n") );
+	fprintf( fd->diffs, "%s", _("Glyph Differences\n") );
 	fputs("  ",fd->diffs);
-	fprintf( fd->diffs, _("ppem is different in the two fonts, cowardly refusing to compare glyphs\n") );
+	fprintf( fd->diffs, "%s", _("ppem is different in the two fonts, cowardly refusing to compare glyphs\n") );
 	fd->diff = true;
 return;
     }
@@ -1274,7 +1274,7 @@ static void comparebitmapglyphs(struct font_diff *fd, BDFFont *bdf1, BDFFont *bd
 	    }
 	    if ( bdfc2==NULL ) {
 		if ( !fd->top_diff )
-		    fprintf( fd->diffs, _("Bitmap Strikes\n") );
+		    fprintf( fd->diffs, "%s", _("Bitmap Strikes\n") );
 		if ( !fd->middle_diff ) {
 		    putc(' ',fd->diffs);
 		    fprintf( fd->diffs, _("Strike %d@%d\n"),
@@ -1297,7 +1297,7 @@ static void comparebitmapglyphs(struct font_diff *fd, BDFFont *bdf1, BDFFont *bd
     for ( gid2=0; gid2<bdf2->glyphcnt; ++gid2 )
 	if ( (bdfc=bdf2->glyphs[gid2])!=NULL && !bdfc->ticked ) {
 	    if ( !fd->top_diff )
-		fprintf( fd->diffs, _("Bitmap Strikes\n") );
+		fprintf( fd->diffs, "%s", _("Bitmap Strikes\n") );
 	    if ( !fd->middle_diff ) {
 		putc(' ',fd->diffs);
 		fprintf( fd->diffs, _("Strike %d@%d\n"),
@@ -1327,7 +1327,7 @@ static void comparebitmapglyphs(struct font_diff *fd, BDFFont *bdf1, BDFFont *bd
 		int val = BitmapCompare(bdfc,bdfc2,0,0);
 		char *leader = "   ";
 		if ( !fd->top_diff )
-		    fprintf( fd->diffs, _("Bitmap Strikes\n") );
+		    fprintf( fd->diffs, "%s", _("Bitmap Strikes\n") );
 		if ( !fd->middle_diff ) {
 		    putc(' ',fd->diffs);
 		    fprintf( fd->diffs, _("Strike %d@%d\n"),
@@ -1379,7 +1379,7 @@ static void comparebitmapstrikes(struct font_diff *fd) {
 		bdf2=bdf2->next );
 	if ( bdf2==NULL ) {
 	    if ( !fd->top_diff )
-		fprintf( fd->diffs, _("Bitmap Strikes\n") );
+		fprintf( fd->diffs, "%s", _("Bitmap Strikes\n") );
 	    if ( !fd->middle_diff ) {
 		putc(' ',fd->diffs);
 		fprintf( fd->diffs, _("Strikes in %s but not in %s\n"), fd->name1, fd->name2 );
@@ -1398,7 +1398,7 @@ static void comparebitmapstrikes(struct font_diff *fd) {
 		bdf1=bdf1->next );
 	if ( bdf1==NULL ) {
 	    if ( !fd->top_diff )
-		fprintf( fd->diffs, _("Bitmap Strikes\n") );
+		fprintf( fd->diffs, "%s", _("Bitmap Strikes\n") );
 	    if ( !fd->middle_diff ) {
 		putc(' ',fd->diffs);
 		fprintf( fd->diffs, _("Strikes in %s but not in %s\n"), fd->name2, fd->name1 );
@@ -1543,8 +1543,8 @@ return( true );
 	    /*  be possible to activate almost all lookups from the default */
 	    /*  script (for shaping engines which can't handle the script in */
 	    /*  question, or if glyphs are used in a context in which no */
-	    /*  script can be determined, or glyphs from font A are used
-	    /*  surounded by those of font B, and the font B glyphs establish
+	    /*  script can be determined, or glyphs from font A are used */
+	    /*  surounded by those of font B, and the font B glyphs establish */
 	    /*  a script font A does not support) so we do not view the presence*/
 	    /*  of the default script as a reliable indicator -- only if it */
 	    /*  is the sole script */
@@ -1981,10 +1981,10 @@ static void MatchLookups(struct font_diff *fd) {
 static void featureheader(struct font_diff *fd) {
 
     if ( !fd->top_diff )
-	fprintf( fd->diffs, fd->is_gpos ? _("Glyph Positioning\n") : _("Glyph Substitution\n"));
+	fprintf( fd->diffs, "%s", fd->is_gpos ? _("Glyph Positioning\n") : _("Glyph Substitution\n"));
     if ( !fd->middle_diff ) {
 	putc( ' ', fd->diffs);
-	fprintf( fd->diffs, _("Lookup Differences\n") );
+	fprintf( fd->diffs, "%s", _("Lookup Differences\n") );
     }
     if ( !fd->local_diff ) {
 	fputs("  ",fd->diffs);
@@ -2183,7 +2183,7 @@ static void compareg___(struct font_diff *fd) {
     for ( otl = fd->is_gpos ? fd->sf1_mst->gpos_lookups : fd->sf1_mst->gsub_lookups; otl!=NULL ; otl=otl->next ) {
 	if ( fd->l2match1[otl->lookup_index]==NULL ) {
 	    if ( !fd->top_diff )
-		fprintf( fd->diffs, fd->is_gpos ? _("Glyph Positioning\n") : _("Glyph Substitution\n"));
+		fprintf( fd->diffs, "%s", fd->is_gpos ? _("Glyph Positioning\n") : _("Glyph Substitution\n"));
 	    if ( !fd->middle_diff ) {
 		putc( ' ', fd->diffs);
 		fprintf( fd->diffs, _("Lookups in %s but not in %s\n"), fd->name1, fd->name2 );
@@ -2200,7 +2200,7 @@ static void compareg___(struct font_diff *fd) {
 	    for ( sub=otl->subtables; sub!=NULL; sub=sub->next ) {
 		if ( fd->s2match1[sub->subtable_offset]==NULL ) {
 		    if ( !fd->top_diff )
-			fprintf( fd->diffs, fd->is_gpos ? _("Glyph Positioning\n") : _("Glyph Substitution\n"));
+			fprintf( fd->diffs, "%s", fd->is_gpos ? _("Glyph Positioning\n") : _("Glyph Substitution\n"));
 		    if ( !fd->middle_diff ) {
 			putc( ' ', fd->diffs);
 			fprintf( fd->diffs, _("Lookups subtables in %s but not in %s\n"), fd->name1, fd->name2 );
@@ -2218,7 +2218,7 @@ static void compareg___(struct font_diff *fd) {
     for ( otl = fd->is_gpos ? fd->sf2_mst->gpos_lookups : fd->sf2_mst->gsub_lookups; otl!=NULL ; otl=otl->next ) {
 	if ( fd->l1match2[otl->lookup_index]==NULL ) {
 	    if ( !fd->top_diff )
-		fprintf( fd->diffs, fd->is_gpos ? _("Glyph Positioning\n") : _("Glyph Substitution\n"));
+		fprintf( fd->diffs, "%s", fd->is_gpos ? _("Glyph Positioning\n") : _("Glyph Substitution\n"));
 	    if ( !fd->middle_diff ) {
 		putc( ' ', fd->diffs);
 		fprintf( fd->diffs, _("Lookups in %s but not in %s\n"), fd->name2, fd->name1 );
@@ -2235,7 +2235,7 @@ static void compareg___(struct font_diff *fd) {
 	    for ( sub=otl->subtables; sub!=NULL; sub=sub->next ) {
 		if ( fd->s1match2[sub->subtable_offset]==NULL ) {
 		    if ( !fd->top_diff )
-			fprintf( fd->diffs, fd->is_gpos ? _("Glyph Positioning\n") : _("Glyph Substitution\n"));
+			fprintf( fd->diffs, "%s", fd->is_gpos ? _("Glyph Positioning\n") : _("Glyph Substitution\n"));
 		    if ( !fd->middle_diff ) {
 			putc( ' ', fd->diffs);
 			fprintf( fd->diffs, _("Lookups subtables in %s but not in %s\n"), fd->name2, fd->name1 );

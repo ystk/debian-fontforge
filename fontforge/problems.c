@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "pfaeditui.h"
+#include "fontforgeui.h"
 #include "ttf.h"
 #include <gwidget.h>
 #include <ustring.h>
@@ -5215,7 +5215,7 @@ static int VWCheckup(struct val_data *vw) {
 	if ( sc!=NULL && vw->need_to_check_with_user_on_mask &&
 		(sc->layers[vw->layer].validation_state&vs_nonintegral )) {
 	    vw->need_to_check_with_user_on_mask = false;
-	    buts[0] = _("Erroneous"); buts[1]=_("Acceptable"); buts[2] = NULL;
+	    buts[0] = _("Report as Error"); buts[1]=_("Ignore"); buts[2] = NULL;
 	    if ( ff_ask(_("Not sure if this is an error..."),(const char **) buts,0,1,
 		    _("This font contains non-integral coordinates. That's OK\n"
 			"in PostScript and SVG but causes problems in TrueType.\n"
@@ -5270,6 +5270,10 @@ static int vwv_e_h(GWindow gw, GEvent *event) {
       case et_mouseup:
       case et_mousedown:
       case et_mousemove:
+	if (( event->type==et_mouseup || event->type==et_mousedown ) &&
+		(event->u.mouse.button>=4 && event->u.mouse.button<=7) ) {
+return( GGadgetDispatchEvent(vw->vsb,event));
+	}
 	VWMouse(vw,event);
       break;
       case et_char:

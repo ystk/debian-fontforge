@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2010 by George Williams */
+/* Copyright (C) 2007-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -27,7 +27,7 @@
 #ifndef _FONTFORGEVW_H_
 #define _FONTFORGEVW_H_
 
-#include "pfaedit.h"
+#include "fontforge.h"
 #include "gimage.h"
 #include "baseviews.h"
 

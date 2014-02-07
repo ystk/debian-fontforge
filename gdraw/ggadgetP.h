@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -124,6 +124,8 @@ typedef struct glabel {		/* or simple text, or groupbox */
     FontInstance *font;
     unichar_t *label;
     GImage *image;
+    GTextInfo **ti;
+    uint16 ltot;
 } GLabel, GButton;
 
 typedef struct gimagebutton {
@@ -428,9 +430,11 @@ typedef struct gmatrixedit {
     unsigned int wasnew: 1;		/* So we need to call newafter when finished editing */
     unsigned int big_done: 1;
     unsigned int edit_active: 1;
+    unsigned int no_edit: 1;
     int pressed_col;			/* For changing column spacing */
     struct matrix_data *data;
     int16 as, fh;
+    int16 font_as, font_fh;
     FontInstance *font;
     FontInstance *titfont;
     GGadget *tf;

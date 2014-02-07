@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2010 by George Williams */
+/* Copyright (C) 2008-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "pfaeditui.h"
+#include "fontforgeui.h"
 #include <ustring.h>
 #include <chardata.h>
 #include <utype.h>
@@ -445,7 +445,7 @@ static void Base_FinishEdit(GGadget *g, int r, int c, int wasnew) {
 		script == CHR('g','u','j','r' ) || script == CHR('g','j','r','2') ||
 		script == CHR('g','u','r','u' ) || script == CHR('g','u','r','2') ||
 		script == CHR('k','n','d','a' ) || script == CHR('k','n','d','2') ||
-		script == CHR('m','l','y','m' ) || script == CHR('m','l','y','2') ||
+		script == CHR('m','l','y','m' ) || script == CHR('m','l','m','2') ||
 		script == CHR('o','r','y','a' ) || script == CHR('o','r','y','2') ||
 		script == CHR('t','a','m','l' ) || script == CHR('t','m','l','2') ||
 		script == CHR('t','e','l','u' ) || script == CHR('t','e','l','2'))
@@ -719,7 +719,7 @@ struct Base *SFBaselines(SplineFont *sf,struct Base *old,int is_vertical) {
     wattrs.restrict_input_to_me = true;
     wattrs.undercursor = 1;
     wattrs.cursor = ct_pointer;
-    snprintf(buffer,sizeof(buffer),is_vertical ? _("Vertical Baselines") : _("Horizontal Baselines") );
+    snprintf(buffer,sizeof(buffer),"%s", is_vertical ? _("Vertical Baselines") : _("Horizontal Baselines") );
     wattrs.utf8_window_title = buffer;
     wattrs.is_dlg = true;
     pos.x = pos.y = 0;

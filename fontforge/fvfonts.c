@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -464,7 +464,7 @@ static void KernClassesAdd(SplineFont *into, SplineFont *from,struct sfmergecont
     }
 }
 
-static struct altuni *AltUniCopy(struct altuni *altuni,SplineFont *noconflicts) {
+struct altuni *AltUniCopy(struct altuni *altuni,SplineFont *noconflicts) {
     struct altuni *head=NULL, *last=NULL, *cur;
 
     while ( altuni!=NULL ) {

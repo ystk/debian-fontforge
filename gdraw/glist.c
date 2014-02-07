@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -530,9 +530,12 @@ return( false );
     if ( event->type == et_crossing )
 return( false );
     if (( event->type==et_mouseup || event->type==et_mousedown ) &&
-	    (event->u.mouse.button==4 || event->u.mouse.button==5) &&
-	    gl->vsb!=NULL )
+	    (event->u.mouse.button>=4 && event->u.mouse.button<=7)) {
+	if ( gl->vsb!=NULL )
 return( GGadgetDispatchEvent(&gl->vsb->g,event));
+	else
+return( true );
+    }
     if ( event->type==et_mousemove && !gl->pressed && !gl->parentpressed ) {
 	if ( GGadgetWithin(g,event->u.mouse.x,event->u.mouse.y) ) {
 	    if ( gl->popup_callback!=NULL )

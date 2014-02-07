@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2010 by George Williams */
+/* Copyright (C) 2002-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -26,7 +26,7 @@
  */
 /*			   Yet another interpreter			      */
 
-#include "pfaedit.h"
+#include "fontforge.h"
 #include <gfile.h>
 #include <utype.h>
 #include <ustring.h>
@@ -1630,6 +1630,8 @@ char **GetFontNames(char *filename) {
 	    } else if (( ch1=='%' && ch2=='!' ) ||
 			( ch1==0x80 && ch2=='\01' ) ) {	/* PFB header */
 		ret = NamesReadPostScript(filename);
+	    } else if ( ch1=='%' && ch2=='P' && ch3=='D' && ch4=='F' ) {
+		ret = NamesReadPDF(filename);
 	    } else if ( ch1=='<' && ch2=='?' && (ch3=='x'||ch3=='X') && (ch4=='m'||ch4=='M') ) {
 		ret = NamesReadSVG(filename);
 	    } else if ( ch1=='S' && ch2=='p' && ch3=='l' && ch4=='i' ) {
@@ -2100,6 +2102,11 @@ static void bImport(Context *c) {
 	    format = fv_epstemplate;
 	else
 	    format = fv_eps;
+    } else if ( strmatch(ext,".pdf")==0 ) {
+	if ( strchr(filename,'*')!=NULL )
+	    format = fv_pdftemplate;
+	else
+	    format = fv_pdf;
     } else if ( strmatch(ext,".svg")==0 ) {
 	if ( strchr(filename,'*')!=NULL )
 	    format = fv_svgtemplate;
@@ -2124,7 +2131,7 @@ static void bImport(Context *c) {
 	ok = FVImportMult(c->curfv,filename, back, bf_ttf);
     else if ( format==fv_pk )
 	ok = FVImportBDF(c->curfv,filename,true, back);
-    else if ( format==fv_image || format==fv_eps || format==fv_svg )
+    else if ( format==fv_image || format==fv_eps || format==fv_svg || format==fv_pdf )
 	ok = FVImportImages(c->curfv,filename,format,back,flags);
     else
 	ok = FVImportImageTemplate(c->curfv,filename,format,back,flags);
@@ -4583,7 +4590,7 @@ static void _bMoveReference(Context *c,int position) {
 		    ref->transform[4] += t[4];
 		    ref->transform[5] += t[5];
 		    for ( j=0; j<ref->layer_cnt; ++j )
-			SplinePointListTransform(ref->layers[j].splines,t,true);
+			SplinePointListTransform(ref->layers[j].splines,t,tpt_AllPoints);
 		    ref->bb.minx += t[4]; ref->bb.miny += t[5];
 		    ref->bb.maxx += t[4]; ref->bb.maxy += t[5];
 		}
@@ -7241,7 +7248,7 @@ static void FigureSplExt(SplineSet *spl,int pos,int xextrema, double minmax[2]) 
 		    pos < s->from->me.x && pos < s->from->nextcp.x &&
 		    pos < s->to->me.x && pos < s->to->prevcp.x ))
 	continue;	/* can't intersect spline */
-	    if ( SplineSolveFull(&s->splines[xextrema],pos,ts)==-1 )
+	    if ( CubicSolve(&s->splines[xextrema],pos,ts)==-1 )
 	continue;	/* didn't intersect */
 	    for ( i=0; i<3 && ts[i]!=-1; ++i ) {
 		val = ((s->splines[oth].a*ts[i]+s->splines[oth].b)*ts[i]+
@@ -7316,7 +7323,7 @@ static void FigureProfile(Context *c,SplineChar *sc,int pos,int xextrema) {
             pos < s->from->me.x && pos < s->from->nextcp.x &&
             pos < s->to->me.x && pos < s->to->prevcp.x ))
         continue;	/* can't intersect spline */
-      if ( SplineSolveFull(&s->splines[xextrema],pos,ts)==-1 )
+      if ( CubicSolve(&s->splines[xextrema],pos,ts)==-1 )
         continue;	/* didn't intersect */
       for ( i=0; i<3 && ts[i]!=-1; ++i ) {
         temp = ((s->splines[oth].a*ts[i]+s->splines[oth].b)*ts[i]+
@@ -7354,7 +7361,7 @@ skip1:
                 pos < s->from->me.x && pos < s->from->nextcp.x &&
                 pos < s->to->me.x && pos < s->to->prevcp.x ))
             continue;	/* can't intersect spline */
-          if ( SplineSolveFull(&s->splines[xextrema],pos,ts)==-1 )
+          if ( CubicSolve(&s->splines[xextrema],pos,ts)==-1 )
             continue;	/* didn't intersect */
           for ( i=0; i<3 && ts[i]!=-1; ++i ) {
             temp = ((s->splines[oth].a*ts[i]+s->splines[oth].b)*ts[i]+

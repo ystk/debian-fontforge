@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2010 by George Williams */
+/* Copyright (C) 2007-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "pfaeditui.h"
+#include "fontforgeui.h"
 #include <chardata.h>
 #include <utype.h>
 #include <ustring.h>
@@ -36,6 +36,7 @@
 #include "lookups.h"
 
 int add_char_to_name_list = true;
+int default_autokern_dlg = true;
 
 /* ************************************************************************** */
 /* ******************************* UI routines ****************************** */
@@ -1392,8 +1393,13 @@ static void LKMatrixInit(struct matrixinit *mi,OTLookup *otl) {
 		}
 		if ( bpos>0 )
 		    --bpos;
-		buf[bpos] = '\0';
-		md[2*cnt+1].u.md_str = copy(buf);
+        if (buf) {
+            buf[bpos] = '\0';
+            md[2*cnt+1].u.md_str = copy(buf);
+        }
+        else {
+            md[2*cnt+1].u.md_str = NULL;
+        }
 	    }
 	    ++cnt;
 	}
@@ -2005,6 +2011,7 @@ typedef struct anchorclassdlg {
 #define CID_MinKern	2009
 #define CID_Touched	2010
 #define CID_OnlyCloser	2011
+#define CID_Autokern	2012
 
 #define CID_KernDisplay		2022
 #define CID_PixelSize		2023
@@ -2358,8 +2365,9 @@ return;
 	int uni = si->sc->unicodeenc;
 	char *pt;
 
-	if ( isdecompositionnormative(uni) &&
-		    unicode_alternates[uni>>8]!=NULL &&
+        if ( uni!=-1 && uni<0x10000 &&
+        	isdecompositionnormative(uni) &&
+		unicode_alternates[uni>>8]!=NULL &&
 		(alt = unicode_alternates[uni>>8][uni&0xff])!=NULL )
 	    si->base = SFGetChar(pstkd->sf,alt[0],NULL);
 	if ( si->base==NULL &&
@@ -2730,8 +2738,10 @@ static void PSTMatrixInit(struct matrixinit *mi,SplineFont *_sf, struct lookup_s
 					md[cnt*mi->col_cnt+PAIR_DY_ADV1].u.md_ival = kp->off;
 					DevTabToString(&md[cnt*mi->col_cnt+PAIR_DY_ADV1+1].u.md_str,kp->adjust);
 				    } else if ( r2l ) {
-					md[cnt*mi->col_cnt+PAIR_DY_ADV1].u.md_ival = kp->off;
-					DevTabToString(&md[cnt*mi->col_cnt+PAIR_DY_ADV1+1].u.md_str,kp->adjust);
+					md[cnt*mi->col_cnt+PAIR_DX_ADV1].u.md_ival = kp->off;
+					DevTabToString(&md[cnt*mi->col_cnt+PAIR_DX_ADV1+1].u.md_str,kp->adjust);
+					md[cnt*mi->col_cnt+PAIR_DX1].u.md_ival = kp->off;
+					DevTabToString(&md[cnt*mi->col_cnt+PAIR_DX1+1].u.md_str,kp->adjust);
 				    } else {
 					md[cnt*mi->col_cnt+PAIR_DX_ADV1].u.md_ival = kp->off;
 					DevTabToString(&md[cnt*mi->col_cnt+PAIR_DX_ADV1+1].u.md_str,kp->adjust);
@@ -2740,7 +2750,7 @@ static void PSTMatrixInit(struct matrixinit *mi,SplineFont *_sf, struct lookup_s
 			            if ( isv )
 					md[cnt*mi->col_cnt+PAIR_DY_ADV1].u.md_ival = kp->off;
 				    else if ( r2l )
-					md[cnt*mi->col_cnt+PAIR_DX_ADV2].u.md_ival = kp->off;
+					md[cnt*mi->col_cnt+PAIR_DX_ADV1].u.md_ival = md[cnt*mi->col_cnt+PAIR_DX1].u.md_ival = kp->off;
 				    else
 					md[cnt*mi->col_cnt+PAIR_DX_ADV1].u.md_ival = kp->off;
 #endif
@@ -2846,7 +2856,7 @@ return;
     psts[i*cols+0].u.md_str = copy(first->name);
     psts[i*cols+1].u.md_str = copy(second->name);
     if ( pstkd->sub->lookup->lookup_flags & pst_r2l )
-	psts[i*cols+PAIR_DX_ADV2].u.md_ival = off;
+	psts[i*cols+PAIR_DX_ADV1].u.md_ival = psts[i*cols+PAIR_DX1].u.md_ival = off;
     /* else if ( pstkd->sub->vertical_kerning ) */	/* We don't do vertical stuff */
     else
 	psts[i*cols+PAIR_DX_ADV1].u.md_ival = off;
@@ -2969,7 +2979,7 @@ static void PSTKD_DoHideUnused(PSTKernDlg *pstkd) {
 		if ( pstkd->sub->vertical_kerning )
 		    cols_used[PAIR_DY_ADV1] = true;
 		else if ( pstkd->sub->lookup->lookup_flags&pst_r2l )
-		    cols_used[PAIR_DX_ADV2] = true;
+		    cols_used[PAIR_DX_ADV1] = cols_used[PAIR_DX1] = true;
 		else
 		    cols_used[PAIR_DX_ADV1] = true;
 	    }
@@ -3167,11 +3177,11 @@ return;		/* Couldn't parse the numeric kerning info */
     } else if ( pstkd->sub->lookup->lookup_flags&pst_r2l ) {
 	xorig = 9*size.width/10;
 	yorig = pstkd->sf->ascent*size.height/(pstkd->sf->ascent+pstkd->sf->descent);
-	GDrawDrawLine(pixmap,xorig,0,xorig,size.height, 0x808080);
+	GDrawDrawLine(pixmap,xorig+vr1.h_adv_off-vr1.xoff,0,xorig+vr1.h_adv_off-vr1.xoff,size.height, 0x808080);
 	GDrawDrawLine(pixmap,0,yorig,size.width,yorig, 0x808080);
 	xorig /= mag; yorig /= mag;
-	PSTKern_DrawGlyph(pixmap,xorig-bc1->width-vr1.h_adv_off-vr1.xoff,yorig-vr1.yoff, bc1, mag);
-	PSTKern_DrawGlyph(pixmap,xorig-bc1->width-vr1.h_adv_off-bc2->width-vr2.h_adv_off-vr2.xoff,yorig-vr2.yoff, bc2, mag);
+	PSTKern_DrawGlyph(pixmap,xorig-bc1->width,yorig-vr1.yoff, bc1, mag);
+	PSTKern_DrawGlyph(pixmap,xorig-bc1->width-bc2->width-vr2.h_adv_off-vr2.xoff-vr1.xoff,yorig-vr2.yoff, bc2, mag);
     } else {
 	xorig = size.width/10;
 	yorig = pstkd->sf->ascent*size.height/(pstkd->sf->ascent+pstkd->sf->descent);
@@ -3191,7 +3201,8 @@ static void PSTKern_Mouse(PSTKernDlg *pstkd,GEvent *event) {
     int c = GMatrixEditGetActiveCol(pstk);
     GGadget *tf = _GMatrixEditGetActiveTextField(pstk);
     double scale = pstkd->pixelsize/(double) (pstkd->sf->ascent+pstkd->sf->descent);
-    int diff, col;
+    int diff, col, col2;
+    int r2l = pstkd->sub->lookup->lookup_flags&pst_r2l;
     char buffer[20];
     GCursor ct = ct_mypointer;
     GRect size;
@@ -3202,9 +3213,10 @@ return;		/* No kerning pair is active */
     if ( pstkd->sub->vertical_kerning ) {
 	diff = event->u.mouse.y - pstkd->orig_pos;
 	col = PAIR_DY_ADV1;
-    } else if ( pstkd->sub->lookup->lookup_flags&pst_r2l ) {
-	diff = pstkd->orig_pos - event->u.mouse.y;
-	col = PAIR_DX_ADV2;
+    } else if ( r2l ) {
+	diff = pstkd->orig_pos - event->u.mouse.x ;
+	col = PAIR_DX_ADV1;
+	col2 = PAIR_DX1;
     } else {
 	diff = event->u.mouse.x - pstkd->orig_pos;
 	col = PAIR_DX_ADV1;
@@ -3224,6 +3236,16 @@ return;		/* No kerning pair is active */
 	    old[r*cols+col].u.md_ival = pstkd->orig_value + diff;
 	    GGadgetRedraw(pstk);
 	}
+	if ( r2l ) {
+	    if ( col2==c && tf!=NULL ) {
+		sprintf( buffer, "%d", pstkd->orig_value + diff);
+		GGadgetSetTitle8(tf,buffer);
+		GGadgetRedraw(tf);
+	    } else {
+		old[r*cols+col2].u.md_ival = pstkd->orig_value + diff;
+		GGadgetRedraw(pstk);
+	    }
+	}
 	GGadgetRedraw(GWidgetGetControl(pstkd->gw,CID_KernDisplay));
 	if ( event->type == et_mouseup )
 	    pstkd->down = false;
@@ -3231,8 +3253,12 @@ return;		/* No kerning pair is active */
 	SplineChar *sc1 = SFGetChar(pstkd->sf,-1,old[r*cols+0].u.md_str);
 	if (sc1!=NULL ) {
 	    GDrawGetSize(event->w,&size);
-	    if ( col==PAIR_DX_ADV1 && event->u.mouse.x-size.width/10 > sc1->width*scale )
+	    if ( r2l ) {
+		if ( event->u.mouse.x < 9*size.width/10-sc1->width*scale )
+		    ct = ct_kerning;
+	    } else if ( col==PAIR_DX_ADV1 && event->u.mouse.x-size.width/10 > sc1->width*scale ) {
 		ct = ct_kerning;
+	    }
 	}
     }
     if ( ct!=pstkd->cursor_current ) {
@@ -3468,6 +3494,9 @@ return( true );
 static int PSTKD_DoAutoKern(PSTKernDlg *pstkd,SplineChar **glyphlist) {
     int err, touch, separation, minkern, onlyCloser;
 
+    if ( !GGadgetIsChecked(GWidgetGetControl(pstkd->gw,CID_Autokern)) )
+return( false );
+
     err = false;
     touch = GGadgetIsChecked(GWidgetGetControl(pstkd->gw,CID_Touched));
     separation = GetInt8(pstkd->gw,CID_Separation,_("Separation"),&err);
@@ -3645,7 +3674,7 @@ static int PSTKD_Ok(GGadget *g, GEvent *e) {
 	char *buts[3];
 	KernPair *kp, *kpprev, *kpnext;
 	PST *pst, *pstprev, *pstnext;
-	int err, touch=0, separation=0, minkern=0, onlyCloser=0;
+	int err, touch=0, separation=0, minkern=0, onlyCloser=0, autokern=0;
 	int _t = lookup_type == gpos_single ? pst_position
 		: lookup_type == gpos_pair ? pst_pair
 		: lookup_type == gsub_single ? pst_substitution
@@ -3661,6 +3690,7 @@ static int PSTKD_Ok(GGadget *g, GEvent *e) {
 	    separation = GetInt8(pstkd->gw,CID_Separation,_("Separation"),&err);
 	    minkern = GetInt8(pstkd->gw,CID_MinKern,_("Min Kern"),&err);
 	    onlyCloser = GGadgetIsChecked(GWidgetGetControl(pstkd->gw,CID_OnlyCloser));
+	    autokern = GGadgetIsChecked(GWidgetGetControl(pstkd->gw,CID_Autokern));
 	    if ( err )
 return( true );
 	}
@@ -3854,6 +3884,7 @@ return( true );
 	    pstkd->sub->minkern = minkern;
 	    pstkd->sub->kerning_by_touch = touch;
 	    pstkd->sub->onlyCloser = onlyCloser;
+	    pstkd->sub->dontautokern = !autokern;
 	}
 	pstkd->done = true;
     }
@@ -4134,9 +4165,9 @@ static void PSTKernD(SplineFont *sf, struct lookup_subtable *sub, int def_layer)
     GWindowAttrs wattrs;
     char title[300];
     struct matrixinit mi;
-    GGadgetCreateData gcd[22], buttongcd[6], box[6];
-    GGadgetCreateData *h1array[8], *h2array[7], *h3array[7], *varray[20], *h4array[8];
-    GTextInfo label[22], buttonlabel[6];
+    GGadgetCreateData gcd[23], buttongcd[6], box[6], hbox;
+    GGadgetCreateData *h1array[8], *h2array[7], *h3array[7], *varray[20], *h4array[8], *h5array[4];
+    GTextInfo label[23], buttonlabel[6];
     int i,k,mi_pos, mi_k;
     enum otlookup_type lookup_type = sub->lookup->lookup_type;
     char sepbuf[40], mkbuf[40];
@@ -4445,7 +4476,6 @@ static void PSTKernD(SplineFont *sf, struct lookup_subtable *sub, int def_layer)
 	label[i].text_is_1byte = true;
 	label[i].text_in_resource = true;
 	gcd[i].gd.label = &label[i];
-	gcd[i].gd.pos.x = 5; gcd[i].gd.pos.y = 5+4; 
 	gcd[i].gd.flags = gg_enabled|gg_visible|gg_utf8_popup;
 	if ( sub->onlyCloser )
 	    gcd[i].gd.flags = gg_enabled|gg_visible|gg_utf8_popup|gg_cb_on;
@@ -4454,7 +4484,26 @@ static void PSTKernD(SplineFont *sf, struct lookup_subtable *sub, int def_layer)
 	    "so the kerning offset will be negative.");
 	gcd[i].gd.cid = CID_OnlyCloser;
 	gcd[i].creator = GCheckBoxCreate;
-	varray[k++] = &gcd[i++]; varray[k++] = NULL;
+	h5array[0] = &gcd[i++];
+
+	label[i].text = (unichar_t *) _("Autokern new entries");
+	label[i].text_is_1byte = true;
+	label[i].text_in_resource = true;
+	gcd[i].gd.label = &label[i];
+	gcd[i].gd.flags = gg_enabled|gg_visible|gg_utf8_popup;
+	if ( !sub->dontautokern )
+	    gcd[i].gd.flags = gg_enabled|gg_visible|gg_utf8_popup|gg_cb_on;
+	gcd[i].gd.popup_msg = (unichar_t *) _(
+	    "When adding new entries provide default kerning values.");
+	gcd[i].gd.cid = CID_Autokern;
+	gcd[i].creator = GCheckBoxCreate;
+	h5array[1] = &gcd[i++]; h5array[2] = NULL;
+
+	memset(&hbox,0,sizeof(hbox));
+	hbox.gd.flags = gg_enabled|gg_visible;
+	hbox.gd.u.boxelements = h5array;
+	hbox.creator = GHBoxCreate;
+	varray[k++] = &hbox; varray[k++] = NULL;
 
 	label[i].text = (unichar_t *) _("Size:");
 	label[i].text_is_1byte = true;
@@ -4948,7 +4997,7 @@ return( true );
     kf = (struct kf_dlg *) (active_fv->b.container);
 
     if (( event->type==et_mouseup || event->type==et_mousedown ) &&
-	    (event->u.mouse.button==4 || event->u.mouse.button==5) ) {
+	    (event->u.mouse.button>=4 && event->u.mouse.button<=7) ) {
 return( GGadgetDispatchEvent(active_fv->vsb,event));
     }
     
@@ -4986,6 +5035,7 @@ return( true );
 #undef CID_MinKern
 #undef CID_Touched
 #undef CID_OnlyCloser
+#undef CID_Autokern
 #define CID_KPairs	1000
 #define CID_KClasses	1001
 #define CID_KCBuild	1002
@@ -4993,9 +5043,9 @@ return( true );
 #define CID_MinKern	1004
 #define CID_Touched	1005
 #define CID_ClassDistance	1006
-#define CID_KPAuto	1007
 #define CID_Guts	1008
 #define CID_OnlyCloser	1009
+#define CID_Autokern	1010
 
 struct kf_results {
     int asked;
@@ -5014,12 +5064,10 @@ static int KF_FormatChange(GGadget *g, GEvent *e) {
 	kf = GDrawGetUserData(GGadgetGetWindow(g));
 	if ( GGadgetIsChecked(GWidgetGetControl(kf->gw,CID_KPairs)) ) {
 	    GGadgetSetEnabled(GWidgetGetControl(kf->gw,CID_KCBuild),0);
-	    GGadgetSetEnabled(GWidgetGetControl(kf->gw,CID_KPAuto),1);
 	    sprintf(mkbuf,"%d",15*(kf->sf->ascent+kf->sf->descent)/1000 );
 	    GGadgetSetTitle8(GWidgetGetControl(kf->gw,CID_MinKern),mkbuf);
 	} else {
 	    GGadgetSetEnabled(GWidgetGetControl(kf->gw,CID_KCBuild),1);
-	    GGadgetSetEnabled(GWidgetGetControl(kf->gw,CID_KPAuto),0);
 	    GGadgetSetTitle8(GWidgetGetControl(kf->gw,CID_MinKern),"0");
 	}
     }
@@ -5062,9 +5110,9 @@ static int KF_OK(GGadget *g, GEvent *e) {
 
     if ( e->type==et_controlevent && e->u.control.subtype == et_buttonactivate ) {
 	struct kf_dlg *kf = GDrawGetUserData(GGadgetGetWindow(g));
-	int touch, separation, minkern, err, onlyCloser;
+	int touch, separation, minkern, err, onlyCloser, autokern;
 	real good_enough=0;
-	int isclass, autobuild=0, autokern=0;
+	int isclass, autobuild=0;
 	struct kf_results *results = kf->results;
 
 	err = false;
@@ -5072,6 +5120,7 @@ static int KF_OK(GGadget *g, GEvent *e) {
 	separation = GetInt8(kf->gw,CID_Separation,_("Separation"),&err);
 	minkern = GetInt8(kf->gw,CID_MinKern,_("Min Kern"),&err);
 	onlyCloser = GGadgetIsChecked(GWidgetGetControl(kf->gw,CID_OnlyCloser));
+	autokern = GGadgetIsChecked(GWidgetGetControl(kf->gw,CID_Autokern));
 	if ( err )
 return( true );
 
@@ -5081,8 +5130,7 @@ return( true );
 	    good_enough = GetReal8(kf->gw,CID_ClassDistance,_("Intra Class Distance"),&err);
 	    if ( err )
 return( true );
-	} else
-	    autokern = GGadgetIsChecked(GWidgetGetControl(kf->gw,CID_KPAuto));
+	}
 	if ( autobuild || autokern ) {
 	    results->firstglyphs = SelectedGlyphs(kf->first_fv);
 	    if ( results->firstglyphs == NULL )
@@ -5097,6 +5145,7 @@ return( true );
 	kf->sub->minkern = minkern;
 	kf->sub->kerning_by_touch = touch;
 	kf->sub->onlyCloser = onlyCloser;
+	kf->sub->dontautokern = !autokern;
 	results->good_enough = good_enough;
 	if ( !isclass )
 	    results->asked = 0;
@@ -5137,8 +5186,8 @@ static int kern_format_dlg( SplineFont *sf, int def_layer,
 	struct lookup_subtable *sub, struct kf_results *results ) {
     GRect pos;
     GWindowAttrs wattrs;
-    GGadgetCreateData gcd[15], boxes[7];
-    GGadgetCreateData *varray[21], *h1array[5], *h2array[6], *h3array[6], *h4array[8], *buttonarray[8];
+    GGadgetCreateData gcd[16], boxes[7], hbox;
+    GGadgetCreateData *varray[21], *h2array[6], *h3array[6], *h4array[8], *buttonarray[8], *h5array[4];
     GTextInfo label[15];
     char sepbuf[40], mkbuf[40], distancebuf[40];
     struct kf_dlg kf;
@@ -5210,22 +5259,6 @@ static int kern_format_dlg( SplineFont *sf, int def_layer,
     gcd[i].gd.handle_controlevent = KF_FormatChange;
     gcd[i].creator = GRadioCreate;
     varray[j++] = &gcd[i++]; varray[j++] = NULL;
-
-    label[i].text = (unichar_t *) _("FontForge will auto kern the selected glyphs");
-    label[i].text_is_1byte = true;
-    label[i].text_in_resource = true;
-    gcd[i].gd.label = &label[i];
-    gcd[i].gd.flags = gg_enabled|gg_visible|gg_utf8_popup|gg_cb_on;
-    gcd[i].gd.popup_msg = (unichar_t *) _(
-	"FontForge will look at the glyphs selected in the font view\n"
-	"and guess at good kerning values for them" );
-    gcd[i].gd.cid = CID_KPAuto;
-    gcd[i].creator = GCheckBoxCreate;
-    h1array[0] = GCD_HPad10; h1array[1] = &gcd[i++]; h1array[2] = GCD_Glue; h1array[3] = NULL;
-    boxes[2].gd.flags = gg_enabled|gg_visible;
-    boxes[2].gd.u.boxelements = h1array;
-    boxes[2].creator = GHBoxCreate;
-    varray[j++] = &boxes[2]; varray[j++] = NULL;
 
     label[i].text = (unichar_t *) _("Use a matrix of kerning classes");
     label[i].text_is_1byte = true;
@@ -5371,7 +5404,6 @@ static int kern_format_dlg( SplineFont *sf, int def_layer,
 	label[i].text_is_1byte = true;
 	label[i].text_in_resource = true;
 	gcd[i].gd.label = &label[i];
-	gcd[i].gd.pos.x = 5; gcd[i].gd.pos.y = 5+4; 
 	gcd[i].gd.flags = gg_enabled|gg_visible|gg_utf8_popup|gg_cb_on;
 	if ( sub->onlyCloser )
 	    gcd[i].gd.flags = gg_enabled|gg_visible|gg_utf8_popup|gg_cb_on;
@@ -5380,7 +5412,26 @@ static int kern_format_dlg( SplineFont *sf, int def_layer,
 	    "so the kerning offset will be negative.");
 	gcd[i].gd.cid = CID_OnlyCloser;
 	gcd[i].creator = GCheckBoxCreate;
-	varray[j++] = &gcd[i++]; varray[j++] = NULL;
+	h5array[0] = &gcd[i++];
+
+	label[i].text = (unichar_t *) _("Autokern new entries");
+	label[i].text_is_1byte = true;
+	label[i].text_in_resource = true;
+	gcd[i].gd.label = &label[i];
+	gcd[i].gd.flags = gg_enabled|gg_visible|gg_utf8_popup;
+	if ( !sub->dontautokern )
+	    gcd[i].gd.flags = gg_enabled|gg_visible|gg_utf8_popup|gg_cb_on;
+	gcd[i].gd.popup_msg = (unichar_t *) _(
+	    "When adding new entries provide default kerning values.");
+	gcd[i].gd.cid = CID_Autokern;
+	gcd[i].creator = GCheckBoxCreate;
+	h5array[1] = &gcd[i++]; h5array[2] = NULL;
+
+	memset(&hbox,0,sizeof(hbox));
+	hbox.gd.flags = gg_enabled|gg_visible;
+	hbox.gd.u.boxelements = h5array;
+	hbox.creator = GHBoxCreate;
+	varray[j++] = &hbox; varray[j++] = NULL;
 
     guts_row = j/2;
     gcd[i].gd.flags = gg_enabled|gg_visible;
@@ -5421,7 +5472,6 @@ static int kern_format_dlg( SplineFont *sf, int def_layer,
     GGadgetsCreate(kf.gw,boxes);
 
     GHVBoxSetExpandableRow(boxes[0].ret,guts_row);
-    GHVBoxSetExpandableCol(boxes[2].ret,gb_expandglue);
     GHVBoxSetExpandableCol(boxes[3].ret,gb_expandglue);
     GHVBoxSetExpandableCol(boxes[4].ret,gb_expandglue);
     GHVBoxSetExpandableCol(boxes[5].ret,gb_expandglue);
@@ -5446,6 +5496,7 @@ void _LookupSubtableContents(SplineFont *sf, struct lookup_subtable *sub,
 	struct subtable_data *sd,int def_layer) {
     int lookup_type = sub->lookup->lookup_type;
     static int nested=0;
+    extern int default_autokern_dlg;
 
     if ( (lookup_type == gsub_context || lookup_type == gsub_contextchain ||
 		lookup_type == gsub_reversecchain ||
@@ -5494,7 +5545,7 @@ void _LookupSubtableContents(SplineFont *sf, struct lookup_subtable *sub,
 	else if ( sd!=NULL && (sd->flags&sdf_kernpair) )
 	    results.asked = 0;
 	else {
-	    if ( sub->vertical_kerning || nested ) {
+	    if ( sub->vertical_kerning || nested || !default_autokern_dlg ) {
 		buts[0] = _("_Pairs"); buts[1] = _("C_lasses");
 		buts[2] = _("_Cancel"); buts[3]=NULL;
 		results.asked = gwwv_ask(_("Kerning format"),(const char **) buts,0,1,_("Kerning may be specified either by classes of glyphs\nor by pairwise combinatins of individual glyphs.\nWhich do you want for this subtable?") );
@@ -5519,6 +5570,7 @@ return;
 		}
 		AutoKern2(sf, def_layer,lefts,rights,
 		    sub,
+		    /* If separation==0 and !touch then use default values */
 		    0,0,0,0, 0, NULL, NULL);
 	    }
 	} else {
@@ -5540,8 +5592,9 @@ return;
 #endif
 		/* Need to fix for Hebrew !!!! */
 	    if ( results.autobuild )
+		/* Specifying separation==0 and !touching means use default values */
 		AutoKern2BuildClasses(sf,def_layer,results.firstglyphs,
-			results.secondglyphs,sub,0,0,0,0,results.good_enough);
+			results.secondglyphs,sub,0,0,0,0,0,results.good_enough);
 	}
 	free(results.firstglyphs);
 	free(results.secondglyphs);

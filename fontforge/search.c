@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -66,10 +66,10 @@ static int SPMatchesF(SplinePoint *sp, SearchData *s, SplineSet *path,
 	SplinePoint *sc_path_first, int substring ) {
     SplinePoint *sc_sp, *nsc_sp, *p_sp, *np_sp;
     int flip, flipmax;
-    double rot, scale;
+    bigreal rot, scale;
     int saw_sc_first = false, first_of_path;
     BasePoint p_unit, pend_unit, sc_unit;
-    double len, temp;
+    bigreal len, temp;
 
     s->matched_sp = sp;
     s->matched_rot = 0;
@@ -992,7 +992,7 @@ static void DoReplaceFull(SplineChar *sc,SearchData *s) {
 	    s->already_complained = true;
 	}
     }
-    temp = SplinePointListTransform(SplinePointListCopy(s->sc_rpl.layers[ly_fore].splines),transform,true);
+    temp = SplinePointListTransform(SplinePointListCopy(s->sc_rpl.layers[ly_fore].splines),transform,tpt_AllPoints);
     if ( sc->layers[layer].splines==NULL )
 	sc->layers[layer].splines = temp;
     else {

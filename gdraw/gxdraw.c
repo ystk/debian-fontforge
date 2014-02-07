@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -2659,7 +2659,7 @@ static void GXDrawScroll(GWindow _w, GRect *rect, int32 hor, int32 vert) {
 	rect = &temp;
     }
 
-    /*GDrawForceUpdate((GWindow) gw);		/* need to make sure the screen holds what it should */
+    /*GDrawForceUpdate((GWindow) gw); */	/* need to make sure the screen holds what it should */
 		/* but user has to do it, it's probably too late here */
     GDrawPushClip(_w,rect,&old);
 #ifdef _COMPOSITE_BROKEN
@@ -3511,7 +3511,7 @@ return;
 /*  bit set, then scim returns no keysym and no characters. On the other hand,*/
 /*  if I don't leave that bit set, then the default input method on the mac */
 /*  will not do the Option key transformations properly. What I pass should */
-/*  be IM independant. So I don't think I should have to do the next line */
+/*  be IM independent. So I don't think I should have to do the next line */
 		event->xkey.state &= ~Mod2Mask;
 /* But I do */
 		len = Xutf8LookupString(((GXWindow) gw)->gic->ic,(XKeyPressedEvent*)event,

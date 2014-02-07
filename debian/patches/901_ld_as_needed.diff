@@ -1,0 +1,26 @@
+--- a/configure.static.in
++++ b/configure.static.in
+@@ -158,7 +158,7 @@
+         python="no"
+       elif test "$PySubVersion" \!= "" -a "$PySubVersion" -ge 3 -a -e $PyLib -a -e $PyInc; then
+ 	PyIncs=`python -c "import distutils.sysconfig ; print '-I%s' % distutils.sysconfig.get_config_var('INCLUDEPY')"`
+-        PyLibs=`python -c "import distutils.sysconfig ; print '%s/%s %s' % (distutils.sysconfig.get_config_var('LIBPL'),distutils.sysconfig.get_config_var('LDLIBRARY'),distutils.sysconfig.get_config_var('LIBS'))"`
++        PyLibs=`${python_prog}-config --libs`
+         LIBS="$LIBS $PyLibs"
+ 	CPPFLAGS="$CPPFLAGS $PyIncs"
+       else
+--- a/configure.dynamic.in
++++ b/configure.dynamic.in
+@@ -280,10 +280,10 @@
+       else
+ 	python="no"
+       fi
+-      PyLib=`$python_prog -c "import distutils.sysconfig ; print(distutils.sysconfig.get_config_var('LIBPL') + '/' + distutils.sysconfig.get_config_var('LDLIBRARY'))"`
++      PyLib=`${python_prog}-config --libs`
+       if test "$py_lib" != "" ; then
+         LIBS="$LIBS $py_lib"
+-      elif test "$PyLib" != "" -a -e "$PyLib" ; then
++      elif test "$PyLib" != ""; then
+         LIBS="$LIBS $PyLib"
+       else
+ 	AC_SEARCH_LIBS(Py_Main, $PyName python, : , python="no")

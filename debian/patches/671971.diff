@@ -1,0 +1,66 @@
+Description: define SHELL in makefiles
+Author: Jakub Wilk <jwilk@debian.org>
+Bug-Debian: http://bugs.debian.org/671971
+Forwarded: no
+Last-Update: 2012-05-13
+
+--- a/plugins/Makefile.in
++++ b/plugins/Makefile.in
+@@ -10,6 +10,7 @@
+ libdir = @libdir@
+ plugindir = $(sharedir)/plugins
+ 
++SHELL = @SHELL@
+ LIBTOOL = @LIBTOOL@
+ INSTALL = @INSTALL@
+ CC = @CC@
+--- a/Makefile.dynamic.in
++++ b/Makefile.dynamic.in
+@@ -14,6 +14,7 @@
+ srcdir = @srcdir@
+ top_builddir = .
+ 
++SHELL = @SHELL@
+ LIBTOOL = @LIBTOOL@
+ INSTALL = @INSTALL@
+ INSTALL_DATA = @INSTALL_DATA@
+--- a/Unicode/Makefile.dynamic.in
++++ b/Unicode/Makefile.dynamic.in
+@@ -11,6 +11,7 @@
+ GU_REVISION=2
+ GU_AGE=0
+ 
++SHELL = @SHELL@
+ LIBTOOL = @LIBTOOL@
+ CC = @CC@
+ 
+--- a/fontforge/Makefile.dynamic.in
++++ b/fontforge/Makefile.dynamic.in
+@@ -10,6 +10,7 @@
+ libdir = @libdir@
+ plugindir = $(sharedir)/plugins
+ 
++SHELL = @SHELL@
+ LIBTOOL = @LIBTOOL@
+ CC = @CC@
+ O = @O_EXTENSION@
+--- a/gdraw/Makefile.dynamic.in
++++ b/gdraw/Makefile.dynamic.in
+@@ -12,6 +12,7 @@
+ GD_REVISION=10
+ GD_AGE=0
+ 
++SHELL = @SHELL@
+ LIBTOOL = @LIBTOOL@
+ CC = @CC@
+ 
+--- a/gutils/Makefile.dynamic.in
++++ b/gutils/Makefile.dynamic.in
+@@ -16,6 +16,7 @@
+ GFTP_REVISION=0
+ GFTP_AGE=0
+ 
++SHELL = @SHELL@
+ LIBTOOL = @LIBTOOL@
+ CC = @CC@
+ 

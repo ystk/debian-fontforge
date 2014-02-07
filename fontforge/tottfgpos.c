@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -104,7 +104,7 @@ static uint32 scripts[][15] = {
 /* Mathematical Alphanumeric Symbols */
 		{ CHR('m','a','t','h'), 0x1d400, 0x1d7ff },
 /* Mongolian */	{ CHR('m','o','n','g'), 0x1800, 0x18af },
-/* Musical */	{ CHR('m','u','s','i'), 0x1d100, 0x1d1ff },
+/* Musical */	{ CHR('m','u','s','c'), 0x1d100, 0x1d1ff },
 /* Myanmar */	{ CHR('m','y','m','r'), 0x1000, 0x107f },
 /* New Tai Lue*/{ CHR('t','a','l','u'), 0 },
 /* N'Ko */	{ CHR('n','k','o',' '), 0x07c0, 0x07fa },
@@ -191,7 +191,7 @@ uint32 ScriptFromUnicode(int u,SplineFont *sf) {
 		else if ( script == CHR('g','u','j','r' )) script = CHR('g','j','r','2');
 		else if ( script == CHR('g','u','r','u' )) script = CHR('g','u','r','2');
 		else if ( script == CHR('k','n','d','a' )) script = CHR('k','n','d','2');
-		else if ( script == CHR('m','l','y','m' )) script = CHR('m','l','y','2');
+		else if ( script == CHR('m','l','y','m' )) script = CHR('m','l','m','2');
 		else if ( script == CHR('o','r','y','a' )) script = CHR('o','r','y','2');
 		else if ( script == CHR('t','a','m','l' )) script = CHR('t','m','l','2');
 		else if ( script == CHR('t','e','l','u' )) script = CHR('t','e','l','2');
@@ -541,6 +541,9 @@ SplineChar **SFGlyphsFromNames(SplineFont *sf,char *names) {
     int cnt, ch;
     char *pt, *end;
     SplineChar *sc, **glyphs;
+
+    if ( names==NULL )
+return( gcalloc(1,sizeof(SplineChar *)) );
 
     cnt = 0;
     for ( pt = names; *pt; pt = end+1 ) {
@@ -973,6 +976,7 @@ static void dumpGPOSpairpos(FILE *gpos,SplineFont *sf,struct lookup_subtable *su
 			devtablen += ValDevTabLen(pst->u.pair.vr[0].adjust) +
 				 ValDevTabLen(pst->u.pair.vr[1].adjust);
 #endif
+
 		    }
 		    ++tot;
 		}
@@ -1121,12 +1125,13 @@ static void dumpGPOSpairpos(FILE *gpos,SplineFont *sf,struct lookup_subtable *su
 
     chunk_max = chunk_cnt = 0;
     for ( start_cnt=0; start_cnt<cnt; start_cnt=end_cnt ) {
-	int len = 5*2;
+	int len = 5*2;		/* Subtable header */
 	for ( end_cnt=start_cnt; end_cnt<cnt; ++end_cnt ) {
 	    int glyph_len = 2;		/* For the glyph's offset */
 	    if ( seconds[end_cnt][0].samewas==0xffff || seconds[end_cnt][0].samewas<start_cnt )
 		glyph_len += (bit_cnt*2+2)*seconds[end_cnt][0].tot +
-				seconds[end_cnt][0].devtablen;
+				seconds[end_cnt][0].devtablen +
+			        2;	/* Number of secondary glyphs */
 	    if ( glyph_len>65535 && end_cnt==start_cnt ) {
 		LogError(_("Lookup subtable %s contains a glyph %s whose kerning information takes up more than 64k bytes\n"),
 			sub->subtable_name, glyphs[start_cnt]->name );
@@ -1239,6 +1244,8 @@ static void dumpGPOSpairpos(FILE *gpos,SplineFont *sf,struct lookup_subtable *su
 	}
 	end = ftell(gpos);
 	fseek(gpos,coverage_pos,SEEK_SET);
+	if ( end-start>65535 )
+	    IError(_("I miscalculated the size of subtable %s, this means the kerning output is wrong."), sub->subtable_name );
 	putshort(gpos,end-start);
 	fseek(gpos,end,SEEK_SET);
 	gtemp = glyphs[end_cnt]; glyphs[end_cnt] = NULL;
@@ -3138,19 +3145,16 @@ return( NULL );
 #endif
 	fseek(g___,size_params_loc,SEEK_SET);
 	putshort(g___,sf->design_size);
-	if ( sf->fontstyle_id!=0 || sf->fontstyle_name!=NULL ||
-		sf->design_range_bottom!=0 || sf->design_range_top!=0 ) {
+	if ( sf->fontstyle_id!=0 || sf->fontstyle_name!=NULL ) {
 	    putshort(g___,sf->fontstyle_id);
 	    at->fontstyle_name_strid = at->next_strid++;
 	    putshort(g___,at->fontstyle_name_strid);
-	    putshort(g___,sf->design_range_bottom);
-	    putshort(g___,sf->design_range_top);
 	} else {
 	    putshort(g___,0);
 	    putshort(g___,0);
-	    putshort(g___,0);
-	    putshort(g___,0);
 	}
+	putshort(g___,sf->design_range_bottom);
+	putshort(g___,sf->design_range_top);
     }
     for ( i=0; i<ginfo.fcnt; ++i ) {
 	if ( ginfo.feat_lookups[i].name_param_ptr!=0 &&
@@ -3207,7 +3211,7 @@ return( NULL );
     for ( otf = all; otf!=NULL; otf=otf->next ) if ( otf->lookup_index!=-1 ) {
 	putshort(g___,!otf->needs_extension ? (otf->lookup_type&0xff)
 			: is_gpos ? 9 : 7);
-	putshort(g___,otf->lookup_flags);
+	putshort(g___,(otf->lookup_flags&0xffff));
 	putshort(g___,otf->subcnt);
 	for ( sub = otf->subtables; sub!=NULL; sub=sub->next ) {
 	    if ( sub->subtable_offset==-1 )
@@ -3249,6 +3253,7 @@ return( NULL );
 	    free(sub->extra_subtables);
 	    sub->extra_subtables = NULL;
 	}
+	otf->needs_extension = false;
     }
 return( g___ );
 }

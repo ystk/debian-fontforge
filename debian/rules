@@ -7,6 +7,8 @@
 # This has to be exported to make some magic below work.
 export DH_OPTIONS
 
+export CONFIG_SHELL=/bin/bash
+
 LIBTOOLVERSION = $(shell dpkg-query -W -f='$${Version}\n' "libtool")
 
 DIST=$(shell lsb_release -i -s)
@@ -17,7 +19,7 @@ CONFIG_OPTS = --prefix=/usr \
               --with-regular-link \
               --enable-devicetables \
               --enable-pyextension \
-              --with-type3 \
+              --enable-type3 \
               --with-freetype-src
 
 ifeq "$(DIST)" "Ubuntu"
@@ -57,7 +59,7 @@ configure-stamp:
 		set -e; cp configure.dynamic.in configure.in; libtoolize --force --copy; aclocal; autoconf; \
 	fi
 
-	./configure $(CROSS) ${CONFIG_OPTS} CFLAGS="$(CFLAGS)"
+	./configure $(CROSS) ${CONFIG_OPTS} $(shell dpkg-buildflags --export=configure)
 
 	touch $@
 
@@ -67,11 +69,13 @@ configure-stamp-nox:
 
 	[ ! -f Makefile ] || $(MAKE) distclean
 
-	./configure $(CROSS) ${CONFIG_OPTS} --without-x CFLAGS="$(CFLAGS)"
+	./configure $(CROSS) ${CONFIG_OPTS} --without-x $(shell dpkg-buildflags --export=configure)
 
 	touch $@
 
-build: build-stamp
+build: build-arch build-indep
+build-arch: build-stamp
+build-indep: build-stamp
 build-stamp:  configure-stamp
 	dh_testdir
 
@@ -104,7 +108,7 @@ clean:
 	rm -rf Unicode/.libs Unicode/Makefile.in
 	rm -rf gdraw/.libs gdraw/Makefile.in
 	rm -rf fontforge/Makefile.in gutils/Makefile.in fontforge/FontForge.pot
-	rm -f Makefile.in aclocal.m4 ltmain.sh config.log
+	rm -f Makefile.in aclocal.m4 ltmain.sh config.log configure.lineno
 
 	dh_clean  --exclude ./fontforge/FontForge-MenuShortCuts.pot.orig --exclude ./fontforge/nowakowskittfinstr.c.orig --exclude ./fontforge/scstyles.c.orig
 
@@ -118,8 +122,8 @@ install: build
 	chrpath -d $(CURDIR)/debian/fontforge/usr/bin/fontforge
 
 	cp -p $(CURDIR)/debian/fontforge/usr/include/fontforge/* $(CURDIR)/debian/libfontforge-dev/usr/include/fontforge
-	-rm -rf $(CURDIR)/debian/fontforge/usr/include
-	mv $(CURDIR)/debian/libfontforge1/usr/lib/*.la $(CURDIR)/debian/libfontforge-dev/usr/lib
+	-rm -rf $(CURDIR)/debian/fontforge/usr/include \
+                $(CURDIR)/debian/libfontforge1/usr/lib/*.la
 	mv $(CURDIR)/debian/libfontforge1/usr/lib/lib*.so $(CURDIR)/debian/libfontforge-dev/usr/lib
 	mv -t $(CURDIR)/debian/libfontforge-dev/usr/lib $(CURDIR)/debian/libfontforge1/usr/lib/pkgconfig
 
@@ -129,7 +133,8 @@ install: build
 	mv $(CURDIR)/debian/fontforge/usr/share/fontforge/python $(CURDIR)/debian/python-fontforge/usr/share/fontforge
 
 	cp -p Packaging/fontforge.desktop debian/fontforge/usr/share/applications/
-	cp -p debian/ffanvil32.xpm debian/fontforge/usr/share/icons/
+	cp -p Packaging/fontforge.png debian/fontforge/usr/share/pixmaps/
+	cp -p debian/fontforge.xpm debian/fontforge/usr/share/pixmaps/
 	cp Packaging/fontforge.xml debian/fontforge.sharedmimeinfo
 
 	dh_install -s
@@ -156,11 +161,13 @@ binary-common:
 	dh_installmime
 	dh_installman
 	dh_link
+	dh_python2 -ppython-fontforge
+	dh_strip --exclude=fontforge-nox --dbg-package=fontforge-dbg
+	# strip again to clean up the binaries in fontforge-nox:
 	dh_strip
 	dh_compress
 	dh_fixperms
 	dh_makeshlibs
-	dh_pysupport -ppython-fontforge
 	dh_installdeb
 	dh_shlibdeps
 	dh_gencontrol

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -200,10 +200,10 @@ return;
 	else if ( metrics==NULL && sc->width!=dlist->sc->width )
     continue;
 	SCPreserveLayer(dlist->sc,layer,false);
-	SplinePointListShift(dlist->sc->layers[layer].splines,off,true);
+	SplinePointListShift(dlist->sc->layers[layer].splines,off,tpt_AllPoints);
 	for ( ref = dlist->sc->layers[layer].refs; ref!=NULL; ref=ref->next )
 		if ( ref->sc!=sc ) {
-	    SplinePointListShift(ref->layers[0].splines,off,true);
+	    SplinePointListShift(ref->layers[0].splines,off,tpt_AllPoints);
 	    ref->transform[4] += off;
 	    ref->bb.minx += off; ref->bb.maxx += off;
 	}
@@ -536,7 +536,7 @@ void SCCopyLayerToLayer(SplineChar *sc, int from, int to,int doclear) {
 
 int BpColinear(BasePoint *first, BasePoint *mid, BasePoint *last) {
     BasePoint dist_f, unit_f, dist_l, unit_l;
-    double len, off_l, off_f;
+    bigreal len, off_l, off_f;
 
     dist_f.x = first->x - mid->x; dist_f.y = first->y - mid->y;
     len = sqrt( dist_f.x*dist_f.x + dist_f.y*dist_f.y );
@@ -560,7 +560,7 @@ return( true );
 
 int BpWithin(BasePoint *first, BasePoint *mid, BasePoint *last) {
     BasePoint dist_mf, unit_mf, dist_lf, unit_lf;
-    double len, off_lf, off_mf, len2;
+    bigreal len, off_lf, off_mf, len2;
 
     dist_mf.x = mid->x - first->x; dist_mf.y = mid->y - first->y;
     len = sqrt( dist_mf.x*dist_mf.x + dist_mf.y*dist_mf.y );
@@ -585,7 +585,7 @@ return( len2>=0 && len2<=len );
 
 void SPChangePointType(SplinePoint *sp, int pointtype) {
     BasePoint unitnext, unitprev;
-    double nextlen, prevlen;
+    bigreal nextlen, prevlen;
     int makedflt;
     /*int oldpointtype = sp->pointtype;*/
 
@@ -640,7 +640,7 @@ return;
 	if ( nextlen!=0 && prevlen!=0 ) {
 	    unitnext.x /= nextlen; unitnext.y /= nextlen;
 	    unitprev.x /= prevlen; unitprev.y /= prevlen;
-	    if ( unitnext.x*unitprev.x + unitnext.y*unitprev.y>=.95 ) {
+	    if ( unitnext.x*unitprev.x + unitnext.y*unitprev.y<=-.95 ) {
 		/* If the control points are essentially in the same direction*/
 		/*  (so valid for a curve) then leave them as is */
 		makedflt = false;
@@ -669,7 +669,7 @@ return;
 	    sp->prevcp = pcp;
 	    if ( sp->prev!=NULL && sp->prev->order2 )
 		sp->prev->from->nextcp = pcp;
-	    makedflt = true;
+	    makedflt = false;
 	}
 	if ( makedflt ) {
 	    sp->nextcpdef = sp->prevcpdef = true;
@@ -1024,6 +1024,9 @@ int SCSetMetaData(SplineChar *sc,char *name,int unienc,const char *comment) {
     int isnotdef, samename=false, sameuni=false;
     struct altuni *alt;
 
+    if ( sf->glyphs[sc->orig_pos]!=sc )
+	IError("Bad call to SCSetMetaData");
+
     for ( alt=sc->altuni; alt!=NULL && (alt->unienc!=unienc || alt->vs!=-1 || alt->fid!=0); alt=alt->next );
     if ( unienc==sc->unicodeenc || alt!=NULL )
 	sameuni=true;
@@ -1032,7 +1035,7 @@ int SCSetMetaData(SplineChar *sc,char *name,int unienc,const char *comment) {
     }
     if ( alt!=NULL || !samename ) {
 	isnotdef = strcmp(name,".notdef")==0;
-	for ( i=0; i<sf->glyphcnt; ++i ) if ( sf->glyphs[i]!=NULL && sf->glyphs[i]!=sc ) {
+	for ( i=0; i<sf->glyphcnt; ++i ) if ( sf->glyphs[i]!=NULL && sf->glyphs[i]->orig_pos!=sc->orig_pos ) {
 	    if ( unienc!=-1 && sf->glyphs[i]->unicodeenc==unienc ) {
 		if ( !mv && !MultipleValues(sf->glyphs[i]->name,i)) {
 return( false );
@@ -1108,7 +1111,9 @@ return( true );
 
 void RevertedGlyphReferenceFixup(SplineChar *sc, SplineFont *sf) {
     RefChar *refs, *prev, *next;
-    int layer;
+    KernPair *kp, *kprev, *knext;
+    SplineFont *cidmaster = sf, *ksf;
+    int layer, isv, l;
 
     for ( layer = 0; layer<sc->layer_cnt; ++layer ) {
 	for ( prev=NULL, refs = sc->layers[layer].refs ; refs!=NULL; refs = next ) {
@@ -1128,6 +1133,38 @@ void RevertedGlyphReferenceFixup(SplineChar *sc, SplineFont *sf) {
 	    }
 	}
     }
+    /* Fixup kerning pairs as well */
+    for ( isv=0; isv<2; ++isv ) {
+	for ( kprev = NULL, kp=isv?sc->vkerns : sc->kerns; kp!=NULL; kp=knext ) {
+	    int index = (intpt) (kp->sc);
+	    knext = kp->next;
+	    kp->kcid = false;
+	    ksf = sf;
+	    if ( cidmaster!=sf ) {
+		for ( l=0; l<cidmaster->subfontcnt; ++l ) {
+		    ksf = cidmaster->subfonts[l];
+		    if ( index<ksf->glyphcnt && ksf->glyphs[index]!=NULL )
+	    break;
+		}
+	    }
+	    if ( index>=ksf->glyphcnt || ksf->glyphs[index]==NULL ) {
+		IError( "Bad kerning information in glyph %s\n", sc->name );
+		kp->sc = NULL;
+	    } else
+		kp->sc = ksf->glyphs[index];
+	    if ( kp->sc!=NULL )
+		kprev = kp;
+	    else{
+		if ( kprev!=NULL )
+		    kprev->next = knext;
+		else if ( isv )
+		    sc->vkerns = knext;
+		else
+		    sc->kerns = knext;
+		chunkfree(kp,sizeof(KernPair));
+	    }
+	}
+    }
 }
 
 static int CheckBluePair(char *blues, char *others, int bluefuzz,
@@ -1141,7 +1178,7 @@ static int CheckBluePair(char *blues, char *others, int bluefuzz,
 	while ( *others==' ' ) ++others;
 	if ( *others=='[' || *others=='{' ) ++others;
 	for ( cnt=0; ; ++cnt ) {
-	    double temp;
+	    bigreal temp;
 	    while ( *others==' ' ) ++others;
 	    if ( *others==']' || *others=='}' )
 	break;
@@ -1165,7 +1202,7 @@ static int CheckBluePair(char *blues, char *others, int bluefuzz,
     while ( *blues==' ' ) ++blues;
     if ( *blues=='{' || *blues=='[' ) ++blues;
     for ( cnt=0; ; ++cnt ) {
-	double temp;
+	bigreal temp;
 	while ( *blues==' ' ) ++blues;
 	if ( *blues==']' || *blues=='}' )
     break;
@@ -1208,7 +1245,7 @@ return( err );
 
 static int CheckStdW(struct psdict *dict,char *key ) {
     char *str_val, *end;
-    double val;
+    bigreal val;
 
     if ( (str_val = PSDictHasEntry(dict,key))==NULL )
 return( true );
@@ -1231,8 +1268,8 @@ return( true );
 
 static int CheckStemSnap(struct psdict *dict,char *snapkey, char *stdkey ) {
     char *str_val, *end;
-    double std_val = -1;
-    double stems[12], temp;
+    bigreal std_val = -1;
+    bigreal stems[12], temp;
     int cnt, found;
     /* At most 12 double values, in order, must include Std?W value, array */
 
@@ -1276,7 +1313,7 @@ int ValidatePrivate(SplineFont *sf) {
     int errs = 0;
     char *blues, *bf, *test, *end;
     int fuzz = 1;
-    double bluescale = .039625;
+    bigreal bluescale = .039625;
     int magicpointsize;
 
     if ( sf->private==NULL )
@@ -1460,7 +1497,7 @@ int SCValidate(SplineChar *sc, int layer, int force) {
     int cnt, path_cnt, pt_cnt;
     StemInfo *h;
     SplineSet *base;
-    double len2, bound2, x, y;
+    bigreal len2, bound2, x, y;
     extended extrema[4];
     PST *pst;
     struct ttf_table *tab;
@@ -1886,17 +1923,17 @@ static int CutCircle(SplineSet *spl,BasePoint *me,int first) {
     SplinePoint *end;
     extended ts[3];
     int i;
-    double best_t = -1;
+    bigreal best_t = -1;
     Spline *best_s = NULL;
-    double best_off = 2;
+    bigreal best_off = 2;
 
     firsts = NULL;
     for ( s = spl->first->next ; s!=NULL && s!=firsts; s = s->to->next ) {
 	if ( firsts==NULL ) firsts = s;
-	SplineSolveFull(&s->splines[0],me->x,ts);
+	CubicSolve(&s->splines[0],me->x,ts);
 	for ( i=0; i<3 && ts[i]!=-1; ++i ) {
-	    double y = ((s->splines[1].a*ts[i]+s->splines[1].b)*ts[i]+s->splines[1].c)*ts[i]+s->splines[1].d;
-	    double off = me->y-y;
+	    bigreal y = ((s->splines[1].a*ts[i]+s->splines[1].b)*ts[i]+s->splines[1].c)*ts[i]+s->splines[1].d;
+	    bigreal off = me->y-y;
 	    if ( off<0 ) off = -off;
 	    if ( off < best_off ) {
 		best_s = s;
@@ -1935,7 +1972,7 @@ return( true );
 }
 
 static void PrevSlope(SplinePoint *sp,BasePoint *slope) {
-    double len;
+    bigreal len;
 
     if ( sp->prev==NULL )
 	slope->x = slope->y = 0;
@@ -1946,7 +1983,7 @@ static void PrevSlope(SplinePoint *sp,BasePoint *slope) {
 	slope->x = sp->me.x - sp->prevcp.x;
 	slope->y = sp->me.x - sp->prevcp.y;
     } else {
-	double t = 1.0-1/256.0;
+	bigreal t = 1.0-1/256.0;
 	slope->x = (3*sp->prev->splines[0].a*t+2*sp->prev->splines[0].b)*t+sp->prev->splines[0].c;
 	slope->y = (3*sp->prev->splines[1].a*t+2*sp->prev->splines[1].b)*t+sp->prev->splines[1].c;
     }
@@ -1959,7 +1996,7 @@ return;
 }
 
 static void NextSlope(SplinePoint *sp,BasePoint *slope) {
-    double len;
+    bigreal len;
 
     if ( sp->next==NULL )
 	slope->x = slope->y = 0;
@@ -1970,7 +2007,7 @@ static void NextSlope(SplinePoint *sp,BasePoint *slope) {
 	slope->x = sp->nextcp.x - sp->me.x;
 	slope->y = sp->nextcp.y - sp->me.y;
     } else {
-	double t = 1/256.0;
+	bigreal t = 1/256.0;
 	slope->x = (3*sp->next->splines[0].a*t+2*sp->next->splines[0].b)*t+sp->next->splines[0].c;
 	slope->y = (3*sp->next->splines[1].a*t+2*sp->next->splines[1].b)*t+sp->next->splines[1].c;
     }
@@ -1989,7 +2026,7 @@ static int EllipseClockwise(SplinePoint *sp1,SplinePoint *sp2,BasePoint *slope1,
     SplinePoint *e1, *e2;
     SplineSet *ss;
     int ret;
-    double len;
+    bigreal len;
 
     e1 = SplinePointCreate(sp1->me.x,sp1->me.y);
     e2 = SplinePointCreate(sp2->me.x,sp2->me.y);
@@ -2009,22 +2046,22 @@ static int EllipseClockwise(SplinePoint *sp1,SplinePoint *sp2,BasePoint *slope1,
 return( ret );
 }
 
-static int BuildEllipse(int clockwise,double r1,double r2, double theta,
+static int BuildEllipse(int clockwise,bigreal r1,bigreal r2, bigreal theta,
 	BasePoint *center,SplinePoint *sp1,SplinePoint *sp2,CharViewBase *cv,
 	int changed, int order2, int ellipse_to_back) {
     SplineSet *spl, *ss=NULL;
     real trans[6];
-    double c,s;
+    bigreal c,s;
 
     spl = UnitCircle(clockwise);
     memset(trans,0,sizeof(trans));
     trans[0] = r1; trans[3] = r2;
-    SplinePointListTransform(spl,trans,true);
+    SplinePointListTransform(spl,trans,tpt_AllPoints);
     c = cos(theta); s = sin(theta);
     trans[0] = trans[3] = c;
     trans[1] = s; trans[2] = -s;
     trans[4] = center->x; trans[5] = center->y;
-    SplinePointListTransform(spl,trans,true);
+    SplinePointListTransform(spl,trans,tpt_AllPoints);
     if ( ellipse_to_back && CVLayer(cv)!=ly_back )
 	/* Originally this was debugging code... but hey, it's kind of neat */
 	/*  and may prove useful if we need to do more debugging. Invoked by */
@@ -2070,7 +2107,7 @@ return( true );
 static int MakeEllipseWithAxis(CharViewBase *cv,SplinePoint *sp1,SplinePoint *sp2,int order2,
 	int changed, int ellipse_to_back ) {
     BasePoint center;
-    double r1,r2, len, dot, theta, c, s, factor, denom;
+    bigreal r1,r2, len, dot, theta, c, s, factor, denom;
     BasePoint slope1, slope2, offset, roffset, rslope, temp;
     int clockwise;
 
@@ -2168,20 +2205,20 @@ return( BuildEllipse(clockwise,r1,r1/factor,theta,&center,sp1,sp2,cv,changed,
 static int EllipseSomewhere(CharViewBase *cv,SplinePoint *sp1,SplinePoint *sp2,
 	int order2, int changed, int ellipse_to_back ) {
     BasePoint center;
-    double len, dot, rc, rs;
+    bigreal len, dot, rc, rs;
     BasePoint slope1, slope2, temp;
     struct transstate {
 	BasePoint me1, me2;
 	BasePoint slope1, slope2;
     } centered, rot;
-    double bestrot=9999, bestrtest = 1e50, e1sq, e2sq, r1, r2, rtest;
-    double low, high, offset=PI/128., rotation;
+    bigreal bestrot=9999, bestrtest = 1e50, e1sq, e2sq, r1, r2, rtest;
+    bigreal low, high, offset=PI/128., rotation;
     int i;
     int clockwise;
     /* First figure out a center. There will be one: */
     /*  Take a line through sp1 but parallel to slope2 */
     /*  Take a line through sp2 but parallel to slope1 */
-    /* The intersection of these two lines gives us a center
+    /* The intersection of these two lines gives us a center */
     /* First rotate everything by the rotation angle (around the origin -- it */
     /*  will do to cancel out the rotation */
 
@@ -2219,7 +2256,7 @@ return( false );
     centered.me2.x = sp2->me.x - center.x; centered.me2.y = sp2->me.y - center.y;
 
     /* now guess the angle of rotation and find one which works */
-    /* doubtless there is a better way to do this, but I get lost in
+    /* doubtless there is a better way to do this, but I get lost in */
     /*  algebraic grunge */
     r1 = r2 = 1;
     for ( i=0; i<ITER; ++i ) {
@@ -2410,10 +2447,12 @@ void _CVMenuMakeLine(CharViewBase *cv,int do_arc,int ellipse_to_back) {
 			CVPreserveState(cv);
 			changed = true;
 		    }
-		    sp->nextcp = sp->me;
-		    sp->nonextcp = true;
-		    sp->next->to->prevcp = sp->next->to->me;
-		    sp->next->to->noprevcp = true;
+		    if (!do_arc) {
+			sp->nextcp = sp->me;
+			sp->nonextcp = true;
+			sp->next->to->prevcp = sp->next->to->me;
+			sp->next->to->noprevcp = true;
+		    }
 		    SplineRefigure(sp->next);
 		}
 	    }

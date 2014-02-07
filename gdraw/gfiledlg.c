@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -73,7 +73,7 @@ return( false );
 	struct gfc_data *d = GDrawGetUserData(gw);
 	GFileChooserPopupCheck(d->gfc,event);
     } else if (( event->type==et_mouseup || event->type==et_mousedown ) &&
-	    (event->u.mouse.button==4 || event->u.mouse.button==5) ) {
+	    (event->u.mouse.button>=4 && event->u.mouse.button<=7) ) {
 	struct gfc_data *d = GDrawGetUserData(gw);
 return( GGadgetDispatchEvent((GGadget *) (d->gfc),event));
     }

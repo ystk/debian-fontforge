@@ -4,4 +4,4 @@
   longtitle="Font Editor for PS, TrueType and OpenType fonts" \
   command="/usr/bin/fontforge" \
   hints="Fonts" \
-  icon="/usr/share/icons/ffanvil32.xpm"
+  icon="/usr/share/pixmaps/fontforge.xpm"

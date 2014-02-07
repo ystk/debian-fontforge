@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "pfaeditui.h"
+#include "fontforgeui.h"
 #include <gfile.h>
 #include <gresource.h>
 #include <ustring.h>
@@ -34,6 +34,18 @@
 #include <unistd.h>
 #include <dynamic.h>
 #include <stdlib.h>		/* getenv,setenv */
+#ifdef _NO_LIBPNG
+#  define PNGLIBNAME	"libpng"
+#else
+#  include <png.h>		/* for version number to find up shared image name */
+#  if !defined(PNG_LIBPNG_VER_MAJOR) || (PNG_LIBPNG_VER_MAJOR==1 && PNG_LIBPNG_VER_MINOR<2)
+#    define PNGLIBNAME	"libpng"
+#  else
+#    define xstr(s) str(s)
+#    define str(s) #s
+#    define PNGLIBNAME	"libpng" xstr(PNG_LIBPNG_VER_MAJOR) xstr(PNG_LIBPNG_VER_MINOR)
+#  endif
+#endif
 #ifdef __Mac
 # include </Developer/Headers/FlatCarbon/Files.h>
 # define FontInfo	MacFontInfo
@@ -168,7 +180,7 @@ static struct library_descriptor {
 	NULL,
 	-1
     },
-    { "libz", dlsymmod("deflateEnd"), "This is a prerequisite for reading png files,\n\t and is used for some pdf files.", "http://www.gzip.org/zlib/",
+    { "libz", dlsymmod("deflateEnd"), "This is a prerequisite for reading image png files,\n\t and is used for some pdf files.", "http://www.gzip.org/zlib/",
 #ifdef _NO_LIBPNG
 	0,
 #else
@@ -177,15 +189,7 @@ static struct library_descriptor {
 	NULL,
 	1
     },
-    { "libpng", dlsymmod("png_create_read_struct"), "This is one way to read png files.", "http://www.libpng.org/pub/png/libpng.html",
-#ifdef _NO_LIBPNG
-	0,
-#else
-	1,
-#endif
-	"libz",
-	2 },
-    { "libpng12", dlsymmod("png_create_read_struct"), "This is another way to read png files.", "http://www.libpng.org/pub/png/libpng.html",
+    { PNGLIBNAME, dlsymmod("png_create_read_struct"), "This reads png image files.", "http://www.libpng.org/pub/png/libpng.html",
 #ifdef _NO_LIBPNG
 	0,
 #else
@@ -466,7 +470,7 @@ static GWindow splashw;
 static GTimer *autosave_timer, *splasht;
 static GFont *splash_font, *splash_italic;
 static int as,fh, linecnt;
-static unichar_t msg[450];
+static unichar_t msg[470];
 static unichar_t *lines[20], *is, *ie;
 
 void ShowAboutScreen(void) {
@@ -518,6 +522,20 @@ static void SplashLayout() {
     uc_strcat(pt,source_version_str);
 #ifdef FONTFORGE_CONFIG_TYPE3
     uc_strcat(pt,"-ML");
+#endif
+#ifdef FREETYPE_HAS_DEBUGGER
+    uc_strcat(pt,"-TtfDb");
+#endif
+#ifdef _NO_PYTHON
+    uc_strcat(pt,"-NoPython");
+#endif
+#ifdef FONTFORGE_CONFIG_USE_LONGDOUBLE
+    uc_strcat(pt,"-LD");
+#elif defined(FONTFORGE_CONFIG_USE_DOUBLE)
+    uc_strcat(pt,"-D");
+#endif
+#ifndef FONTFORGE_CONFIG_DEVICETABLES
+    uc_strcat(pt,"-NoDevTab");
 #endif
     uc_strcat(pt,")");
     pt += u_strlen(pt);
@@ -793,7 +811,7 @@ static void install_mac_timer(void) {
     EventLoopTimerRef timer;
 
     InstallEventLoopTimer(GetMainEventLoop(),
-	    .001,.001,		/* I can't find the units documented: seconds? */
+	    .001*kEventDurationSecond,.001*kEventDurationSecond,
 	    NewEventLoopTimerUPP(DoRealStuff), NULL,
 	    &timer);
 }	    
@@ -907,6 +925,31 @@ static void AddR(char *prog, char *name, char *val ) {
     strcat(full,": ");
     strcat(full,val);
     GResourceAddResourceString(full,prog);
+}
+
+static int ReopenLastFonts(void) {
+    char buffer[1024];
+    char *ffdir = getPfaEditDir(buffer);
+    FILE *old;
+    int any = 0;
+
+    if ( ffdir==NULL )
+return( false );
+    sprintf( buffer, "%s/FontsOpenAtLastQuit", ffdir );
+    old = fopen(buffer,"r");
+    if ( old==NULL )
+return( false );
+    while ( fgets(buffer,sizeof(buffer),old)!=NULL ) {
+	int len = strlen( buffer );
+	if ( buffer[len-1]=='\n' )
+	    buffer[--len] = '\0';
+	if ( buffer[len-1]=='\r' )
+	    buffer[--len] = '\0';
+	if ( ViewPostScriptFont(buffer,0)!=0 )
+	    any = 1;
+    }
+    fclose(old);
+return( any );
 }
 
 #if defined(__Mac)
@@ -1051,13 +1094,26 @@ int main( int argc, char **argv ) {
     int local_x;
 #endif
 
+    fprintf( stderr, "Copyright (c) 2000-2011 by George Williams.\n Executable based on sources from %s"
 #ifdef FONTFORGE_CONFIG_TYPE3
-    fprintf( stderr, "Copyright (c) 2000-2010 by George Williams.\n Executable based on sources from %s-ML.\n",
-	    source_modtime_str );
-#else
-    fprintf( stderr, "Copyright (c) 2000-2010 by George Williams.\n Executable based on sources from %s.\n",
-	    source_modtime_str );
+	    "-ML"
 #endif
+#ifdef FREETYPE_HAS_DEBUGGER
+	    "-TtfDb"
+#endif
+#ifdef _NO_PYTHON
+	    "-NoPython"
+#endif
+#ifdef FONTFORGE_CONFIG_USE_LONGDOUBLE
+	    "-LD"
+#elif defined(FONTFORGE_CONFIG_USE_DOUBLE)
+	    "-D"
+#endif
+#ifndef FONTFORGE_CONFIG_DEVICETABLES
+	    "-NoDevTab"
+#endif
+	    ".\n",
+	    source_modtime_str );
     fprintf( stderr, " Library based on sources from %s.\n", library_version_configuration.library_source_modtime_string );
 
     /* Must be done before we cache the current directory */
@@ -1402,9 +1458,10 @@ exit( 0 );
 	else if ( strcmp(pt,"-open")==0 )
 	    doopen = true;
 	else {
-	    if ( strstr(argv[i],"://")!=NULL )		/* Assume an absolute URL */
+	    if ( strstr(argv[i],"://")!=NULL ) {		/* Assume an absolute URL */
 		strncpy(buffer,argv[i],sizeof(buffer));
-	    else
+		buffer[sizeof(buffer)-1]= '\0';
+	    } else
 		GFileGetAbsoluteName(argv[i],buffer,sizeof(buffer));
 	    if ( GFileIsDir(buffer) || (strstr(buffer,"://")!=NULL && buffer[strlen(buffer)-1]=='/')) {
 		char *fname;
@@ -1440,6 +1497,8 @@ exit( 0 );
 		any = 1;
 	}
     }
+    if ( !any && !doopen )
+	any = ReopenLastFonts();
 #if defined(__Mac)
     if ( listen_to_apple_events ) {
 	install_apple_event_handlers();

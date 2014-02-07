@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -281,7 +281,7 @@ return;
     memset(transform,0,sizeof(transform));
     transform[0] = 1; transform[3] = -1;
     transform[5] = 800;
-    head = SplinePointListTransform(head,transform,true);
+    head = SplinePointListTransform(head,transform,tpt_AllPoints);
     /* After doing the above flip, the contours appear oriented acording to my*/
     /*  conventions */
 
@@ -953,8 +953,10 @@ void SCAddScaleImage(SplineChar *sc,GImage *image,int doclear, int layer) {
 
     image = ImageAlterClut(image);
     scale = (sc->parent->ascent+sc->parent->descent)/(real) GImageGetHeight(image);
-    if ( doclear )
-	ImageListsFree(sc->layers[layer].images); sc->layers[layer].images = NULL;
+    if ( doclear ) {
+	ImageListsFree(sc->layers[layer].images);
+	sc->layers[layer].images = NULL;
+    }
     SCInsertImage(sc,image,scale,sc->parent->ascent,0,layer);
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (C) 2003-2010 by George Williams */
+/* Copyright (C) 2003-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -150,7 +150,7 @@ return( defwid );
 static int svg_pathdump(FILE *file, SplineSet *spl, int lineout,
 	int forceclosed, int do_clips) {
     BasePoint last;
-    char buffer[60];
+    char buffer[85];
     int closed=false;
     Spline *sp, *first;
     /* as I see it there is nothing to be gained by optimizing out the */
@@ -268,7 +268,7 @@ static void svg_dumpstroke(FILE *file, struct pen *cpen, struct pen *fallback,
 /*  will give us the splines we desire. */
     if ( pen.trans[0]!=1.0 || pen.trans[3]!=1.0 || pen.trans[1]!=0 || pen.trans[2]!=0 )
 	fprintf( file, "transform=\"matrix(%g, %g, %g, %g, 0, 0)\" ",
-		pen.trans[0], pen.trans[1], pen.trans[2], pen.trans[3] );
+		(double) pen.trans[0], (double) pen.trans[1], (double) pen.trans[2], (double) pen.trans[3] );
     if ( pen.dashes[0]==0 && pen.dashes[1]==DASH_INHERITED ) {
 	fprintf( file, "stroke-dasharray=\"inherit\" " );
     } else if ( pen.dashes[0]!=0 ) {
@@ -326,7 +326,7 @@ return( ss );
     transform[4] = transform[5] = 0;
     MatInverse(inversetrans,transform);
 return( SplinePointListTransform(SplinePointListCopy(
-		    ss),inversetrans,true));
+		    ss),inversetrans,tpt_AllPoints));
 }
 #endif
 
@@ -508,7 +508,7 @@ static void svg_dumppattern(FILE *file,struct pattern *pattern,
 	PatternSCBounds(pattern_sc,&b);
 	fprintf( file, "\n\tviewBox=\"%g %g %g %g\"",
 		(double) b.minx, (double) b.miny,
-		(double) b.maxx-b.minx, (double) b.maxy-b.miny );
+		(double) (b.maxx-b.minx), (double) (b.maxy-b.miny) );
     }
     fprintf( file, "\n\twidth=\"%g\" height=\"%g\"",
 	    (double) pattern->width, (double) pattern->height );
@@ -516,9 +516,9 @@ static void svg_dumppattern(FILE *file,struct pattern *pattern,
 	    pattern->transform[2]!=0 || pattern->transform[3]!=1 ||
 	    pattern->transform[4]!=0 || pattern->transform[5]!=0 ) {
 	fprintf( file, "\n\tpatternTransform=\"matrix(%g %g %g %g %g %g)\"",
-		pattern->transform[0], pattern->transform[1],
-		pattern->transform[2], pattern->transform[3],
-		pattern->transform[4], pattern->transform[5] );
+		(double) pattern->transform[0], (double) pattern->transform[1],
+		(double) pattern->transform[2], (double) pattern->transform[3],
+		(double) pattern->transform[4], (double) pattern->transform[5] );
     }
     if ( pattern_sc!=NULL )
 	svg_dumpscdefs(file,pattern_sc,patsubname,false);
@@ -615,8 +615,8 @@ static void svg_dumptype3(FILE *file,SplineChar *sc,char *name,int istop) {
 	    base = images->image->list_len==0 ? images->image->u.image :
 		    images->image->u.images[0];
 	    fprintf(file, "\twidth=\"%g\"\n\theight=\"%g\"\n",
-		    base->width*images->xscale, base->height*images->yscale );
-	    fprintf(file, "\tx=\"%g\"\n\ty=\"%g\"\n", images->xoff, images->yoff );
+		    (double) (base->width*images->xscale), (double) (base->height*images->yscale) );
+	    fprintf(file, "\tx=\"%g\"\n\ty=\"%g\"\n", (double) images->xoff, (double) images->yoff );
 	    fprintf(file, "\txlink:href=\"data:" );
 	    DataURI_ImageDump(file,images->image);
 	    fprintf(file, "\" />\n" );
@@ -927,10 +927,11 @@ return( uni==-1 || uni>=0x10000 ||
 
 static void svg_sfdump(FILE *file,SplineFont *sf,int layer) {
     int defwid, i, formeduni;
-    char *oldloc;
+    char oldloc[24];
     struct altuni *altuni;
 
-    oldloc = setlocale(LC_NUMERIC,"C");
+    strcpy( oldloc,setlocale(LC_NUMERIC,NULL) );
+    setlocale(LC_NUMERIC,"C");
 
     for ( i=0; i<sf->glyphcnt; ++i ) if ( sf->glyphs[i]!=NULL )
 	sf->glyphs[i]->ticked = false;
@@ -1030,7 +1031,7 @@ return( ret );
 }
 
 int _ExportSVG(FILE *svg,SplineChar *sc,int layer) {
-    char *oldloc, *end;
+    char oldloc[24], *end;
     int em_size;
     DBounds b;
 
@@ -1041,7 +1042,8 @@ int _ExportSVG(FILE *svg,SplineChar *sc,int layer) {
     if ( b.miny>-sc->parent->descent ) b.miny = -sc->parent->descent;
     if ( b.maxy<em_size ) b.maxy = em_size;
 
-    oldloc = setlocale(LC_NUMERIC,"C");
+    strcpy( oldloc,setlocale(LC_NUMERIC,NULL) );
+    setlocale(LC_NUMERIC,"C");
     fprintf(svg, "<?xml version=\"1.0\" standalone=\"no\"?>\n" );
     fprintf(svg, "<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\" >\n" ); 
     fprintf(svg, "<svg viewBox=\"%d %d %d %d\">\n",
@@ -2430,8 +2432,8 @@ static void xmlApplyColourSources(xmlNodePtr top,Entity *head,
 	for ( e=head; e!=NULL; e=e->next ) if ( e->type==et_splines ) {
 	    if ( e->u.splines.fill.grad==NULL && e->u.splines.fill.tile==NULL &&
 		    e->u.splines.fill.col == COLOR_INHERITED ) {
-		e->u.splines.fill.grad = GradientCopy(grad);
-		/*e->u.splines.fill.tile = EPatternCopy(epat);*/
+		e->u.splines.fill.grad = GradientCopy(grad,NULL);
+		/*e->u.splines.fill.tile = EPatternCopy(epat,NULL);*/
 	    }
 	}
 	GradientFree(grad);
@@ -2444,8 +2446,8 @@ static void xmlApplyColourSources(xmlNodePtr top,Entity *head,
 	for ( e=head; e!=NULL; e=e->next ) if ( e->type==et_splines ) {
 	    if ( e->u.splines.stroke.grad==NULL && e->u.splines.stroke.tile==NULL &&
 		    e->u.splines.stroke.col == COLOR_INHERITED ) {
-		e->u.splines.stroke.grad = GradientCopy(grad);
-		/*e->u.splines.stroke.tile = EPatternCopy(epat);*/
+		e->u.splines.stroke.grad = GradientCopy(grad,NULL);
+		/*e->u.splines.stroke.tile = EPatternCopy(epat,NULL);*/
 	    }
 	}
 	GradientFree(grad);
@@ -2975,7 +2977,8 @@ return( NULL );
 	head = SVGParsePoly(svg,1);		/* points */
     } else if ( _xmlStrcmp(svg->name,(xmlChar *) "image")==0 ) {
 	eret = SVGParseImage(svg);
-	eret->clippath = st.clippath;
+	if (eret!=NULL)
+	    eret->clippath = st.clippath;
 return( eret );
     } else
 return( NULL );
@@ -2984,7 +2987,7 @@ return( NULL );
 
     SPLCatagorizePoints(head);
 
-    eret = EntityCreate(SplinePointListTransform(head,st.transform,true), &st);
+    eret = EntityCreate(SplinePointListTransform(head,st.transform,tpt_AllPoints), &st);
     if ( fill_colour_source!=NULL || stroke_colour_source!=NULL )
 	xmlApplyColourSources(top,eret,&st,fill_colour_source,stroke_colour_source);
     SvgStateFree(&st);
@@ -3064,6 +3067,8 @@ static void SVGParseGlyphBody(SplineChar *sc, xmlNodePtr glyph,int *flags) {
 	sc->layers[ly_fore].splines = SplinesFromEntities(ent,flags,false);
 #endif
     }
+
+    SCCatagorizePoints(sc);
 }
 
 static SplineChar *SVGParseGlyphArgs(xmlNodePtr glyph,int defh, int defv,
@@ -3746,7 +3751,7 @@ void SFSetOrder(SplineFont *sf,int order2) {
 static SplineFont *_SFReadSVG(xmlDocPtr doc, char *filename) {
     xmlNodePtr *fonts, font;
     SplineFont *sf;
-    char *oldloc;
+    char oldloc[24];
     char *chosenname = NULL;
 
     fonts = FindSVGFontNodes(doc);
@@ -3766,7 +3771,8 @@ return( NULL );
 	}
     }
     free(fonts);
-    oldloc = setlocale(LC_NUMERIC,"C");
+    strcpy( oldloc,setlocale(LC_NUMERIC,NULL) );
+    setlocale(LC_NUMERIC,"C");
     sf = SVGParseFont(font);
     setlocale(LC_NUMERIC,oldloc);
     _xmlFreeDoc(doc);
@@ -3873,7 +3879,7 @@ return( ret );
 Entity *EntityInterpretSVG(char *filename,char *memory, int memlen,int em_size,int ascent) {
     xmlDocPtr doc;
     xmlNodePtr top;
-    char *oldloc;
+    char oldloc[24];
     Entity *ret;
     int order2;
 
@@ -3897,7 +3903,8 @@ return( NULL );
 return( NULL );
     }
 
-    oldloc = setlocale(LC_NUMERIC,"C");
+    strcpy( oldloc,setlocale(LC_NUMERIC,NULL) );
+    setlocale(LC_NUMERIC,"C");
     ret = SVGParseSVG(top,em_size,ascent);
     setlocale(LC_NUMERIC,oldloc);
     _xmlFreeDoc(doc);

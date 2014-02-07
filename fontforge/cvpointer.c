@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,11 +24,12 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "pfaeditui.h"
+#include "fontforgeui.h"
 #include <utype.h>
 #include <math.h>
 
 int stop_at_join = false;
+extern int interpCPsOnMotion;
 
 int CVAnySel(CharView *cv, int *anyp, int *anyr, int *anyi, int *anya) {
     int anypoints = 0, anyrefs=0, anyimages=0, anyanchor=0;
@@ -608,9 +609,11 @@ return;
 	    SetCur(cv);
 	}
     } else if ( event->u.mouse.clicks<=1 && !(event->u.mouse.state&ksm_shift)) {
-	if ( fs->p->nextcp || fs->p->prevcp )
+	if ( fs->p->nextcp || fs->p->prevcp ) {
 	    CPStartInfo(cv,event);
-	else if ( fs->p->sp!=NULL ) {
+	    /* Needs update to draw control points selected */
+	    needsupdate = true;
+	} else if ( fs->p->sp!=NULL ) {
 	    if ( !fs->p->sp->selected ) needsupdate = true;
 	    fs->p->sp->selected = true;
 	} else if ( fs->p->spiro!=NULL ) {
@@ -632,9 +635,10 @@ return;
 	    fs->p->ap->selected = true;
 	}
     } else if ( event->u.mouse.clicks<=1 ) {
-	if ( fs->p->nextcp || fs->p->prevcp )
-	    /* Nothing to do */;
-	else if ( fs->p->sp!=NULL ) {
+	if ( fs->p->nextcp || fs->p->prevcp ) {
+	    /* Needs update to draw control points selected */
+	    needsupdate = true;
+	} else if ( fs->p->sp!=NULL ) {
 	    needsupdate = true;
 	    fs->p->sp->selected = !fs->p->sp->selected;
 	} else if ( fs->p->spiro!=NULL ) {
@@ -978,7 +982,8 @@ return(false);
     if ( cv->b.sc->inspiro && hasspiro())
 	SplinePointListSpiroTransform(cv->b.layerheads[cv->b.drawmode]->splines,transform,false);
     else
-	SplinePointListTransform(cv->b.layerheads[cv->b.drawmode]->splines,transform,false);
+	SplinePointListTransform(cv->b.layerheads[cv->b.drawmode]->splines,transform,
+		interpCPsOnMotion?tpt_OnlySelectedInterpCPs:tpt_OnlySelected);
 
     for ( refs = cv->b.layerheads[cv->b.drawmode]->refs; refs!=NULL; refs=refs->next ) if ( refs->selected ) {
 	refs->transform[4] += transform[4];
@@ -986,7 +991,7 @@ return(false);
 	refs->bb.minx += transform[4]; refs->bb.maxx += transform[4];
 	refs->bb.miny += transform[5]; refs->bb.maxy += transform[5];
 	for ( j=0; j<refs->layer_cnt; ++j )
-	    SplinePointListTransform(refs->layers[j].splines,transform,true);
+	    SplinePointListTransform(refs->layers[j].splines,transform,tpt_AllPoints);
 	outlinechanged = true;
     }
     if ( CVLayer( (CharViewBase *) cv) > ly_back ) {
@@ -1438,7 +1443,7 @@ void CVSelectPointAt(CharView *cv) {
 	label[k].text_is_1byte = true;
 	label[k].text_in_resource = true;
 	gcd[k].gd.label = &label[k];
-	gcd[k].gd.pos.x = 10; gcd[k].gd.pos.y = 8+4; 
+	gcd[k].gd.pos.x = 10; gcd[k].gd.pos.y = 8+4;
 	gcd[k].gd.flags = gg_enabled|gg_visible;
 	gcd[k++].creator = GLabelCreate;
 
@@ -1451,7 +1456,7 @@ void CVSelectPointAt(CharView *cv) {
 	label[k].text_is_1byte = true;
 	label[k].text_in_resource = true;
 	gcd[k].gd.label = &label[k];
-	gcd[k].gd.pos.x = 80; gcd[k].gd.pos.y = gcd[k-2].gd.pos.y; 
+	gcd[k].gd.pos.x = 80; gcd[k].gd.pos.y = gcd[k-2].gd.pos.y;
 	gcd[k].gd.flags = gg_enabled|gg_visible;
 	gcd[k++].creator = GLabelCreate;
 
@@ -1464,7 +1469,7 @@ void CVSelectPointAt(CharView *cv) {
 	label[k].text_is_1byte = true;
 	label[k].text_in_resource = true;
 	gcd[k].gd.label = &label[k];
-	gcd[k].gd.pos.x = 5; gcd[k].gd.pos.y = gcd[k-1].gd.pos.y+23; 
+	gcd[k].gd.pos.x = 5; gcd[k].gd.pos.y = gcd[k-1].gd.pos.y+23;
 	gcd[k].gd.flags = gg_enabled|gg_visible|gg_cb_on;
 	gcd[k].gd.cid = CID_Exact;
 	gcd[k++].creator = GRadioCreate;
@@ -1473,7 +1478,7 @@ void CVSelectPointAt(CharView *cv) {
 	label[k].text_is_1byte = true;
 	label[k].text_in_resource = true;
 	gcd[k].gd.label = &label[k];
-	gcd[k].gd.pos.x = 5; gcd[k].gd.pos.y = gcd[k-1].gd.pos.y+13; 
+	gcd[k].gd.pos.x = 5; gcd[k].gd.pos.y = gcd[k-1].gd.pos.y+13;
 	gcd[k].gd.flags = gg_enabled|gg_visible;
 	gcd[k].gd.cid = CID_Fuzzy;
 	gcd[k++].creator = GRadioCreate;
@@ -1491,7 +1496,7 @@ void CVSelectPointAt(CharView *cv) {
 	label[k].text_is_1byte = true;
 	label[k].text_in_resource = true;
 	gcd[k].gd.label = &label[k];
-	gcd[k].gd.pos.x = 15; gcd[k].gd.pos.y = gcd[k-2].gd.pos.y+17+4; 
+	gcd[k].gd.pos.x = 15; gcd[k].gd.pos.y = gcd[k-2].gd.pos.y+17+4;
 	gcd[k].gd.flags = gg_enabled|gg_visible;
 	gcd[k++].creator = GLabelCreate;
 
@@ -1509,7 +1514,7 @@ void CVSelectPointAt(CharView *cv) {
 	label[k].text_is_1byte = true;
 	label[k].text_in_resource = true;
 	gcd[k].gd.label = &label[k];
-	gcd[k].gd.pos.x = 15; gcd[k].gd.pos.y = gcd[k-3].gd.pos.y+17+4; 
+	gcd[k].gd.pos.x = 15; gcd[k].gd.pos.y = gcd[k-3].gd.pos.y+17+4;
 	gcd[k].gd.flags = gg_enabled|gg_visible;
 	gcd[k++].creator = GLabelCreate;
 
@@ -1523,7 +1528,7 @@ void CVSelectPointAt(CharView *cv) {
 	label[k].text_is_1byte = true;
 	label[k].text_in_resource = true;
 	gcd[k].gd.label = &label[k];
-	gcd[k].gd.pos.x = 100; gcd[k].gd.pos.y = gcd[k-2].gd.pos.y; 
+	gcd[k].gd.pos.x = 100; gcd[k].gd.pos.y = gcd[k-2].gd.pos.y;
 	gcd[k].gd.flags = gg_enabled|gg_visible;
 	gcd[k++].creator = GLabelCreate;
 

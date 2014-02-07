@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -27,7 +27,7 @@
 #ifndef _PFAEDIT_H_
 #define _PFAEDIT_H_
 
-#include "configure-pfaedit.h"
+#include "configure-fontforge.h"
 #include <basics.h>
 #include <stdio.h>
 #include <string.h>
@@ -56,7 +56,6 @@ extern int default_fv_bbsized;
 extern Encoding *default_encoding, custom;
 extern int adjustwidth;
 extern int adjustlbearing;
-extern int autohint_before_rasterize;
 extern int autohint_before_generate;
 extern int seperate_hint_controls;
 extern int no_windowing_ui;

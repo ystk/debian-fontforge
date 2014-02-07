@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -403,11 +403,36 @@ struct glyph_res {
     int image_cnt, image_max;
     char **image_names;
     int *image_objs;
+    int opacity_cnt, opacity_max;
+    struct opac_state { int isfill; float opacity; int obj; } *opac_state;
 };
 
 #ifdef FONTFORGE_CONFIG_TYPE3
+void makePatName(char *buffer,
+	RefChar *ref,SplineChar *sc,int layer,int isstroke,int isgrad) {
+    /* In PDF patterns (which include gradients) are fixed to the page. They */
+    /*  do not alter with the Current Transformation Matrix. So if we have */
+    /*  a reference to a glyph, then every reference to the same glyph will */
+    /*  need a different pattern description where that description involves */
+    /*  the reference's transform matrix */
+
+    if ( ref==NULL )
+	sprintf( buffer,"%s_ly%d_%s_%s", sc->name, layer,
+		    isstroke ? "stroke":"fill", isgrad ? "grad": "pattern" );
+    else {
+	/* PDF names are significant up to 127 chars long and can contain */
+	/*  all kinds of odd characters, just no spaces or slashes, so this */
+	/*  name should be legal */
+	sprintf( buffer,"%s_trans_%g,%g,%g,%g,%g,%g_ly%d_%s_%s", sc->name,
+		(double) ref->transform[0], (double) ref->transform[1], (double) ref->transform[2],
+		(double) ref->transform[3], (double) ref->transform[4], (double) ref->transform[5],
+		layer,
+		isstroke ? "stroke":"fill", isgrad ? "grad": "pattern" );
+    }
+}
+
 static void pdf_BrushCheck(PI *pi,struct glyph_res *gr,struct brush *brush,
-	int isfill,int layer,SplineChar *sc) {
+	int isfill,int layer,SplineChar *sc, RefChar *ref) {
     char buffer[400];
     int function_obj, shade_obj;
     int i,j;
@@ -418,8 +443,8 @@ static void pdf_BrushCheck(PI *pi,struct glyph_res *gr,struct brush *brush,
 	function_obj = pdf_addobject(pi);
 	fprintf( pi->out, "<<\n" );
 	fprintf( pi->out, "  /FunctionType 0\n" );	/* Iterpolation between samples */
-	fprintf( pi->out, "  /Domain [%g %g]\n", grad->grad_stops[0].offset,
-		grad->grad_stops[grad->stop_cnt-1].offset );
+	fprintf( pi->out, "  /Domain [%g %g]\n", (double) grad->grad_stops[0].offset,
+		(double) grad->grad_stops[grad->stop_cnt-1].offset );
 	fprintf( pi->out, "  /Range [0 1.0 0 1.0 0 1.0]\n" );
 	fprintf( pi->out, "  /Size [%d]\n", grad->stop_cnt==2?2:101 );
 	fprintf( pi->out, "  /BitsPerSample 8\n" );
@@ -479,11 +504,11 @@ static void pdf_BrushCheck(PI *pi,struct glyph_res *gr,struct brush *brush,
 	fprintf( pi->out, "  /ColorSpace /DeviceRGB\n" );
 	if ( grad->radius==0 ) {
 	    fprintf( pi->out, "  /Coords [%g %g %g %g]\n",
-		    grad->start.x, grad->start.y, grad->stop.x, grad->stop.y);
+		    (double) grad->start.x, (double) grad->start.y, (double) grad->stop.x, (double) grad->stop.y);
 	} else {
 	    fprintf( pi->out, "  /Coords [%g %g 0 %g %g %g]\n",
-		    grad->start.x, grad->start.y, grad->stop.x, grad->stop.y,
-		    grad->radius );
+		    (double) grad->start.x, (double) grad->start.y, (double) grad->stop.x, (double) grad->stop.y,
+		    (double) grad->radius );
 	}
 	fprintf( pi->out, "  /Function %d 0 R\n", function_obj );
 	fprintf( pi->out, "  /Extend [true true]\n" );	/* implies pad */
@@ -494,7 +519,7 @@ static void pdf_BrushCheck(PI *pi,struct glyph_res *gr,struct brush *brush,
 	    gr->pattern_names = grealloc(gr->pattern_names,(gr->pattern_max+=100)*sizeof(char *));
 	    gr->pattern_objs  = grealloc(gr->pattern_objs ,(gr->pattern_max     )*sizeof(int   ));
 	}
-	sprintf( buffer, "%s_ly%d_%s_grad", sc->name, layer, isfill?"fill":"stroke" );
+	makePatName(buffer,ref,sc,layer,!isfill,true);
 	gr->pattern_names[gr->pattern_cnt  ] = copy(buffer);
 	gr->pattern_objs [gr->pattern_cnt++] = pdf_addobject(pi);
 	fprintf( pi->out, "<<\n" );
@@ -518,7 +543,7 @@ static void pdf_BrushCheck(PI *pi,struct glyph_res *gr,struct brush *brush,
 	    gr->pattern_names = grealloc(gr->pattern_names,(gr->pattern_max+=100)*sizeof(char *));
 	    gr->pattern_objs  = grealloc(gr->pattern_objs ,(gr->pattern_max     )*sizeof(int   ));
 	}
-	sprintf( buffer, "%s_ly%d_%s_pattern", sc->name, layer, isfill?"fill":"stroke" );
+	makePatName(buffer,ref,sc,layer,!isfill,false);
 	gr->pattern_names[gr->pattern_cnt  ] = copy(buffer);
 	gr->pattern_objs [gr->pattern_cnt++] = pdf_addobject(pi);
 	fprintf( pi->out, "<<\n" );
@@ -526,15 +551,15 @@ static void pdf_BrushCheck(PI *pi,struct glyph_res *gr,struct brush *brush,
 	fprintf( pi->out, "  /PatternType 1\n" );
 	fprintf( pi->out, "  /PaintType 1\n" );		/* The intricacies of uncolored tiles are not something into which I wish to delve */
 	fprintf( pi->out, "  /TilingType 1\n" );
-	fprintf( pi->out, "  /BBox [%g %g %g %g]\n", b.minx, b.miny, b.maxx, b.maxy );
-	fprintf( pi->out, "  /XStep %g\n", b.maxx-b.minx );
-	fprintf( pi->out, "  /YStep %g\n", b.maxy-b.miny );
+	fprintf( pi->out, "  /BBox [%g %g %g %g]\n", (double) b.minx, (double) b.miny, (double) b.maxx, (double) b.maxy );
+	fprintf( pi->out, "  /XStep %g\n", (double) (b.maxx-b.minx) );
+	fprintf( pi->out, "  /YStep %g\n", (double) (b.maxy-b.miny) );
 	memset(scale,0,sizeof(scale));
 	scale[0] = pat->width/(b.maxx-b.minx);
 	scale[3] = pat->height/(b.maxy-b.miny);
 	MatMultiply(scale,pat->transform, result);
-	fprintf( pi->out, "  /Matrix [%g %g %g %g %g %g]\n", result[0], result[1],
-		result[2], result[3], result[4], result[5]);
+	fprintf( pi->out, "  /Matrix [%g %g %g %g %g %g]\n", (double) result[0], (double) result[1],
+		(double) result[2], (double) result[3], (double) result[4], (double) result[5]);
 	fprintf( pi->out, "    /Resources " );
 	respos = ftell(pi->out);
 	fprintf( pi->out, "000000 0 R\n" );
@@ -555,6 +580,30 @@ static void pdf_BrushCheck(PI *pi,struct glyph_res *gr,struct brush *brush,
 	fseek(pi->out,lenpos,SEEK_SET);
 	fprintf(pi->out,"%8d", len );
 	fseek(pi->out,0,SEEK_END);
+    }
+    if ( brush->opacity<1.0 && brush->opacity>=0 ) {
+	for ( i=gr->opacity_cnt-1; i>=0; --i ) {
+	    if ( brush->opacity==gr->opac_state[i].opacity && isfill==gr->opac_state[i].opacity )
+	break;	/* Already done */
+	}
+	if ( i==-1 ) {
+	    if ( gr->opacity_cnt>=gr->opacity_max ) {
+		gr->opac_state = grealloc(gr->opac_state,(gr->opacity_max+=100)*sizeof(struct opac_state));
+	    }
+	    gr->opac_state[gr->opacity_cnt].opacity = brush->opacity;
+	    gr->opac_state[gr->opacity_cnt].isfill  = isfill;
+	    gr->opac_state[gr->opacity_cnt].obj     = function_obj = pdf_addobject(pi);
+	    ++gr->opacity_cnt;
+	    fprintf( pi->out, "<<\n" );
+	    fprintf( pi->out, "  /Type /ExtGState\n" );
+	    if ( isfill )
+		fprintf( pi->out, "  /ca %g\n", brush->opacity );
+	    else
+		fprintf( pi->out, "  /CA %g\n", brush->opacity );
+	    fprintf( pi->out, "  /AIS false\n" );	/* alpha value */
+	    fprintf( pi->out, ">>\n" );
+	    fprintf( pi->out, "endobj\n\n" );
+	}
     }
 }
 
@@ -624,24 +673,30 @@ static void pdf_ImageCheck(PI *pi,struct glyph_res *gr,ImageList *images,
 }
 #endif
 
+/* We need different gradients and patterns for different transform */
+/*  matrices of references to the same glyph. Sigh. */
 int PdfDumpGlyphResources(PI *pi,SplineChar *sc) {
     int resobj;
     struct glyph_res gr = { 0 };
     int i;
+
 #ifdef FONTFORGE_CONFIG_TYPE3
     int layer;
     RefChar *ref;
 
     for ( layer=ly_fore; layer<sc->layer_cnt; ++layer ) {
-	pdf_BrushCheck(pi,&gr,&sc->layers[layer].fill_brush,true,layer,sc);
-	pdf_BrushCheck(pi,&gr,&sc->layers[layer].stroke_pen.brush,false,layer,sc);
+	if ( sc->layers[layer].dofill )
+	    pdf_BrushCheck(pi,&gr,&sc->layers[layer].fill_brush,true,layer,sc,NULL);
+	if ( sc->layers[layer].dostroke )
+	    pdf_BrushCheck(pi,&gr,&sc->layers[layer].stroke_pen.brush,false,layer,sc,NULL);
 	pdf_ImageCheck(pi,&gr,sc->layers[layer].images,layer,sc);
-	for ( ref=sc->layers[layer].refs; ref!=NULL; ref=ref->next ) if ( !ref->sc->ticked ) {
-	    ref->sc->ticked = true;
+	for ( ref=sc->layers[layer].refs; ref!=NULL; ref=ref->next ) {
 	    for ( i=0; i<ref->layer_cnt; ++i ) {
-		pdf_BrushCheck(pi,&gr,&ref->layers[i].fill_brush,true,i,ref->sc);
-		pdf_BrushCheck(pi,&gr,&ref->layers[i].stroke_pen.brush,false,i,ref->sc);
-		pdf_ImageCheck(pi,&gr,ref->layers[layer].images,i,ref->sc);
+		if ( ref->layers[i].dofill )
+		    pdf_BrushCheck(pi,&gr,&ref->layers[i].fill_brush,true,i,ref->sc,ref);
+		if ( ref->layers[i].dostroke )
+		    pdf_BrushCheck(pi,&gr,&ref->layers[i].stroke_pen.brush,false,i,ref->sc,ref);
+		pdf_ImageCheck(pi,&gr,ref->layers[i].images,i,ref->sc);
 	    }
 	}
     }
@@ -666,6 +721,16 @@ int PdfDumpGlyphResources(PI *pi,SplineChar *sc) {
 	free(gr.image_names); free(gr.image_objs);
 	fprintf( pi->out, "  >>\n");
     }
+    if ( gr.opacity_cnt!=0 ) {
+	fprintf( pi->out, "  /ExtGState <<\n" );
+	for ( i=0; i<gr.opacity_cnt; ++i ) {
+	    fprintf( pi->out, "    /gs_%s_opacity_%g %d 0 R\n",
+		    gr.opac_state[i].isfill ? "fill" : "stroke",
+		    gr.opac_state[i].opacity, gr.opac_state[i].obj );
+	}
+	free(gr.opac_state);
+	fprintf( pi->out, "  >>\n");
+    }
     fprintf( pi->out, ">>\n" );
     fprintf( pi->out, "endobj\n\n" );
 return( resobj );
@@ -678,12 +743,24 @@ static int PdfDumpSFResources(PI *pi,SplineFont *sf) {
 #ifdef FONTFORGE_CONFIG_TYPE3
     int layer, gid;
     SplineChar *sc;
+    RefChar *ref;
 
     for ( gid=0; gid<sf->glyphcnt; ++gid) if ( (sc=sf->glyphs[gid])!=NULL ) {
 	for ( layer=ly_fore; layer<sc->layer_cnt; ++layer ) {
-	    pdf_BrushCheck(pi,&gr,&sc->layers[layer].fill_brush,true,layer,sc);
-	    pdf_BrushCheck(pi,&gr,&sc->layers[layer].stroke_pen.brush,false,layer,sc);
+	    if ( sc->layers[layer].dofill )
+		pdf_BrushCheck(pi,&gr,&sc->layers[layer].fill_brush,true,layer,sc,NULL);
+	    if ( sc->layers[layer].dostroke )
+		pdf_BrushCheck(pi,&gr,&sc->layers[layer].stroke_pen.brush,false,layer,sc,NULL);
 	    pdf_ImageCheck(pi,&gr,sc->layers[layer].images,layer,sc);
+	    for ( ref=sc->layers[layer].refs; ref!=NULL; ref=ref->next ) {
+		for ( i=0; i<ref->layer_cnt; ++i ) {
+		    if ( ref->layers[i].dofill )
+			pdf_BrushCheck(pi,&gr,&ref->layers[i].fill_brush,true,i,ref->sc,ref);
+		    if ( ref->layers[i].dostroke )
+			pdf_BrushCheck(pi,&gr,&ref->layers[i].stroke_pen.brush,false,i,ref->sc,ref);
+		    pdf_ImageCheck(pi,&gr,ref->layers[layer].images,i,ref->sc);
+		}
+	    }
 	}
     }
 #endif
@@ -705,6 +782,16 @@ static int PdfDumpSFResources(PI *pi,SplineFont *sf) {
 	    free(gr.image_names[i]);
 	}
 	free(gr.image_names); free(gr.image_objs);
+	fprintf( pi->out, "  >>\n");
+    }
+    if ( gr.opacity_cnt!=0 ) {
+	fprintf( pi->out, "  /ExtGState <<\n" );
+	for ( i=0; i<gr.opacity_cnt; ++i ) {
+	    fprintf( pi->out, "    /gs_%s_opacity_%g %d 0 R\n",
+		    gr.opac_state[i].isfill ? "fill" : "stroke",
+		    gr.opac_state[i].opacity, gr.opac_state[i].obj );
+	}
+	free(gr.opac_state);
 	fprintf( pi->out, "  >>\n");
     }
     fprintf( pi->out, ">>\n" );
@@ -768,7 +855,7 @@ static int pdf_charproc(PI *pi, SplineChar *sc) {
 	SplineCharFindBounds(sc,&b);
 	fprintf( pi->out, "%d 0 %g %g %g %g d1\n",
 		sc->width,
-		b.minx, b.miny, b.maxx, b.maxy );
+		(double) b.minx, (double) b.miny, (double) b.maxx, (double) b.maxy );
     } else
 	fprintf( pi->out, "%d 0 d0\n", sc->width );
 
@@ -2424,6 +2511,11 @@ static char *_thaijohn[] = {
     "๏ ในทีเดิมนะนพวุํลอโฆเปนอยู่ แลเปนอยู่ดว้ยกันกับ พวุํเฆ้า",
     NULL
 };
+/* Mayan K'iche' of Guatemala */ /* Prolog to Popol Wuj */ /* Provided by Daniel Johnson */
+static char *_mayanPopolWuj[] = {
+    "Are u xe' ojer tzij waral, C'i Che' u bi'. Waral xchikatz'ibaj-wi, xchikatiquiba-wi ojer tzij, u ticaribal, u xe'nabal puch ronojel xban pa tinamit C'i Che', ramak C'i Che' winak.",
+    NULL
+};
 
 /* I've omitted cornish. no interesting letters. no current speakers */
 
@@ -2485,6 +2577,7 @@ static struct langsamples {
     { _thaijohn, "th", sc_latin, CHR('l','a','t','n'), CHR('T','H','A',' ')},
     { _georgianjohn, "ka", sc_georgian, CHR('g','e','o','r'), CHR('K','A','T',' ') },
     { _swahilijohn, "sw", sc_latin, CHR('l','a','t','n'), CHR('S','W','K',' ')},
+    { _mayanPopolWuj, "QUT", sc_latin, CHR('l','a','t','n'), CHR('Q','U','T',' ')},
     { NULL }
 };
 

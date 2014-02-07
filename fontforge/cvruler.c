@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "pfaeditui.h"
+#include "fontforgeui.h"
 #include <math.h>
 #include <ustring.h>
 
@@ -122,9 +122,16 @@ static int RulerText(CharView *cv, unichar_t *ubuf, int line) {
 	} else if ( cv->p.spline!=NULL ) {
 	    s = cv->p.spline;
 	    t = cv->p.t;
+#if 0
+	    sprintf( buf, _("Near (%f,%f) @t=%g"),
+		    (double) (((s->splines[0].a*t+s->splines[0].b)*t+s->splines[0].c)*t+s->splines[0].d),
+		    (double) (((s->splines[1].a*t+s->splines[1].b)*t+s->splines[1].c)*t+s->splines[1].d),
+		    t );
+#else
 	    sprintf( buf, _("Near (%f,%f)"),
 		    (double) (((s->splines[0].a*t+s->splines[0].b)*t+s->splines[0].c)*t+s->splines[0].d),
 		    (double) (((s->splines[1].a*t+s->splines[1].b)*t+s->splines[1].c)*t+s->splines[1].d) );
+#endif
 	} else if ( cv->p.sp!=NULL ) {
 	    sprintf( buf, _("Near (%f,%f)"),(double) cv->p.sp->me.x,(double) cv->p.sp->me.y );
 	} else
@@ -422,7 +429,7 @@ return( buffer );
       case 3:
 	dx = cp->x - sp->me.x; dy = cp->y - sp->me.y;
 	if ( dx==0 && dy==0 )
-	    snprintf( buffer, blen, _("No Slope") );
+	    snprintf( buffer, blen, "%s", _("No Slope") );
 	else if ( dx==0 )
 	    snprintf( buffer, blen, "∆y/∆x= ∞" );
 	else

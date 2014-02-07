@@ -1,4 +1,4 @@
-/* Copyright (C) 2005-2010 by George Williams */
+/* Copyright (C) 2005-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "pfaeditui.h"
+#include "fontforgeui.h"
 #include "groups.h"
 #include <unistd.h>
 #include <ustring.h>
@@ -524,7 +524,7 @@ static int grpv_e_h(GWindow gw, GEvent *event) {
     struct groupdlg *grp = (struct groupdlg *) GDrawGetUserData(gw);
 
     if (( event->type==et_mouseup || event->type==et_mousedown ) &&
-	    (event->u.mouse.button==4 || event->u.mouse.button==5) ) {
+	    (event->u.mouse.button>=4 && event->u.mouse.button<=7) ) {
 return( GGadgetDispatchEvent(grp->vsb,event));
     }
 
@@ -1083,7 +1083,7 @@ static int displaygrp_e_h(GWindow gw, GEvent *event) {
     struct groupdlg *grp = (struct groupdlg *) GDrawGetUserData(gw);
 
     if (( event->type==et_mouseup || event->type==et_mousedown ) &&
-	    (event->u.mouse.button==4 || event->u.mouse.button==5) ) {
+	    (event->u.mouse.button>=4 && event->u.mouse.button<=7) ) {
 return( GGadgetDispatchEvent(grp->vsb,event));
     }
 

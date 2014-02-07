@@ -1,5 +1,5 @@
 /* XPM */
-static char * ffanvil32_kb_xpm[] = {
+static char *fontforge[] = {
 "32 32 95 2",
 "  	c None",
 ". 	c #BEBEBE",

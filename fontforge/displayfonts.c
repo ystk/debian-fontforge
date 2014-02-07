@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "pfaeditui.h"
+#include "fontforgeui.h"
 #include "sftextfieldP.h"
 #include <stdlib.h>
 #include <math.h>
@@ -1830,7 +1830,7 @@ return;
     gcd[14].creator = GLineCreate;
     varray2[4] = &gcd[14]; varray2[5] = NULL;
 
-    label[15].text = (unichar_t *) "DPI:";
+    label[15].text = (unichar_t *) _("DPI:");
     label[15].text_is_1byte = true;
     gcd[15].gd.label = &label[15];
     gcd[15].gd.flags = gg_visible | gg_enabled | gg_utf8_popup;

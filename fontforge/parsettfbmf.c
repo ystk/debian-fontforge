@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "pfaedit.h"
+#include "fontforge.h"
 #include "chardata.h"
 #include "utype.h"
 #include "ustring.h"
@@ -278,11 +278,11 @@ static void BdfCRefFixup(BDFFont *bdf, int gid, int *warned, struct ttfinfo *inf
 		prev->next = head->next;
 	    free( head );
 	}
-	/* According to the TTF spec, the xOffset and yOffset values specify
-	/* the top-left corner position of the component in the composite.
-	/* In our program it is more convenient to manipulate values specified
-	/* relatively to the original position of the reference's parent glyph.
-	/* So we have to perform this conversion each time we read or write 
+	/* According to the TTF spec, the xOffset and yOffset values specify   */
+	/* the top-left corner position of the component in the composite.     */
+	/* In our program it is more convenient to manipulate values specified */
+	/* relatively to the original position of the reference's parent glyph.*/
+	/* So we have to perform this conversion each time we read or write    */
 	/* an embedded TTF bitmap. */
 	head->xoff = head->xoff - bdfc->xmin + me->xmin;
 	head->yoff = me->ymax - bdfc->ymax - head->yoff;
@@ -294,16 +294,16 @@ static void BdfRefFixup(BDFFont *bdf, struct ttfinfo *info) {
     int warned = false;
     BDFChar *bc;
 
-    /* Associate each reference with its parent glyph and recalculate
+    /* Associate each reference with its parent glyph and recalculate */
     /* x and y offsets */
     for ( i=0; i<bdf->glyphcnt; ++i )
 	if ( bdf->glyphs[i]!=NULL && bdf->glyphs[i]->refs != NULL )
 	    BdfCRefFixup( bdf,i,&warned,info );
 
-    /* When offsets are recalculated, reset the composite glyph bounding
+    /* When offsets are recalculated, reset the composite glyph bounding */
     /* box to zero values */
-    /* For glyphs which were stored in subtables format 5 compress bitmaps
-    /* to the image size (we could not do this before recalculating reference
+    /* For glyphs which were stored in subtables format 5 compress bitmaps */
+    /* to the image size (we could not do this before recalculating reference */
     /* offsets) */
     for ( i=0; i<bdf->glyphcnt; ++i ) if (( bc = bdf->glyphs[i] ) != NULL ) {
 	if ( bc->refs != NULL ) {
@@ -670,7 +670,7 @@ static struct bdfcharlist *BDFAddDefaultGlyphs(BDFFont *bdf, int format) {
     memset(bl,0,sizeof(bl));
     if ( notdefpos==-1 ) {
 	sc0.name = ".notdef";
-	/* sc0.ttf_glyph = 0; /* already done */
+	/* sc0.ttf_glyph = 0; */	/* already done */
 	sc0.parent = sf;
 	if ( width<4 ) w=4; else w=width;
 	sc0.width = w*(sf->ascent+sf->descent)/bdf->pixelsize;
@@ -1228,10 +1228,10 @@ void ttfdumpbitmap(SplineFont *sf,struct alltabs *at,int32 *sizes) {
 	if ( bdf==NULL )
     continue;
 
-	/* Used to detect glyphs which can be placed into width groups (EBDT format 5)
-	/* immediately during the output process. But using this format means most glyph
-	/* bounding boxes are expanded to larger values than the actual bitmap size,
-	/* and we need to know these new bounding box values in order to be able to
+	/* Used to detect glyphs which can be placed into width groups (EBDT format 5) */
+	/* immediately during the output process. But using this format means most glyph */
+	/* bounding boxes are expanded to larger values than the actual bitmap size, */
+	/* and we need to know these new bounding box values in order to be able to */
 	/* correctly calculate reference placement in composite glyphs */
 	DetectWidthGroups( &at->gi,bdf,at->applebitmaps );
 	/* Apple doesn't support composite bitmaps ( EBDT formats 8 and 9) */

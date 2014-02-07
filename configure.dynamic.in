@@ -2,7 +2,7 @@ dnl Process this file with autoconf to produce a configure script.
 
 orig_args="$*"
 
-AC_INIT(fontforge/pfaedit.h)
+AC_INIT(fontforge/fontforge.h)
 AC_CONFIG_HEADERS([inc/config.h])
 AC_PROG_CC
 AC_PROG_INSTALL
@@ -83,22 +83,19 @@ dnl  library to be found (otherwise only portable to machines with macports/fink
  if test "$CPPFLAGS" \!= "" >/dev/null ; then
   TrustUser="yes"
  elif test -d /sw/include >/dev/null ; then
-  CPPFLAGS="$CPPFLAGS -idirafter /sw/include"
+  CPPFLAGS="$CPPFLAGS -I /sw/include"
   gww_extraincludes="/sw/include"
  elif test -d /opt/local/include >/dev/null ; then
-  CPPFLAGS="$CPPFLAGS -idirafter /opt/local/include"
+  CPPFLAGS="$CPPFLAGS -I /opt/local/include"
   gww_extraincludes="/opt/local/include";
  fi
- rmlibs=""
  if test "$oldLDFLAGS" \!= "" >/dev/null ; then
   TrustUser="yes"
  elif test -d /sw/lib >/dev/null ; then
   LDFLAGS="$LDFLAGS -L/sw/lib"
-  rmlibs="-L/sw/lib"
   gww_rpath="-rpath /sw/lib"
  elif test -d /opt/local/lib >/dev/null ; then
   LDFLAGS="$LDFLAGS -L/opt/local/lib"
-  rmlibs="-L/opt/local/lib"
   gww_rpath="-rpath /opt/local/lib"
  fi
  LIBS="-Wl,/System/Library/Frameworks/Carbon.framework/Carbon $LIBS"
@@ -263,7 +260,7 @@ if test "$python" = "yes" ; then
   if $python_prog -c "import distutils.sysconfig ; print(distutils.sysconfig.get_config_var('VERSION'))" ; then
     PyVersion=`$python_prog -c "import distutils.sysconfig ; print(distutils.sysconfig.get_config_var('VERSION'))"`
     PyMajorVersion=`echo $PyVersion |sed -e 's/\..*//'`
-    PySubVersion=`echo $PyVersion |sed -e 's/\(2\|3\)\.//'`
+    PySubVersion=`echo $PyVersion |sed -e 's/2\.//' -e 's/3\.//'`
     PyName="python$PyVersion"
     if test "$PySubVersion" = "" ; then
       python="no"
@@ -401,10 +398,12 @@ dnl bloody useless thing to do, but check for both (don't need to check for
 dnl zlib.h because we never use it directly, only used inside libpng)
 
 AC_CHECK_LIB(z, deflateEnd, : ,AC_DEFINE(_NO_LIBPNG), -lm) 
-AC_CHECK_LIB(png, png_create_read_struct, : ,[
+AC_CHECK_LIB(png16, png_create_read_struct, AC_DEFINE(_LIBPNG16),[
+AC_CHECK_LIB(png15, png_create_read_struct, AC_DEFINE(_LIBPNG15),[
  AC_CHECK_LIB(png14, png_create_read_struct, AC_DEFINE(_LIBPNG14),[
-  AC_CHECK_LIB(png12, png_create_read_struct, AC_DEFINE(_LIBPNG12),
-      AC_DEFINE(_NO_LIBPNG), -lz -lm)], -lz -lm)], -lz -lm)
+  AC_CHECK_LIB(png12, png_create_read_struct, AC_DEFINE(_LIBPNG12),[
+   AC_CHECK_LIB(png, png_create_read_struct, : ,
+      AC_DEFINE(_NO_LIBPNG), -lz -lm)], -lz -lm)], -lz -lm)], -lz -lm)], -lz -lm)
 AC_CHECK_HEADER(png.h, : , AC_DEFINE(_NO_LIBPNG))
 AC_CHECK_LIB(jpeg, jpeg_CreateDecompress, :  ,AC_DEFINE(_NO_LIBJPEG)) 
 AC_CHECK_HEADER(jpeglib.h, : , AC_DEFINE(_NO_LIBJPEG))
@@ -679,7 +678,6 @@ AC_ARG_WITH(regular-link,
  [
     if test "$withval" != "no" >/dev/null 2>&1 ; then
 	gww_regular_link="yes"
-	rmlibs=""
 	AC_DEFINE(NODYNAMIC)
 	gww_rpath=""
 	if test "$gww_extraincludes" != "" ; then
@@ -920,6 +918,12 @@ dnl a pity.
 dnl Build a $ac_confdir/po/Makefile.in with appropriate instructions for installing all locales
 
 MACKEYS=
+if ! msgfmt --help >/dev/null 2>&1 ; then
+  dnl even if the library is installed, the executables might not be. Or might
+  dnl  not be in the PATH.
+
+  gww_has_gettext="no";
+fi
 if test "$gww_has_gettext" = "yes" >/dev/null 2>&1 ; then
  if test "$gww_ismac" = "yes" >/dev/null 2>&1 ; then
   mofiles="$(cd $ac_confdir/po/mackeys && ls *.po | sed -e 's#\.po#\.mo#g')"
@@ -1027,11 +1031,6 @@ GTFF=
 if test -e gtkui/Makefile.in -a \( -e /usr/include/gtk-2.0/gtk/gtk.h -o -e /sw/include/gtk-2.0/gtk/gtk.h \) ; then
   GTFF=gtkui/Makefile
 fi
-
-if test "$rmlibs" != "" ; then
-  LDFLAGS=`echo $LDFLAGS | sed -e "s%$rmlibs%%"`
-fi
-
 
 if test "$gww_archlist" != "" ; then
   CFLAGS="$CFLAGS $gww_archlist"

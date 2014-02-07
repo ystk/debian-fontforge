@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "pfaeditui.h"
+#include "fontforgeui.h"
 #include <math.h>
 #include <locale.h>
 #include <string.h>
@@ -216,7 +216,7 @@ return( 0 );
 	if ( !AskSizeBits(&pixelsize,&bitsperpixel) )
 return( 0 );
     }
-    if ( autohint_before_rasterize && sc->changedsincelasthinted && !sc->manualhints )
+    if ( autohint_before_generate && sc->changedsincelasthinted && !sc->manualhints )
 	SplineCharAutoHint(sc,layer,NULL);
 return( ExportImage(filename,sc, layer, format, pixelsize, bitsperpixel));
 }
@@ -431,7 +431,7 @@ return( false );
 	struct gfc_data *d = GDrawGetUserData(gw);
 	GFileChooserPopupCheck(d->gfc,event);
     } else if (( event->type==et_mouseup || event->type==et_mousedown ) &&
-	    (event->u.mouse.button==4 || event->u.mouse.button==5) ) {
+	    (event->u.mouse.button>=4 && event->u.mouse.button<=7) ) {
 	struct gfc_data *d = GDrawGetUserData(gw);
 return( GGadgetDispatchEvent((GGadget *) (d->gfc),event));
     }

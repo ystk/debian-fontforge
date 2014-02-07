@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2010 by George Williams */
+/* Copyright (C) 2000-2011 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -178,7 +178,7 @@ typedef struct charview {
     GIC *gic;
     GIC *gwgic;
     int width, height;
-    int xoff, yoff;
+    float xoff, yoff; /* must be floating point, for precise zoom by scroll */
     int mbh, infoh, rulerh;
     int16 sas, sfh, sdh, nas, nfh;
     BasePoint info;
@@ -590,7 +590,6 @@ struct gfi_data {		/* FontInfo */
     int private_aspect, ttfv_aspect, tn_aspect, tx_aspect, unicode_aspect;
     int old_sel, old_aspect, old_lang, old_strid;
     int ttf_set, names_set, tex_set;
-    struct psdict *private;
     int langlocalecode;	/* MS code for the current locale */
     unsigned int family_untitled: 1;
     unsigned int human_untitled: 1;
@@ -605,6 +604,7 @@ struct gfi_data {		/* FontInfo */
     struct lkdata tables[2];
     int lkwidth, lkheight;
     int first_sel_lookup, first_sel_subtable;
+    int last_panose_family;
 };
 
 struct kf_dlg /* : fvcontainer */ {
@@ -660,6 +660,7 @@ extern void SCStroke(SplineChar *sc);
 
 extern void PfaEditSetFallback(void);
 extern void RecentFilesRemember(char *filename);
+extern void LastFontsClear(void);
 
 
 struct debugger_context;
@@ -973,6 +974,8 @@ extern GTextInfo *SLOfFont(SplineFont *sf);
 
 extern void DoPrefs(void);
 extern void DoXRes(void);
+extern void LastFonts_Activate(void);
+extern void LastFonts_End(int success);
 extern void GListAddStr(GGadget *list,unichar_t *str, void *ud);
 extern void GListReplaceStr(GGadget *list,int index, unichar_t *str, void *ud);
 extern struct macname *NameGadgetsGetNames( GWindow gw );
@@ -1173,6 +1176,7 @@ extern void FVChar(FontView *fv,GEvent *event);
 extern void FVDrawInfo(FontView *fv,GWindow pixmap,GEvent *event);
 extern void KFFontViewInits(struct kf_dlg *kf,GGadget *drawable);
 extern char *GlyphSetFromSelection(SplineFont *sf,int def_layer,char *current);
+extern void ME_ListCheck(GGadget *g,int r, int c, SplineFont *sf);
 extern void ME_SetCheckUnique(GGadget *g,int r, int c, SplineFont *sf);
 extern void ME_ClassCheckUnique(GGadget *g,int r, int c, SplineFont *sf);
 #endif	/* _VIEWS_H */

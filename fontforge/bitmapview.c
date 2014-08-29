@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2011 by George Williams */
+/* Copyright (C) 2000-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -597,7 +597,7 @@ void BCGeneralFunction(BitmapView *bv,
 		CirclePoints(bv,x,y,ox,oy,modx,mody,SetPoint,data);
 	    }
 	    if ( bv->active_tool==bvt_elipse ) {
-		/* there may be quite a gap between the the two semi-circles */
+		/* there may be quite a gap between the two semi-circles */
 		/*  because the tangent is nearly vertical here. So just fill */
 		/*  it in */
 		int j;

@@ -1,4 +1,4 @@
-/* Copyright (C) 2003-2011 by George Williams */
+/* Copyright (C) 2003-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -576,11 +576,11 @@ return( false );
 	{
 	    int fscnt,i;
 	    char fstype[16];
-	    /* Now the spec SAYS we should output bit >numbers<. */
-	    /* What is MEANT is that bit >values< should be output. */
 	    for ( i=fscnt=0; i<16; ++i )
-		fstype[fscnt++] = sf->pfminfo.fstype&(1<<i) ? 1 : 0;
-	    PListOutputIntArray(plist,"openTypeOS2Type",fstype,fscnt);
+		if ( sf->pfminfo.fstype&(1<<i) )
+		    fstype[fscnt++] = i;
+	    if ( fscnt!=0 )
+		PListOutputIntArray(plist,"openTypeOS2Type",fstype,fscnt);
 	}
 	if ( sf->pfminfo.typoascent_add )
 	    PListOutputInteger(plist,"openTypeOS2TypoAscender",sf->ascent+sf->pfminfo.os2_typoascent);
@@ -808,12 +808,9 @@ return( false );
 	    /* That's not what RoboFAB does. It simply adds an underscore after*/
 	    /*  every capital letter. Much easier. And since people have */
 	    /*  complained that I follow the spec, let's not. */
-	    if ( isupper( *start )) {
-		*gstart++ = tolower( *start );
-		*gstart++ = '_';
-	    } else
-		*gstart++ = *start;
-	    ++start;
+	    *gstart++ = *start;
+	    if ( isupper( *start++ ))
+	        *gstart++ = '_';
 	}
 #ifdef __VMS
 	*gstart ='\0';
@@ -1676,18 +1673,15 @@ return;
 
 static long UFOGetBits(xmlDocPtr doc,xmlNodePtr value) {
     xmlNodePtr kid;
-    long mask=0, bit;
+    long mask=0;
 
     if ( _xmlStrcmp(value->name,(const xmlChar *) "array")!=0 )
 return( 0 );
-    bit = 1;
     for ( kid = value->children; kid!=NULL; kid=kid->next ) {
 	if ( _xmlStrcmp(kid->name,(const xmlChar *) "integer")==0 ) {
 	    char *valName = (char *) _xmlNodeListGetString(doc,kid->children,true);
-	    if ( strtol(valName,NULL,10))
-		mask |= bit;
+	    mask |= 1<<strtol(valName,NULL,10);
 	    free(valName);
-	    bit<<=1;
 	}
     }
 return( mask );

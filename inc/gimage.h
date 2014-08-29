@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2011 by George Williams */
+/* Copyright (C) 2000-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -164,6 +164,7 @@ extern GImage *GImageRead(char *filename);
 
 extern void GImageDrawRect(GImage *img,GRect *r,Color col);
 extern void GImageDrawImage(GImage *dest,GImage *src,void *junk,int x, int y);
+extern void GImageBlendOver(GImage *dest,GImage *src,GRect *from,int x, int y);
 
 extern void gRGB2HSL(struct hslrgb *col);
 extern void gHSL2RGB(struct hslrgb *col);

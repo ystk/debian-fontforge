@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2011 by George Williams */
+/* Copyright (C) 2000-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -35,6 +35,8 @@
 #include <dirent.h>
 #include <ustring.h>
 #include "gfile.h"
+
+int AutoSaveFrequency=30;
 
 #if !defined(__MINGW32__)
 # include <pwd.h>
@@ -163,6 +165,9 @@ return;
 void _DoAutoSaves(FontViewBase *fvs) {
     FontViewBase *fv;
     SplineFont *sf;
+
+    if ( AutoSaveFrequency<=0 )
+return;
 
     for ( fv=fvs; fv!=NULL; fv=fv->next ) {
 	sf = fv->cidmaster?fv->cidmaster:fv->sf;

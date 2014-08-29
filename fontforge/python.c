@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2011 by George Williams */
+/* Copyright (C) 2007-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -522,9 +522,7 @@ static PyObject *PyFF_LoadEncodingFile(PyObject *self, PyObject *args) {
     if ( !PyArg_ParseTuple(args,"s", &filename) )
 return( NULL );
 
-    ParseEncodingFile((char *) filename);
-
-Py_RETURN_NONE;
+return( Py_BuildValue("s", ParseEncodingFile((char *) filename)) );
 }
 
 static PyObject *PyFF_LoadNamelist(PyObject *self, PyObject *args) {
@@ -6335,7 +6333,7 @@ return( NULL );
 return( NULL );
 	    }
 	}
-	pt = str = galloc(len);
+	pt = str = galloc(len+1);
 	for ( i=0; i<cnt; ++i ) {
 	    PyObject *obj = PySequence_GetItem(value,i);
 	    PyFF_Glyph *g = (PyFF_Glyph *) obj;
@@ -6398,8 +6396,10 @@ return( NULL );
 	    }
 	    parts[i].component = copy(((PyFF_Glyph *) g)->sc->name);
 	} else if ( !PyArg_ParseTuple(obj,"s|iiii", &parts[i].component,
-		&extender, &start, &end, &full ))
+		&extender, &start, &end, &full )) {
+            free(parts);
 return( NULL );
+        }
 	parts[i].is_extender = extender;
 	parts[i].startConnectorLength = start;
 	parts[i].endConnectorLength = end;
@@ -10855,6 +10855,11 @@ return( Py_BuildValue("(ii)", sf->pfminfo.codepages[0],sf->pfminfo.codepages[1])
 static int PyFF_Font_set_os2codepages(PyFF_Font *self,PyObject *value,void *closure) {
     SplineFont *sf = self->fv->sf;
 
+    if ( value == NULL ) {
+        sf->pfminfo.hascodepages = false;
+return( 0 );
+    }
+
     if ( !PyArg_ParseTuple(value,"ii", &sf->pfminfo.codepages[0], &sf->pfminfo.codepages[1]))
 return(-1);
     sf->pfminfo.hascodepages = true;
@@ -10875,9 +10880,14 @@ return( Py_BuildValue("(iiii)",
 static int PyFF_Font_set_os2unicoderanges(PyFF_Font *self,PyObject *value,void *closure) {
     SplineFont *sf = self->fv->sf;
 
+    if ( value == NULL ) {
+        sf->pfminfo.hasunicoderanges = false;
+return( 0 );
+    }
+
     if ( !PyArg_ParseTuple(value,"iiii",
 	    &sf->pfminfo.unicoderanges[0], &sf->pfminfo.unicoderanges[1],
-	    &sf->pfminfo.unicoderanges[2], &sf->pfminfo.unicoderanges[3]));
+	    &sf->pfminfo.unicoderanges[2], &sf->pfminfo.unicoderanges[3]))
 return(-1);
     sf->pfminfo.hasunicoderanges = true;
 return( 0 );
@@ -17154,7 +17164,7 @@ static struct flaglist sfnt_name_mslangs[] = {
     { "Papiamentu", 0x479},
     { "Pashto", 0x463},
     { "Polish", 0x415},
-    { "Portugese (Portugal)", 0x416},
+    { "Portuguese (Portugal)", 0x416},
     { "Portuguese (Brasil)", 0x816},
     { "Punjabi (India)", 0x446},
     { "Punjabi (Pakistan)", 0x846},

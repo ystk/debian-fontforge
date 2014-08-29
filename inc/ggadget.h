@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2011 by George Williams */
+/* Copyright (C) 2000-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -132,6 +132,8 @@ typedef struct gbox {
     Color active_border;
     Color depressed_background;
     Color gradient_bg_end;
+	Color border_inner;
+	Color border_outer;
 } GBox;
 
 typedef struct ggadget GGadget;
@@ -485,6 +487,7 @@ GGadget *GListButtonCreate(struct gwindow *base, GGadgetData *gd,void *data);
 GGadget *GColorButtonCreate(struct gwindow *base, GGadgetData *gd,void *data);
 GGadget *GRadioCreate(struct gwindow *base, GGadgetData *gd,void *data);
 GGadget *GCheckBoxCreate(struct gwindow *base, GGadgetData *gd,void *data);
+GGadget *GVisibilityBoxCreate(struct gwindow *base, GGadgetData *gd,void *data);
 GGadget *GScrollBarCreate(struct gwindow *base, GGadgetData *gd,void *data);
 GGadget *GListCreate(struct gwindow *base, GGadgetData *gd,void *data);
 GGadget *GTextFieldCreate(struct gwindow *base, GGadgetData *gd,void *data);

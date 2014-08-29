@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2011 by George Williams */
+/* Copyright (C) 2000-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -895,7 +895,7 @@ void GDrawCreateDisplays(char *displayname,char *programname) {
 	fprintf( stderr, " X11 is optional software found on your install DVD.\n" );
 #elif __CygWin
 	fprintf( stderr, "You must start X11 before you can start %s\n", programname);
-	fprintf( stderr, " X11 may be obtained from the cygwin site in a seperate package.\n" );
+	fprintf( stderr, " X11 may be obtained from the cygwin site in a separate package.\n" );
 #endif
 exit(1);
     }

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2011 by George Williams */
+/* Copyright (C) 2000-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -524,7 +524,7 @@ typedef struct kernpair {
 
 typedef struct kernclass {
     int first_cnt, second_cnt;		/* Count of classes for first and second chars */
-    char **firsts;			/* list of a space seperated list of char names */
+    char **firsts;			/* list of a space separated list of char names */
     char **seconds;			/*  one entry for each class. Entry 0 is null */
     					/*  and means everything not specified elsewhere */
     struct lookup_subtable *subtable;
@@ -2413,7 +2413,7 @@ extern SplineFont *InterpolateFont(SplineFont *base, SplineFont *other, real amo
 double SFSerifHeight(SplineFont *sf);
 
 extern void DumpPfaEditEncodings(void);
-extern void ParseEncodingFile(char *filename);
+extern char *ParseEncodingFile(char *filename);
 extern void LoadPfaEditEncodings(void);
 
 extern int GenerateScript(SplineFont *sf,char *filename,char *bitmaptype,

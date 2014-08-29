@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2011 by George Williams */
+/* Copyright (C) 2000-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -180,7 +180,7 @@ return;
 	}
     }
     if ( ftell(ttf)-info->avar_start>info->avar_len) {
-	LogError( _("Hmm, the the 'avar' table is too long.\n") );
+	LogError( _("Hmm, the 'avar' table is too long.\n") );
 	VariationFree(info);
 return;
     }

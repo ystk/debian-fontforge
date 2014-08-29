@@ -1,0 +1,13 @@
+Description: just ignore .pc files for git
+Author: Hideki Yamane <henrich@debian.org>
+
+---
+Origin: vendor
+Forwarded: no
+Last-Update: 2013-04-15
+
+--- fontforge-0.0.20120101+git.orig/.gitignore
++++ fontforge-0.0.20120101+git/.gitignore
+@@ -0,0 +1 @@
++.pc*
+

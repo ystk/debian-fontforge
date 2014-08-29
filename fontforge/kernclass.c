@@ -1,4 +1,4 @@
-/* Copyright (C) 2003-2011 by George Williams */
+/* Copyright (C) 2003-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -2777,7 +2777,7 @@ return;
 	    gcd[i].gd.flags = gg_enabled|gg_visible|gg_utf8_popup|gg_cb_on;
 	gcd[i].gd.popup_msg = (unichar_t *) _(
 	    "Normally kerning is based on achieving a constant (optical)\n"
-	    "separation between glyphs, but occasionally it is desireable\n"
+	    "separation between glyphs, but occasionally it is desirable\n"
 	    "to have a kerning table where the kerning is based on the\n"
 	    "closest approach between two glyphs (So if the desired separ-\n"
 	    "ation is 0 then the glyphs will actually be touching.");

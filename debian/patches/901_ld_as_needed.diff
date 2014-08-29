@@ -24,3 +24,14 @@
          LIBS="$LIBS $PyLib"
        else
  	AC_SEARCH_LIBS(Py_Main, $PyName python, : , python="no")
+--- a/configure.in
++++ b/configure.in
+@@ -281,7 +281,7 @@
+       else
+ 	python="no"
+       fi
+-      PyLib=`$python_prog -c "import distutils.sysconfig ; print(distutils.sysconfig.get_config_var('LIBPL') + '/' + distutils.sysconfig.get_config_var('LDLIBRARY'))"`
++      PyLib=`${python_prog}-config --libs`
+       if test "$py_lib" != "" ; then
+         LIBS="$LIBS $py_lib"
+       elif test "$PyLib" != "" -a -e "$PyLib" ; then

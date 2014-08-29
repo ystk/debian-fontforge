@@ -1,3 +1,113 @@
+fontforge (20120731.b-5) unstable; urgency=low
+
+  * Make packages Multi-Arch: foreign. Thanks to Dimitri John Ledkov.
+    Closes: #732743
+  * Update Standards to 3.9.5 (checked)
+
+ -- Christian Perrier <bubulle@debian.org>  Wed, 01 Jan 2014 09:24:42 +0100
+
+fontforge (20120731.b-4) unstable; urgency=low
+
+  [ Matthias Klose ]
+  * Merge patch from Ubuntu:
+    - Fix build with --as-needed.
+
+ -- Christian Perrier <bubulle@debian.org>  Sun, 03 Nov 2013 14:42:26 +0100
+
+fontforge (20120731.b-3) unstable; urgency=low
+
+  * debian/watch
+    - remove unnecessary uversionmangle 
+  * debian/control
+    - "Build-Depends: libtiff5-dev", since libtiff-dev introduces dependency
+      to libtiff4 which is in oldlibs
+    - use canonical URL for Vcs-*
+
+ -- Hideki Yamane <henrich@debian.org>  Tue, 25 Jun 2013 22:12:41 +0900
+
+fontforge (20120731.b-2) unstable; urgency=low
+
+  * upload to unstable
+
+ -- Hideki Yamane <henrich@debian.org>  Wed, 05 Jun 2013 15:22:03 +0900
+
+fontforge (20120731.b-1) experimental; urgency=low
+
+  * New upstream release (Closes: #684109)
+  * debian/patches
+    - 001_complete_libpng-dev_transition.diff, 005_x_www_browser.diff, 
+      902_fix_optipng_reads.diff: merged upstream
+    - open_file_with_drag_and_drop.patch: drop it, conflict with upstream
+  * debian/fontforge-common.install: install icons
+
+ -- Hideki Yamane <henrich@debian.org>  Tue, 14 May 2013 10:52:39 +0900
+
+fontforge (0.0.20120101+git-6) unstable; urgency=low
+
+  * debian/rules
+    - remove override_dh_python2, it'n unnecessary. 
+
+ -- Hideki Yamane <henrich@debian.org>  Tue, 14 May 2013 10:27:38 +0900
+
+fontforge (0.0.20120101+git-5) experimental; urgency=low
+
+  * debian/rules
+    - fix all lintian error and warnings
+      + move python modules from site-packages to dist-packages manually
+       (Closes: #705904)
+      + chmod 0644 to *.so.* libraries
+    - install missing nox binaries
+    - don't build pyextention for -nox package to reduce build time
+   * debian/*.install
+    - don't conflict duplicate so within packages (Closes: #705857)
+
+ -- Hideki Yamane <henrich@debian.org>  Mon, 22 Apr 2013 22:36:29 +0900
+
+fontforge (0.0.20120101+git-4) experimental; urgency=low
+
+  * debian/control
+    - build python modules for all supported versions (Closes: #575753)
+
+ -- Hideki Yamane <henrich@debian.org>  Sun, 21 Apr 2013 08:44:40 +0900
+
+fontforge (0.0.20120101+git-3) experimental; urgency=low
+
+  * Team upload.
+  * debian/control
+    - remove Kęstutis Biliūnas <kebil@kaunas.init.lt> from Uploaders, thanks.
+      (Closes: #704972)
+    - add myself to Uploaders
+    - use debhelper (>= 9)
+    - set "Standards-Version: 3.9.4"
+    - add "{Conflicts,Replaces}: libfontforge-dev (<< 0.0.20120101+git-3)" to
+      libfontoforge1 since all .so files move to libfontoforge1
+    - set "Build-Depends: libtiff-dev" to make transition easier (Closes: #681538)
+      Thanks to Michael Terry <michael.terry@canonical.com>
+    - remove obsolete "Dm-Upload-Allowed:" field
+    - add "Breaks: defoma" to avoid broken obsolete defoma symlink cause
+      segfault (Closes: #583546)
+    - add fontforge-common package to reduce the duplication (Closes: #705574)
+    - replace from "Conflicts: fontforge{,-nox}" to Breaks to ensure smooth
+      upgrade
+  * debian/patches
+    - add open_file_with_drag_and_drop.patch. It is able to open files with 
+      Drag&Drop in launcher.
+  * debian/rules
+    - cleanup, use dh style. It brings concurrent build enable with --parallel
+     (Closes: #705437) Also, it reduces build time.
+    - enable "--with-freetype-bytecode" option by default (Closes: #688213,
+      #672775)
+      since related patent has expired.
+    - explicitly specify "--with-freetype-src=freetype" to reduce search time 
+      (closes: #605871). However, should add freetype source to enable it and
+      not do so since it's not sure at this time.
+  * debian/*.{install,dirs},clean
+    - use with dh
+  * debian/compat
+    - set 9 to enable hardening (without setting dpkg-buildflags)
+
+ -- Hideki Yamane <henrich@debian.org>  Thu, 28 Mar 2013 08:22:43 +0900
+
 fontforge (0.0.20120101+git-2) unstable; urgency=low
 
   * Define SHELL in Makefiles. Thanks to Jakub Wilk for the patch

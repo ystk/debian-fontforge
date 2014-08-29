@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2011 by George Williams */
+/* Copyright (C) 2000-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -1215,7 +1215,7 @@ return;
     /* Ok. when merging CID fonts... */
     /*  If fv is normal and other is CID then just flatten other and merge everything into fv */
     /*  If fv is CID and other is normal then merge other into the currently active font */
-    /*  If both are CID then merge each subfont seperately */
+    /*  If both are CID then merge each subfont separately */
     if ( fv->sf->cidmaster!=NULL && other->subfonts!=NULL )
 	CIDMergeFont(fv->sf->cidmaster,other,preserveCrossFontKerning);
     else

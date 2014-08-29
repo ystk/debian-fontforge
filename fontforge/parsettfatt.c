@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2011 by George Williams */
+/* Copyright (C) 2000-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -2289,7 +2289,6 @@ return;
 	if ( info->fontstyle_id == 0 && nid==0 && info->design_size!=0 &&
 		info->design_range_bottom==0 && info->design_range_top==0 ) {
 	    /* Reasonable spec, only design size provided */
-	    LogError(_("This font contains a 'size' feature with a design size and design range but no stylename. That is technically an error, but we'll let it pass"));
 	    info->fontstyle_name = NULL;
     break;
 	}
@@ -2301,6 +2300,7 @@ return;
 	if ( info->fontstyle_id == 0 && nid==0 ) {
 	    /* Not really allowed, but we'll accept it anyway */
 	    /* If a range is provided than a style name is expected */
+	    LogError(_("This font contains a 'size' feature with a design size and design range but no stylename. That is technically an error, but we'll let it pass"));
 	    info->fontstyle_name = NULL;
     break;
 	}
@@ -4879,8 +4879,22 @@ return;
 		left = getushort(ttf);
 		right = getushort(ttf);
 		offset = (short) getushort(ttf);
-		if ( left<info->glyph_cnt && right<info->glyph_cnt &&
-			chars[left]!=NULL && chars[right]!=NULL ) {
+		if ( left<0 || right<0 ) {
+		    /* We've seen such buggy fonts... */
+		    LogError( _("Bad kern pair: glyphs %d & %d mustn't be negative\n"),
+			    left, right );
+		    info->bad_gx = true;
+		} else if ( left>=info->glyph_cnt || right>=info->glyph_cnt ) {
+		    /* Holes happen when reading ttc files. They are probably ok */
+		    LogError( _("Bad kern pair: glyphs %d & %d must be less than %d\n"),
+			    left, right, info->glyph_cnt );
+		    info->bad_gx = true;
+		} else if (chars[left]==NULL || chars[right]==NULL ) {
+                    /* Shouldn't happen. */
+		    LogError( _("Bad kern pair: glyphs at %d & %d are null\n"),
+			    left, right);
+		    info->bad_gx = true;
+		} else {
 		    kp = chunkalloc(sizeof(KernPair));
 		    kp->sc = chars[right];
 		    kp->off = offset;
@@ -4894,11 +4908,6 @@ return;
 			kp->next = chars[left]->kerns;
 			chars[left]->kerns = kp;
 		    }
-		} else if ( left>=info->glyph_cnt || right>=info->glyph_cnt ) {
-		    /* Holes happen when reading ttc files. They are probably ok */
-		    LogError( _("Bad kern pair: glyphs %d & %d must be less than %d\n"),
-			    left, right, info->glyph_cnt );
-		    info->bad_gx = true;
 		}
 	    }
 	    InfoNameOTLookup(otl,info);

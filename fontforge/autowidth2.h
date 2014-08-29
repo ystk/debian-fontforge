@@ -1,4 +1,4 @@
-/* Copyright (C) 2009-2011 by George Williams */
+/* Copyright (C) 2009-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -33,7 +33,7 @@ typedef struct aw_glyph {
     /*int zero_pos;*/
     /*real min_y, max_y;*/
     int imin_y, imax_y;		/* floor(bb.min_y/sub_height) */
-    /* Allocate two arrays [min_y/sub_height,max_y/sub_hieght) */
+    /* Allocate two arrays [min_y/sub_height,max_y/sub_height) */
     /*  normalize so that min_y = sub_height*floor(bb.miny/sub_height) */
     /*                    max_y = sub_height*ceil (bb.maxy/sub_height) */
     /* left[i] is the minimum x value any spline attains between min_y+i*sub_hight and min_y+(i+1)*sub_height */

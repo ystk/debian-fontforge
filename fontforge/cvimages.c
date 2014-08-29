@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2011 by George Williams */
+/* Copyright (C) 2000-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -1118,6 +1118,7 @@ return( false );
 	    ++tot;
 	}
     }
+    closedir(dir);
     if ( tot==0 )
 	ff_post_error(_("Nothing Loaded"),_("Nothing Loaded"));
 return( true );

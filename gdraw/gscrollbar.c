@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2011 by George Williams */
+/* Copyright (C) 2000-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -244,8 +244,11 @@ static void draw_arrow(GWindow pixmap, GScrollBar *gsb, int which) {
     }
 }
 
+static void GScrollBarFit(GScrollBar *gsb);
+
 static int gscrollbar_expose(GWindow pixmap, GGadget *g, GEvent *event) {
     GScrollBar *gsb = (GScrollBar *) g;
+    GBox box = *(g->box);
     GRect old1;
     GRect r;
     int ar;
@@ -253,20 +256,29 @@ static int gscrollbar_expose(GWindow pixmap, GGadget *g, GEvent *event) {
     if ( g->state == gs_invisible )
 return( false );
 
+    /* In case border was changed in resource editor, */
+    /* the scrollbar thumb inside must be refitted. */
+    GScrollBarFit(gsb);
+
     GDrawPushClip(pixmap,&g->r,&old1);
 
-    GBoxDrawBackground(pixmap,&g->r,g->box, g->state,false);
-    r = g->r; --r.width; --r.height;
-    GDrawDrawRect(pixmap,&r,g->state==gs_disabled?g->box->disabled_foreground:g->box->main_foreground);
     r = g->r;
     ar = gsb->arrowsize - gsb->sbborder;
     if ( gsb->g.vert ) { r.y += ar ; r.height -= 2*ar; }
     else { r.x += ar; r.width -= 2*ar; }
+
+    /* Mimick old border behavior to retain compatibility with older themes, */
+    /* but match border shape with that of background. */
+    box.flags = box_foreground_border_outer;
+    box.border_width = 0;
+    GBoxDrawBackground(pixmap,&g->r,g->box,g->state,false);
+    GBoxDrawBackground(pixmap,&r,g->box,gs_pressedactive,false);
+    GBoxDrawBorder(pixmap,&g->r,&box,g->state,false);
     GBoxDrawBorder(pixmap,&r,g->box,g->state,false);
 
+    draw_thumb(pixmap,gsb); /* sets line width for arrows too */
     draw_arrow(pixmap,gsb,gsb->g.vert);
     draw_arrow(pixmap,gsb,gsb->g.vert|2);
-    draw_thumb(pixmap,gsb);
 
     GDrawPopClip(pixmap,&old1);
 return( true );

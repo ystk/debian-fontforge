@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2011 by George Williams */
+/* Copyright (C) 2000-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -91,7 +91,10 @@ extern int _GScrollBar_Width;
 static int fv_fontsize = 11, fv_fs_init=0;
 static Color fvselcol = 0xffff00, fvselfgcol=0x000000;
 Color view_bgcol;
+static Color fvglyphinfocol = 0xff0000;
+static Color fvemtpyslotfgcol = 0xd08080;
 static Color fvchangedcol = 0x000060;
+static Color fvhintingneededcol = 0x0000ff;
 
 enum glyphlable { gl_glyph, gl_name, gl_unicode, gl_encoding };
 int default_fv_showhmetrics=false, default_fv_showvmetrics=false,
@@ -153,13 +156,12 @@ return;
  /*  lines */
 	    if ( i>=0 && i<=fv->rowcnt ) {
 		GRect r;
-		Color hintcol = 0x0000ff;
 		r.x = j*fv->cbw+1; r.width = fv->cbw-1;
 		r.y = i*fv->cbh+1; r.height = fv->lab_height-1;
-		GDrawDrawLine(fv->v,r.x,r.y,r.x,r.y+r.height-1,hintcol);
-		GDrawDrawLine(fv->v,r.x+1,r.y,r.x+1,r.y+r.height-1,hintcol);
-		GDrawDrawLine(fv->v,r.x+r.width-1,r.y,r.x+r.width-1,r.y+r.height-1,hintcol);
-		GDrawDrawLine(fv->v,r.x+r.width-2,r.y,r.x+r.width-2,r.y+r.height-1,hintcol);
+		GDrawDrawLine(fv->v,r.x,r.y,r.x,r.y+r.height-1,fvhintingneededcol);
+		GDrawDrawLine(fv->v,r.x+1,r.y,r.x+1,r.y+r.height-1,fvhintingneededcol);
+		GDrawDrawLine(fv->v,r.x+r.width-1,r.y,r.x+r.width-1,r.y+r.height-1,fvhintingneededcol);
+		GDrawDrawLine(fv->v,r.x+r.width-2,r.y,r.x+r.width-2,r.y+r.height-1,fvhintingneededcol);
 	    }
 	}
     }
@@ -220,8 +222,8 @@ static void FVDrawGlyph(GWindow pixmap, FontView *fv, int index, int forcebg ) {
     if ( !SCWorthOutputting(sc) ) {
 	int x = j*fv->cbw+1, xend = x+fv->cbw-2;
 	int y = i*fv->cbh+fv->lab_height+1, yend = y+fv->cbw-1;
-	GDrawDrawLine(pixmap,x,y,xend,yend,0xd08080);
-	GDrawDrawLine(pixmap,x,yend,xend,y,0xd08080);
+	GDrawDrawLine(pixmap,x,y,xend,yend,fvemtpyslotfgcol);
+	GDrawDrawLine(pixmap,x,yend,xend,y,fvemtpyslotfgcol);
     }
     if ( sc!=NULL ) {
 	BDFChar *bdfc;
@@ -1633,7 +1635,7 @@ return( NULL );
 	    pattern = ppt;
 	    ++name;
 	} else if ( ch=='{' ) {
-	    /* matches any of a comma seperated list of substrings */
+	    /* matches any of a comma separated list of substrings */
 	    for ( ppt = pattern+1; *ppt!='\0' ; ppt = ept ) {
 		for ( ept=ppt; *ept!='}' && *ept!=',' && *ept!='\0'; ++ept );
 		npt = SubMatch(ppt,ept,name,ignorecase);
@@ -4812,6 +4814,7 @@ return;
     if ( (nl = LoadNamelist(temp))==NULL ) {
 	ff_post_error(_("Bad namelist file"),_("Could not parse %s"), ret );
 	free(ret); free(temp);
+        fclose(old);
 return;
     }
     free(ret); free(temp);
@@ -4825,6 +4828,7 @@ return;
     new = fopen( buffer,"w");
     if ( new==NULL ) {
 	ff_post_error(_("Create failed"),_("Could not write %s"), buffer );
+        fclose(old);
 return;
     }
 
@@ -6161,7 +6165,7 @@ static void FVExpose(FontView *fv,GWindow pixmap,GEvent *event) {
 		     ( fv->b.sf->layers[fv->b.active_layer].order2 && sc->layers[fv->b.active_layer].splines!=NULL &&
 			sc->ttf_instrs_len<=0 ) ||
 		     ( fv->b.sf->layers[fv->b.active_layer].order2 && sc->instructions_out_of_date ) ) {
-		Color hintcol = 0x0000ff;
+		Color hintcol = fvhintingneededcol;
 		if ( fv->b.sf->layers[fv->b.active_layer].order2 && sc->instructions_out_of_date && sc->ttf_instrs_len>0 )
 		    hintcol = 0xff0000;
 		GDrawDrawLine(pixmap,r.x,r.y,r.x,r.y+r.height-1,hintcol);
@@ -6249,7 +6253,7 @@ void FVDrawInfo(FontView *fv,GWindow pixmap,GEvent *event) {
     EncMap *map = fv->b.map;
     int gid;
     int uni;
-    Color fg = 0xff0000;
+    Color fg = fvglyphinfocol;
     int ulen, tlen;
 
     if ( event->u.expose.rect.y+event->u.expose.rect.height<=fv->mbh )
@@ -6325,7 +6329,7 @@ return;
 	uc_strncat(ubuffer, UnicodeRange(uni),80);
     }
 
-    tlen = GDrawDrawBiText(pixmap,10,fv->mbh+fv->lab_as,ubuffer,ulen,NULL,0xff0000);
+    tlen = GDrawDrawBiText(pixmap,10,fv->mbh+fv->lab_as,ubuffer,ulen,NULL,fvglyphinfocol);
     GDrawDrawBiText(pixmap,10+tlen,fv->mbh+fv->lab_as,ubuffer+ulen,-1,NULL,fg);
     GDrawPopClip(pixmap,&old);
 }
@@ -7257,10 +7261,13 @@ return;
 }
 
 static struct resed fontview_re[] = {
+    {N_("Glyph Info Color"), "GlyphInfoColor", rt_color, &fvglyphinfocol, N_("Color of the font used to display glyph information in the fontview")},
+    {N_("Empty Slot FG Color"), "EmptySlotFgColor", rt_color, &fvemtpyslotfgcol, N_("Color used to draw the foreground of empty slots")},
     {N_("Selected BG Color"), "SelectedColor", rt_color, &fvselcol, N_("Color used to draw the background of selected glyphs")},
     {N_("Selected FG Color"), "SelectedFgColor", rt_color, &fvselfgcol, N_("Color used to draw the foreground of selected glyphs")},
     {N_("Changed Color"), "ChangedColor", rt_color, &fvchangedcol, N_("Color used to mark a changed glyph")},
-    {N_("Font Size"), "FontSize", rt_int, &fv_fontsize, N_("Size (in points) of the font used to display information and glyph labels in the fontview.")},
+    {N_("Hinting Needed Color"), "HintingNeededColor", rt_color, &fvhintingneededcol, N_("Color used to mark glyphs that need hinting")},
+    {N_("Font Size"), "FontSize", rt_int, &fv_fontsize, N_("Size (in points) of the font used to display information and glyph labels in the fontview")},
     {N_("Font Family"), "FontFamily", rt_stringlong, &standard_fontnames, N_("A comma separated list of font family names used to display small example images of glyphs over the user designed glyphs")},
     {N_("Serif Family"), "SerifFamily", rt_stringlong, &special_fontnames[0], N_("A comma separated list of font family names used to display small example images of glyphs over the user designed glyphs\nfor characters in the unicode math region which are specified to be in a serif font")},
     {N_("Script Family"), "ScriptFamily", rt_stringlong, &special_fontnames[1], N_("A comma separated list of font family names used to display small example images of glyphs over the user designed glyphs\nfor characters in the unicode math region which are specified to be in a script font")},

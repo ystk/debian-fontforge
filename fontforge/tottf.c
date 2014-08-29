@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2011 by George Williams */
+/* Copyright (C) 2000-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -2981,7 +2981,7 @@ static void sethhead(struct hhead *hhead,struct hhead *vhead,struct alltabs *at,
     hhead->maxwidth = width;
     hhead->minlsb = at->head.xmin;
     hhead->minrsb = rbearing;
-    /* Apple's ftxvalidator says the the min sidebearing should be 0 even if it isn't */
+    /* Apple's ftxvalidator says the min sidebearing should be 0 even if it isn't */
     if ( hhead->minlsb>0 ) hhead->minlsb = 0;
     if ( hhead->minrsb>0 ) hhead->minrsb = 0;
     hhead->maxextent = at->head.xmax;
@@ -3318,10 +3318,8 @@ void OS2FigureCodePages(SplineFont *sf, uint32 CodePage[2]) {
 	CodePage[1] |= 1<<21;		/* hebrew */
     if ( cp864 && has_radical )
 	CodePage[1] |= 1<<19;		/* arabic */
-#if 0		/* Can't find this codepage */
-    if ( cp708 && )
+    if ( cp708 && has_lineart)
 	CodePage[1] |= 1<<29;		/* arabic; ASMO 708 */
-#endif
     if ( cp863 && has_lineart && has_radical )
 	CodePage[1] |= 1<<20;		/* MS-DOS Canadian French */
     if ( cp865 && has_lineart && has_radical )
@@ -5030,7 +5028,11 @@ static void dumpcmap(struct alltabs *at, SplineFont *sf,enum fontformat format) 
     if ( format12!=NULL ) {
 	/* full unicode mac table, just a copy of the ms table */
 	putshort(at->cmap,0);	/* mac unicode platform */
-	putshort(at->cmap,4);	/* Unicode 2.0, full unicode */
+        if( map->enc->is_unicodefull ) {
+	    putshort(at->cmap,10);	/* Unicode 2.0, unicode beyond BMP */
+	} else {
+	    putshort(at->cmap,4);	/* Unicode 2.0, unicode BMP */
+	}
 	putlong(at->cmap,ucs4pos);
     }
     if ( format14!=NULL ) {
@@ -5786,7 +5788,7 @@ static int initTables(struct alltabs *at, SplineFont *sf,enum fontformat format,
     }
 
     if ( sf->subfonts!=NULL ) {
-	SFDummyUpCIDs(&at->gi,sf);	/* life is easier if we ignore the seperate fonts of a cid keyed fonts and treat it as flat */
+	SFDummyUpCIDs(&at->gi,sf);	/* life is easier if we ignore the separate fonts of a cid keyed fonts and treat it as flat */
     } else if ( format!=ff_none )
 	AssignTTFGlyph(&at->gi,sf,at->map,format==ff_otf);
     else {
@@ -6101,7 +6103,7 @@ static int dumpcff(struct alltabs *at,SplineFont *sf,enum fontformat format,
 	AssignTTFGlyph(&at->gi,sf,at->map,true);
 	ret = dumptype2glyphs(sf,at);
     } else {
-	SFDummyUpCIDs(&at->gi,sf);	/* life is easier if we ignore the seperate fonts of a cid keyed fonts and treat it as flat */
+	SFDummyUpCIDs(&at->gi,sf);	/* life is easier if we ignore the separate fonts of a cid keyed fonts and treat it as flat */
 	ret = dumpcidglyphs(sf,at);
 	free(sf->glyphs); sf->glyphs = NULL;
 	sf->glyphcnt = sf->glyphmax = 0;

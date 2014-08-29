@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2011 by George Williams */
+/* Copyright (C) 2000-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -68,6 +68,7 @@ int  random( void ){ return rand();}
 void sleep( int n ){ _sleep(n);}
 #endif
 
+extern int AutoSaveFrequency;
 int splash = 1;
 static int localsplash;
 static int unique = 0;
@@ -1094,7 +1095,7 @@ int main( int argc, char **argv ) {
     int local_x;
 #endif
 
-    fprintf( stderr, "Copyright (c) 2000-2011 by George Williams.\n Executable based on sources from %s"
+    fprintf( stderr, "Copyright (c) 2000-2012 by George Williams.\n Executable based on sources from %s"
 #ifdef FONTFORGE_CONFIG_TYPE3
 	    "-ML"
 #endif
@@ -1348,6 +1349,7 @@ int main( int argc, char **argv ) {
     GDrawCreateDisplays(display,argv[0]);
     default_background = GDrawGetDefaultBackground(screen_display);
     InitToolIconClut(default_background);
+    InitToolIcons();
     InitCursors();
 #ifndef _NO_PYTHON
     PyFF_ProcessInitFiles();
@@ -1406,7 +1408,8 @@ exit( 0 );
     if ( localsplash && !listen_to_apple_events )
 	start_splash_screen();
 
-    autosave_timer=GDrawRequestTimer(splashw,60*1000,30*1000,NULL);
+    if ( AutoSaveFrequency>0 )
+	autosave_timer=GDrawRequestTimer(splashw,2*AutoSaveFrequency*1000,AutoSaveFrequency*1000,NULL);
 
     GDrawProcessPendingEvents(NULL);
     GDrawSetBuildCharHooks(BuildCharHook,InsCharHook);

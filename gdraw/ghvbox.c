@@ -1,4 +1,4 @@
-/* Copyright (C) 2006-2011 by George Williams */
+/* Copyright (C) 2006-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -47,7 +47,7 @@ GResInfo ghvgroupbox_ri = {
     NULL,
     N_("HV Group Box"),
     N_("A box drawn around other gadgets"),
-    "GHVGroupBox",
+    "GGroup",
     "Gdraw",
     false,
     omf_border_type|omf_border_shape|omf_padding|omf_main_background|omf_disabled_background

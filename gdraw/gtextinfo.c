@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2011 by George Williams */
+/* Copyright (C) 2000-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -494,6 +494,14 @@ return( bucket->image );
 
 GImage *GGadgetImageCache(char *filename) {
 return( _GGadgetImageCache(filename,NULL));
+}
+
+/* Substitutes an image contents with what's found in cache. */
+/* That is, unless there is nothing found in the cache.      */
+int TryGGadgetImageCache(GImage *image, char *name) {
+    GImage *loaded = GGadgetImageCache(name);
+    if (loaded != NULL) *image = *loaded;
+return (loaded != NULL);
 }
 
 GResImage *GGadgetResourceFindImage(char *name, GImage *def) {
@@ -1061,7 +1069,7 @@ int GIntGetResource(int index) {
 /* GT: This is an unusual string. It is used to get around a limitation in */
 /* GT: FontForge's widget set. You should put a number here (do NOT translate */
 /* GT: "GGadget|ScaleFactor|", that's only to provide context. The number should */
-/* GT: be a percentage and indicates the the ratio of the length of a string in */
+/* GT: be a percentage and indicates the ratio of the length of a string in */
 /* GT: your language to the same string's length in English. */
 /* GT: Suppose it takes 116 pixels to say "Ne pas enregistrer" in French but */
 /* GT: only 67 pixels to say "Don't Save" in English. Then a value for ScaleFactor */

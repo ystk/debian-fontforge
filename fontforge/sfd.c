@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2011 by George Williams */
+/* Copyright (C) 2000-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -1216,17 +1216,20 @@ static void SFDDumpPattern(FILE *sfd, char *keyword, struct pattern *pattern) {
 }
 #endif
 
-static void SFDDumpChar(FILE *sfd,SplineChar *sc,EncMap *map,int *newgids) {
+static void SFDDumpChar(FILE *sfd,SplineChar *sc,EncMap *map,int *newgids,int todir) {
     ImageList *img;
     KernPair *kp;
     PST *pst;
     int i, v, enc;
     struct altuni *altuni;
 
+    if (!todir)
+	putc('\n',sfd);
+
     if ( AllAscii(sc->name))
-	fprintf(sfd, "\nStartChar: %s\n", sc->name );
+	fprintf(sfd, "StartChar: %s\n", sc->name );
     else {
-	fprintf(sfd, "\nStartChar: " );
+	fprintf(sfd, "StartChar: " );
 	SFDDumpUTF7Str(sfd,sc->name );
 	putc('\n',sfd);
     }
@@ -1884,6 +1887,8 @@ static int SFD_Dump(FILE *sfd,SplineFont *sf,EncMap *map,EncMap *normal,
 	fprintf(sfd, "StrokedFont: %d\n", sf->strokedfont );
     else if ( sf->multilayer )
 	fprintf(sfd, "MultiLayer: %d\n", sf->multilayer );
+    if ( sf->hasvmetrics )
+	fprintf(sfd, "HasVMetrics: %d\n", sf->hasvmetrics );
     if ( sf->use_xuid && sf->changed_since_xuidchanged )
 	fprintf(sfd, "NeedsXUIDChange: 1\n" );
     if ( sf->xuid!=NULL )
@@ -2358,14 +2363,14 @@ static int SFD_Dump(FILE *sfd,SplineFont *sf,EncMap *map,EncMap *normal,
 	for ( i=0; i<sf->glyphcnt; ++i ) {
 	    if ( !SFDOmit(sf->glyphs[i]) ) {
 		if ( !todir )
-		    SFDDumpChar(sfd,sf->glyphs[i],map,newgids);
+		    SFDDumpChar(sfd,sf->glyphs[i],map,newgids,todir);
 		else {
 		    char *glyphfile = galloc(strlen(dirname)+2*strlen(sf->glyphs[i]->name)+20);
 		    FILE *gsfd;
 		    appendnames(glyphfile,dirname,"/",sf->glyphs[i]->name,GLYPH_EXT );
 		    gsfd = fopen(glyphfile,"w");
 		    if ( gsfd!=NULL ) {
-			SFDDumpChar(gsfd,sf->glyphs[i],map,newgids);
+			SFDDumpChar(gsfd,sf->glyphs[i],map,newgids,todir);
 			if ( ferror(gsfd)) err = true;
 			if ( fclose(gsfd)) err = true;
 		    } else
@@ -3810,7 +3815,7 @@ static AnchorPoint *SFDReadAnchorPoints(FILE *sfd,SplineChar *sc,AnchorPoint *la
 
     name = SFDReadUTF7Str(sfd);
     if ( name==NULL ) {
-	LogError( "Anchor Point with no class name" );
+	LogError( "Anchor Point with no class name: %s", sc->name );
 return( lastap );
     }
     for ( an=sc->parent->anchor; an!=NULL && strcmp(an->name,name)!=0; an=an->next );
@@ -3852,7 +3857,7 @@ return( lastap );
 	}
     }
     if ( ap->anchor==NULL || ap->type==-1 ) {
-	LogError( "Bad Anchor Point" );
+	LogError( "Bad Anchor Point: %s", sc->name );
 	AnchorPointsFree(ap);
 return( lastap );
     }
@@ -3902,7 +3907,7 @@ return( rf );
 
 /* I used to create multiple ligatures by putting ";" between them */
 /* that is the component string for "ffi" was "ff i ; f f i" */
-/* Now I want to have seperate ligature structures for each */
+/* Now I want to have separate ligature structures for each */
 static PST1 *LigaCreateFromOldStyleMultiple(PST1 *liga) {
     char *pt;
     PST1 *new, *last=liga;
@@ -6657,6 +6662,10 @@ static SplineFont *SFD_GetFont(FILE *sfd,SplineFont *cidmaster,char *tok,
 	    int temp;
 	    getint(sfd,&temp);
 	    sf->hasvmetrics = true;
+	} else if ( strmatch(tok,"HasVMetrics:")==0 ) {
+	    int temp;
+	    getint(sfd,&temp);
+	    sf->hasvmetrics = temp;
 	} else if ( strmatch(tok,"Justify:")==0 ) {
 	    SFDParseJustify(sfd,sf,tok);
 	} else if ( strmatch(tok,"BaseHoriz:")==0 ) {
@@ -6957,8 +6966,10 @@ exit(1);
 	    int temp;
 	    getint(sfd,&temp);
 	    sf->texdata.type = temp;
-	    getsint(sfd,(int16 *) &sf->design_size);
-	    sf->design_size = (5*sf->design_size+(1<<18))>>19;
+	    getint(sfd,(int16 *) &temp);
+	    if ( sf->design_size==0 ) {
+	    	sf->design_size = (5*temp+(1<<18))>>19;
+	    }
 	    for ( i=0; i<22; ++i ) {
 		int foo;
 		getint(sfd,&foo);
@@ -7733,7 +7744,7 @@ return;
 	    }
 	}
 	if ( ssf->glyphs[i]!=NULL && ssf->glyphs[i]->changed )
-	    SFDDumpChar( asfd,ssf->glyphs[i],map,NULL);
+	    SFDDumpChar( asfd,ssf->glyphs[i],map,NULL,false);
     }
     fprintf( asfd, "EndChars\n" );
     fprintf( asfd, "EndSplineFont\n" );

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2011 by George Williams */
+/* Copyright (C) 2000-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -42,6 +42,27 @@
 #ifndef FAST_BITS
 #define FAST_BITS 0
 #endif
+
+static void intersect_rectangles(GRect *rect, GRect *clip) {
+    if ( rect->x < clip->x ) {
+	rect->width -= (clip->x - rect->x);
+	if ( rect->width < 0 ) rect->width = 0;
+	rect->x = clip->x;
+    }
+    if ( rect->x + rect->width > clip->x + clip->width ) {
+        rect->width = clip->x + clip->width - rect->x;
+        if ( rect->width < 0 ) rect->width = 0;
+    }
+    if ( rect->y < clip->y ) {
+	rect->height -= (clip->y - rect->y);
+	if ( rect->height < 0 ) rect->height = 0;
+	rect->y = clip->y;
+    }
+    if ( rect->y + rect->height > clip->y + clip->height ) {
+        rect->height = clip->y + clip->height - rect->y;
+        if ( rect->height < 0 ) rect->height = 0;
+    }
+}
 
 static void gdraw_8_on_1_nomag_dithered_masked(GXDisplay *gdisp,GImage *image,
 	GRect *src) {
@@ -1895,6 +1916,12 @@ void _GXDraw_Image( GWindow _w, GImage *image, GRect *src, int32 x, int32 y) {
     Display *display=gdisp->display;
     Window w = gw->w;
     GC gc = gdisp->gcstate[gw->ggc->bitmap_col].gc;
+    GRect rootPos = {0, 0, XDisplayWidth(display,gdisp->screen),
+                           XDisplayHeight(display,gdisp->screen)};
+    GRect img_pos = {x+_w->pos.x, y+_w->pos.y, src->width, src->height};
+    GRect win_pos = {x, y, src->width, src->height};
+    GRect blend_src = {0, 0, src->width, src->height};
+    GImage *blended = NULL;
     int depth;
 
 #ifndef _NO_LIBCAIRO
@@ -1918,9 +1945,44 @@ return;
 return;
     }
 
+/* Throws errors in Mac OS X */
+#ifndef __Mac
+    /* Can we blend this with background to support an alpha channel? */
+    /* it's slow, particularly so on network connections, but that's */
+    /* all we can get without reworking GDraw to use XComposite ext. */
+    if ((depth >= 16) && (base->image_type == it_rgba)) {
+        /* This requires caution, as the rectangle being worked */
+        /* must be contained within both screen and the window. */
+        intersect_rectangles(&img_pos, &(_w->pos));
+        intersect_rectangles(&img_pos, &rootPos);
+        img_pos.x -= _w->pos.x;
+        img_pos.y -= _w->pos.y;
+        win_pos = img_pos;
+        blend_src = img_pos;
+        blend_src.x = blend_src.y = 0;
+        img_pos.x = src->x + (win_pos.x - x);
+        img_pos.y = src->y + (win_pos.y - y);
+        src = &img_pos;
+        x = win_pos.x;
+        y = win_pos.y;
+
+        if (src->width>0 && src->height>0)
+            blended = _GXDraw_CopyScreenToImage(_w, &win_pos);
+
+        if (blended != NULL) {
+            GImageBlendOver(blended, image, src, 0, 0);
+            image = blended;
+            base = image->list_len==0?image->u.image:image->u.images[0];
+            src = &blend_src;
+        }
+    }
+#endif
+
     gximage_to_ximage(gw, image, src);
 
-    if ( !gdisp->supports_alpha_images && (base->trans!=COLOR_UNKNOWN || base->image_type==it_rgba )) {
+    if ( !gdisp->supports_alpha_images && (blended == NULL) &&
+         (base->trans!=COLOR_UNKNOWN || base->image_type==it_rgba )) {
+
 	/* ((destination & mask) | src) seems to me to yield the proper behavior */
 	/*  for transparent backgrounds. This is equivalent to: */
 	/* ((destination GXorReverse mask) GXnand src) */
@@ -1948,6 +2010,9 @@ return;
 	XPutImage(display,w,gc,gdisp->gg.img,0,0,
 		x,y, src->width, src->height );
     }
+    
+    if (blended != NULL)
+        GImageDestroy(blended);
 }
 
 void _GXDraw_TileImage( GWindow _w, GImage *image, GRect *src, int32 x, int32 y) {

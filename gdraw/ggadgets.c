@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2011 by George Williams */
+/* Copyright (C) 2000-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -44,7 +44,10 @@ GBox _ggadget_Default_Box = { bt_raised, bs_rect, 2, 2, 0, 0,
     COLOR_CREATE(0xd8,0xd8,0xd8),		/* disabled background */
     COLOR_CREATE(0x66,0x66,0x66),		/* disabled foreground */
     COLOR_CREATE(0xff,0xff,0x00),		/* active border */
-    COLOR_CREATE(0xa0,0xa0,0xa0)		/* pressed background */
+    COLOR_CREATE(0xa0,0xa0,0xa0),		/* pressed background */
+    COLOR_CREATE(0x00,0x00,0x00),		/* gradient bg end */
+    COLOR_CREATE(0x00,0x00,0x00),		/* border inner */
+    COLOR_CREATE(0x00,0x00,0x00),		/* border outer */
 };
 GBox _GListMark_Box = { /* Don't initialize here */ 0 };
 FontInstance *_ggadget_default_font = NULL;
@@ -289,6 +292,8 @@ FontInstance *_GGadgetInitDefaultBox(char *class,GBox *box, FontInstance *deffon
 	{ "Box.GradientBG", rt_bool, NULL },
 	{ "Box.GradientStartCol", rt_color, NULL },
 	{ "Box.ShadowOuter", rt_bool, NULL },
+	{ "Box.BorderInnerCol", rt_color, NULL },
+	{ "Box.BorderOuterCol", rt_color, NULL },
 	{ NULL }
     };
     intpt bt, bs;
@@ -310,7 +315,7 @@ FontInstance *_GGadgetInitDefaultBox(char *class,GBox *box, FontInstance *deffon
     depressed = box->flags & box_do_depressed_background;
     def = box->flags & box_draw_default;
     grad = box->flags & box_gradient_bg;
-    shadow = box->flags & box_gradient_bg;
+    shadow = box->flags & box_foreground_shadow_outer;
 
     bordertype[0].val = &bt;
     boxtypes[0].val = &bt;
@@ -341,6 +346,8 @@ FontInstance *_GGadgetInitDefaultBox(char *class,GBox *box, FontInstance *deffon
     boxtypes[25].val = &grad;
     boxtypes[26].val = &box->gradient_bg_end;
     boxtypes[27].val = &shadow;
+    boxtypes[28].val = &box->border_inner;
+    boxtypes[29].val = &box->border_outer;
 
     GResourceFind( bordertype, class);
     /* for a plain box, default to all borders being the same. they must change*/
@@ -367,6 +374,8 @@ FontInstance *_GGadgetInitDefaultBox(char *class,GBox *box, FontInstance *deffon
 	box->flags |= box_draw_default;
     if ( grad )
 	box->flags |= box_gradient_bg;
+    if ( shadow )
+	box->flags |= box_foreground_shadow_outer;
 
     if ( fi==NULL ) {
 	FontRequest rq;
@@ -415,7 +424,7 @@ void GGadgetInit(void) {
 	_GListMarkSize = GResourceFindInt("GListMark.Width", _GListMarkSize);
 	_GListMark_Image = GGadgetResourceFindImage("GListMark.Image", NULL);
 	_GListMark_DisImage = GGadgetResourceFindImage("GListMark.DisabledImage", NULL);
-	if ( _GListMark_Image!=NULL ) {
+	if ( _GListMark_Image!=NULL && _GListMark_Image->image!=NULL ) {
 	    int size = GDrawPixelsToPoints(NULL,GImageGetWidth(_GListMark_Image->image));
 	    if ( size>_GListMarkSize )
 		_GListMarkSize=size;
@@ -450,10 +459,11 @@ void GListMarkDraw(GWindow pixmap,int x, int y, int height, enum gadget_state st
     GRect r, old;
     int marklen = GDrawPointsToPixels(pixmap,_GListMarkSize);
 
-    if ( state == gs_disabled && _GListMark_DisImage!=NULL ) {
+    if ( state == gs_disabled &&
+           _GListMark_DisImage!=NULL && _GListMark_DisImage->image!=NULL) {
 	GDrawDrawScaledImage(pixmap,_GListMark_DisImage->image,x,
 		y + (height-GImageGetScaledHeight(pixmap,_GListMark_DisImage->image))/2);
-    } else if ( _GListMark_Image!=NULL ) {
+    } else if ( _GListMark_Image!=NULL && _GListMark_Image->image!=NULL ) {
 	GDrawDrawScaledImage(pixmap,_GListMark_Image->image,x,
 		y + (height-GImageGetScaledHeight(pixmap,_GListMark_Image->image))/2);
     } else {

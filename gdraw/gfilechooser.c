@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2011 by George Williams */
+/* Copyright (C) 2000-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -116,7 +116,7 @@ return( NULL );
 	    pattern = ppt;
 	    ++name;
 	} else if ( ch=='{' ) {
-	    /* matches any of a comma seperated list of substrings */
+	    /* matches any of a comma separated list of substrings */
 	    for ( ppt = pattern+1; *ppt!='\0' ; ppt = ept ) {
 		for ( ept=ppt; *ept!='}' && *ept!=',' && *ept!='\0'; ++ept );
 		npt = SubMatch(ppt,ept,name,ignorecase);
@@ -189,6 +189,8 @@ return( fc_hide );
 
 static GImage *GFileChooserPickIcon(GDirEntry *e) {
     unichar_t *m = e->mimetype;
+
+    InitChooserIcons();
 
     if ( e->isdir ) {
 	if ( uc_strcmp(e->name,"..")==0 )
@@ -1567,7 +1569,7 @@ static void GFileChooserCreateChildren(GFileChooser *gfc, int flags) {
 
     for ( l=0; l<k; ++l )
 	gcd[l].data = gfc;
-    
+
     GGadgetsCreate(gfc->g.base,boxes);
 
     gfc->topbox      = (GHVBox *)      boxes[0].ret;

@@ -1,4 +1,4 @@
-/* Copyright (C) 2003-2011 by George Williams */
+/* Copyright (C) 2003-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -784,7 +784,7 @@ static void DVDefaultRaster(DebugView *dv) {
     }
     cv->b.ft_gridfitwidth = 0;
 
-    if ( cv!=NULL )
+    if ( cv->v!=NULL )
 	GDrawRequestExpose(cv->v,NULL,false);
     if ( dv->raster!=NULL )
 	GDrawRequestExpose(dv->raster,NULL,false);

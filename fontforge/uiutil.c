@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2011 by George Williams */
+/* Copyright (C) 2000-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -158,7 +158,7 @@ static char browser[1025];
 static void findbrowser(void) {
 #if __CygWin
     static char *stdbrowsers[] = { "netscape.exe", "opera.exe", "galeon.exe", "kfmclient.exe",
-	"mozilla.exe", "mosaic.exe", /*"grail",*/
+	"chrome.exe", "mozilla.exe", "mosaic.exe", /*"grail",*/
 	"iexplore.exe",
 	/*"lynx.exe",*/
 #else
@@ -166,8 +166,9 @@ static void findbrowser(void) {
 /*  which try to figure out what browser the user intents. It seems no one */
 /*  uses (understands?) environment variables any more, so BROWSER is a bit */
 /*  old-fashioned */
-    static char *stdbrowsers[] = { "xdg-open", "htmlview", "firefox", "mozilla", "opera", "galeon", "kfmclient",
-	"netscape", "mosaic", /*"grail",*/ "lynx",
+    static char *stdbrowsers[] = { "xdg-open", "x-www-browser", "htmlview",
+        "firefox", "mozilla", "konqueror", "opera", "google-chrome", "galeon",
+        "kfmclient", "netscape", "mosaic", /*"grail",*/ "lynx",
 #endif
 	NULL };
     int i;

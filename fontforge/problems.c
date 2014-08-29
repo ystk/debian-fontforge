@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2011 by George Williams */
+/* Copyright (C) 2000-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -2072,6 +2072,9 @@ static int SCProblems(CharView *cv,SplineChar *sc,struct problems *p) {
 	p->glyphenc = sc->orig_pos;
 	if ( sc->unicodeenc==-1 )
 	    ExplainIt(p,sc,_("This glyph is not mapped to any unicode code point, but its name should be."),0,0);
+	else if ( strcmp(sc->name,"alefmaksurainitialarabic")==0 ||
+                  strcmp(sc->name,"alefmaksuramedialarabic")==0 )
+	    ExplainIt(p,sc,_("The use of names 'alefmaksurainitialarabic' and 'alefmaksuramedialarabic' is discouraged."),0,0);
 	else
 	    ExplainIt(p,sc,_("This glyph is mapped to a unicode code point which is different from its name."),0,0);
 	if ( p->ignorethis )
@@ -3965,7 +3968,7 @@ void FindProblems(FontView *fv,CharView *cv, SplineChar *sc) {
     agcd[1].creator = GCheckBoxCreate;
     aarray[1] = &agcd[1];
 
-    alabel[2].text = (unichar_t *) _("Check subtitutions for empty chars");
+    alabel[2].text = (unichar_t *) _("Check substitutions for empty chars");
     alabel[2].text_is_1byte = true;
     agcd[2].gd.label = &alabel[2];
     agcd[2].gd.pos.x = 3; agcd[2].gd.pos.y = agcd[1].gd.pos.y+15; 

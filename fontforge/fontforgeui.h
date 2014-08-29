@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2011 by George Williams */
+/* Copyright (C) 2000-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -104,6 +104,7 @@ extern void cvtoollist_check(GWindow gw,struct gmenuitem *mi,GEvent *e);
 
 extern void InitCursors(void);
 extern void InitToolIconClut(Color bg);
+extern void InitToolIcons(void); /* needs image cache already working */
 
 extern int ErrorWindowExists(void);
 extern void ShowErrorWindow(void);

@@ -1,4 +1,4 @@
-/* Copyright (C) 2006-2011 by George Williams */
+/* Copyright (C) 2006-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -956,7 +956,7 @@ static void GlyphDiffSCError(struct font_diff *fd, SplineChar *sc, char *format,
     if ( fd->last_sc==sc ) {
 	if ( fd->held[0] ) {
 	    fputs("  ",fd->diffs);
-/* GT: FontForge needs to recoginze the quotes used here(“”). If you change them */
+/* GT: FontForge needs to recognize the quotes used here(“”). If you change them */
 /* GT: (in the translated strings) let me know. It currently also recognizes */
 /* GT: guillemets and a couple of other quotes as well. */
 /* GT:   pfaedit@users.sourceforge.net */

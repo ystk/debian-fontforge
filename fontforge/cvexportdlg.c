@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2011 by George Williams */
+/* Copyright (C) 2000-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -248,9 +248,9 @@ static GTextInfo formats[] = {
     { (unichar_t *) N_("Raph's plate"), NULL, 0, 0, (void *) 5, 0, 0, 0, 0, 0, 0, 0, 1 },
 #define BITMAP_FORMAT_START	6
     { (unichar_t *) N_("X Bitmap"), NULL, 0, 0, (void *) BITMAP_FORMAT_START, 0, 0, 0, 0, 0, 0, 0, 1 },
-    { (unichar_t *) N_("BMP"), NULL, 0, 0, (void *) BITMAP_FORMAT_START+1, 0, 0, 0, 0, 0, 0, 0, 1 },
+    { (unichar_t *) N_("BMP"), NULL, 0, 0, (void *) (BITMAP_FORMAT_START+1), 0, 0, 0, 0, 0, 0, 0, 1 },
 #ifndef _NO_LIBPNG
-    { (unichar_t *) N_("png"), NULL, 0, 0, (void *) BITMAP_FORMAT_START+2, 0, 0, 0, 0, 0, 0, 0, 1 },
+    { (unichar_t *) N_("png"), NULL, 0, 0, (void *) (BITMAP_FORMAT_START+2), 0, 0, 0, 0, 0, 0, 0, 1 },
 #endif
     { NULL }};
 static int last_format = 0;

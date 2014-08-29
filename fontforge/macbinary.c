@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2011 by George Williams */
+/* Copyright (C) 2000-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -3130,7 +3130,7 @@ static SplineFont *FindResourceFile(char *filename,int flags,enum openflags open
 return( sf );
 
     /* Well, look in the resource fork directory (if it exists), the resource */
-    /*  fork is placed there in a seperate file on (some) non-Mac disks */
+    /*  fork is placed there in a separate file on (some) non-Mac disks */
     strcpy(buffer,filename);
     spt = strrchr(buffer,'/');
     if ( spt==NULL ) { spt = buffer; pt = filename; }

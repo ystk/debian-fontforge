@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2011 by George Williams */
+/* Copyright (C) 2000-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -694,7 +694,10 @@ static void dump_contextpstcoverage(FILE *out,SplineFont *sf,
     char *start, *pt, *last_end;
     int ch, ch2, uses_lookups=false;
 
-    for ( i=0; i<r->u.coverage.bcnt; ++i ) {
+    /* bcovers glyph classes are in reverse order, but they should be in */
+    /* natural order in the feature file, so we dump them in the reverse */
+    /* order */
+    for ( i=r->u.coverage.bcnt-1; i>=0; --i ) {
 	putc('[',out);
 	dump_glyphnamelist(out,sf,r->u.coverage.bcovers[i] );
 	fprintf( out, "] ");
@@ -1037,7 +1040,7 @@ static int HasBaseAP(SplineChar *sc,struct lookup_subtable *sub) {
     AnchorPoint *ap;
 
     for ( ap=sc->anchor; ap!=NULL; ap=ap->next ) {
-	if ( ap->anchor->subtable == sub )
+	if ( ap->anchor->subtable==sub && ap->type!=at_mark )
 return( true );
     }
 
@@ -1270,7 +1273,7 @@ return;
 		}
 		if ( sub->lookup->lookup_type!=gpos_mark2ligature ) {
 		    int first = true;
-		    for ( ap = sc->anchor; ap!=NULL; ap=ap->next ) if ( ap->anchor->subtable==sub ) {
+		    for ( ap = sc->anchor; ap!=NULL; ap=ap->next ) if ( ap->anchor->subtable==sub && ap->type!=at_mark ) {
 			if ( !first )
 			    fprintf(out,"\n\t");
 			first = false;
@@ -1675,9 +1678,7 @@ void FeatDumpOneLookup(FILE *out,SplineFont *sf, OTLookup *otl) {
     dump_lookup(out,sf,otl);
 
     for ( fl = otl->features; fl!=NULL; fl=fl->next ) {
-	fprintf( out, "\nfeature %s%c%c%c%c {\n",
-		fl->featuretag==CHR('m','a','r','k') ? "\\" : "",
-		fl->featuretag>>24, fl->featuretag>>16, fl->featuretag>>8, fl->featuretag );
+	fprintf( out, "\nfeature %c%c%c%c {\n", fl->featuretag>>24, fl->featuretag>>16, fl->featuretag>>8, fl->featuretag );
 	for ( sl = fl->scripts; sl!=NULL; sl=sl->next ) {
 	    fprintf( out, "  script %c%c%c%c;\n",
 		    sl->script>>24, sl->script>>16, sl->script>>8, sl->script );
@@ -1689,9 +1690,7 @@ void FeatDumpOneLookup(FILE *out,SplineFont *sf, OTLookup *otl) {
 		fprintf( out, "      lookup %s;\n", lookupname(otl));
 	    }
 	}
-	fprintf( out, "\n} %s%c%c%c%c;\n",
-		fl->featuretag==CHR('m','a','r','k') ? "\\" : "",
-		fl->featuretag>>24, fl->featuretag>>16, fl->featuretag>>8, fl->featuretag );
+	fprintf( out, "\n} %c%c%c%c;\n", fl->featuretag>>24, fl->featuretag>>16, fl->featuretag>>8, fl->featuretag );
     }
 }
 
@@ -1780,15 +1779,17 @@ return;					/* No anchor positioning, no ligature carets */
 		    ++k;
 		} while ( k<sf->subfontcnt );
 		fprintf( out, "];\n");
-	    } else
-		/* AFDKO does't like empty classes, there should be just a placeholder */
-		clsnames[i] = " ";
+	    }
 	}
     }
     fprintf( out, "\ntable GDEF {\n" );
     if ( needsclasses ) {
+	/* AFDKO does't like empty classes, there should be just a placeholder */
 	fprintf( out, "  GlyphClassDef %s, %s, %s, %s;\n\n",
-		clsnames[0], clsnames[1], clsnames[2], clsnames[3]);
+		hasclass[0]? clsnames[0]: "",
+		hasclass[1]? clsnames[1]: "",
+		hasclass[2]? clsnames[2]: "",
+		hasclass[3]? clsnames[3]: "");
     }
 
     for ( i=0; i<lcnt; ++i ) {
@@ -1897,9 +1898,7 @@ static void dump_gsubgpos(FILE *out, SplineFont *sf) {
 		if ( otl->features!=NULL && !otl->unused )	/* Nested lookups will be output with the lookups which invoke them */
 		    dump_lookup( out, sf, otl );
 	    for ( i=0; feats[i]!=0; ++i ) {
-		fprintf( out, "\nfeature %s%c%c%c%c {\n",
-			feats[i]==CHR('m','a','r','k') ? "\\" : "",
-			feats[i]>>24, feats[i]>>16, feats[i]>>8, feats[i] );
+		fprintf( out, "\nfeature %c%c%c%c {\n", feats[i]>>24, feats[i]>>16, feats[i]>>8, feats[i] );
 		if ( feats[i]>=CHR('s','s','0','1') &&  feats[i]<=CHR('s','s','2','0') &&
 			(fn = findotffeatname(feats[i],sf))!=NULL ) {
 		    fprintf( out, "  featureNames {\n" );
@@ -1967,9 +1966,7 @@ static void dump_gsubgpos(FILE *out, SplineFont *sf) {
 		    }
 		    free(langs);
 		}
-		fprintf( out, "} %s%c%c%c%c;\n",
-			    feats[i]==CHR('m','a','r','k') ? "\\" : "",
-			    feats[i]>>24, feats[i]>>16, feats[i]>>8, feats[i] );
+		fprintf( out, "} %c%c%c%c;\n", feats[i]>>24, feats[i]>>16, feats[i]>>8, feats[i] );
 	    }
 	    free(scripts);
 	}
@@ -2521,7 +2518,7 @@ return;
     fea_ParseTok(tok);
 }
 
-static void fea_ParseTok(struct parseState *tok) {
+static void fea_ParseTokWithKeywords(struct parseState *tok, int do_keywords) {
     FILE *in = tok->inlist[tok->inc_depth];
     int ch, peekch;
     char *pt, *start;
@@ -2627,7 +2624,7 @@ return;
 	    ++tok->err_count;
 	}
 
-	if ( check_keywords ) {
+	if ( check_keywords && do_keywords) {
 	    int i;
 	    for ( i=tk_firstkey; fea_keywords[i].name!=NULL; ++i ) {
 		if ( strcmp(fea_keywords[i].name,tok->tokbuf)==0 ) {
@@ -2672,6 +2669,10 @@ return;
   goto skip_whitespace;
 	}
     }
+}
+
+static void fea_ParseTok(struct parseState *tok) {
+    fea_ParseTokWithKeywords(tok, true);
 }
 
 static void fea_ParseTag(struct parseState *tok) {
@@ -4249,6 +4250,7 @@ static struct feat_item *fea_process_pos_pair(struct parseState *tok,
     struct feat_item *item;
     struct vr vr[2];
     SplineChar *sc, *sc2;
+    int i;
 
     memset(vr,0,sizeof(vr));
     if ( glyphs->vr==NULL )
@@ -4258,6 +4260,14 @@ static struct feat_item *fea_process_pos_pair(struct parseState *tok,
 	if ( glyphs->next->vr!=NULL )
 	    vr[1] = *glyphs->next->vr;
     }
+
+    /* FontForge only supports kerning classes in one direction at a time, not full value records */
+    /* so if there is a full value record, assume "enumerate" */
+    for ( i=0; i<2; ++i ) {
+	if ( vr[i].xoff!=0 || vr[i].yoff!=0 || ( vr[i].h_adv_off!=0 && vr[i].v_adv_off!=0 ) )
+	    enumer = true;
+    }
+
     if ( enumer || (glyphs->is_name && glyphs->next->is_name)) {
 	start = glyphs->name_or_class;
 	forever {
@@ -4555,9 +4565,10 @@ static FPST *fea_markedglyphs_to_fpst(struct parseState *tok,struct markedglyphs
 	int is_pos,int is_ignore, int is_reverse) {
     struct markedglyphs *g;
     int bcnt=0, ncnt=0, fcnt=0, lookup_cnt=0;
+    char **bcovers;
     int all_single=true;
     int mmax = 0;
-    int i, lc;
+    int i, j, k, lc;
     FPST *fpst;
     struct fpst_rule *r;
     struct feat_item *item, *head = NULL;
@@ -4636,8 +4647,17 @@ static FPST *fea_markedglyphs_to_fpst(struct parseState *tok,struct markedglyphs
 	r->u.coverage.ncovers = galloc(ncnt*sizeof(char*));
 	r->u.coverage.bcovers = galloc(bcnt*sizeof(char*));
 	r->u.coverage.fcovers = galloc(fcnt*sizeof(char*));
+
+	/* bcovers glyph classes should be in reverse order, but they */
+	/* are in natural order in the feature file, so we reverse them */
+	bcovers = galloc(bcnt*sizeof(char*));
 	for ( i=0, g=glyphs; i<bcnt; ++i, g=g->next )
-	    i = fea_AddAGlyphSet(r->u.coverage.bcovers,r->u.coverage.ncovers,i,g);
+	    i = fea_AddAGlyphSet(bcovers,r->u.coverage.ncovers,i,g);
+	for ( j=0, k=bcnt-1; j<bcnt; j++ ) {
+		r->u.coverage.bcovers[j] = copy(bcovers[k]);
+		k--;
+	}
+
 	i = i>bcnt ? 1 : 0;
 	for (    ; i<ncnt ; ++i, g=g->next )
 		i = fea_AddAGlyphSet(r->u.coverage.ncovers,NULL,i,g);
@@ -4768,10 +4788,10 @@ static void fea_ParseSubstitute(struct parseState *tok) {
 	    ++mk_num;
     }
     if ( glyphs==NULL ) {
-	LogError(_("Empty subsitute on line %d of %s"), tok->line[tok->inc_depth], tok->filename[tok->inc_depth] );
+	LogError(_("Empty substitute on line %d of %s"), tok->line[tok->inc_depth], tok->filename[tok->inc_depth] );
 	++tok->err_count;
     } else if ( is_reverse && (mk_num!=1 || has_lookups!=0)) {
-	LogError(_("Reverse subsitute must have exactly one marked glyph and no lookups on line %d of %s"), tok->line[tok->inc_depth], tok->filename[tok->inc_depth] );
+	LogError(_("Reverse substitute must have exactly one marked glyph and no lookups on line %d of %s"), tok->line[tok->inc_depth], tok->filename[tok->inc_depth] );
 	++tok->err_count;
     } else if ( !glyphs->has_marks ) {
 	/* Non-contextual */
@@ -5215,7 +5235,8 @@ static void fea_ParseLookupDef(struct parseState *tok, int could_be_stat ) {
     int ret;
     int has_single, has_multiple;
 
-    fea_ParseTok(tok);
+    /* keywords are allowed in lookup names */
+    fea_ParseTokWithKeywords(tok, false);
     if ( tok->type!=tk_name ) {
 	LogError(_("Expected name in lookup on line %d of %s"), tok->line[tok->inc_depth], tok->filename[tok->inc_depth] );
 	++tok->err_count;
@@ -5299,7 +5320,7 @@ return;
 	    }
 	}
     }
-    fea_ParseTok(tok);
+    fea_ParseTokWithKeywords(tok, false);
     if ( tok->type!=tk_name || strcmp(tok->tokbuf,lookup_name)!=0 ) {
 	LogError(_("Expected %s in lookup definition on line %d of %s"),
 		lookup_name, tok->line[tok->inc_depth], tok->filename[tok->inc_depth] );
@@ -5899,6 +5920,8 @@ static void fea_ParseGDEFTable(struct parseState *tok) {
 		}
 	    }
 	} else if ( strcmp(tok->tokbuf,"LigatureCaret")==0 ) {
+	    carets=NULL;
+	    len=0;
 	    item = chunkalloc(sizeof(struct feat_item));
 	    item->type = ft_lcaret;
 	    item->next = tok->sofar;
@@ -5925,8 +5948,7 @@ static void fea_ParseGDEFTable(struct parseState *tok) {
 		    fea_ParseCaret(tok);
 		else
 	    break;
-		if ( len>=max )
-		    carets = grealloc(carets,(max+=10)*sizeof(int16));
+		carets = grealloc(carets,(max+=10)*sizeof(int16));
 		carets[len++] = tok->value;
 	    }
 	    if ( tok->type!=tk_char || tok->tokbuf[0]!=';' ) {

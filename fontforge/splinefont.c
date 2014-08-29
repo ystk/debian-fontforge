@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2011 by George Williams */
+/* Copyright (C) 2000-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -1706,7 +1706,7 @@ return( do_max ? -1e23 : 1e23 );		/* We didn't find any glyphs */
 	/* find the mean */
 	for ( i=0; i<ccnt; ++i ) {
 	    test += curves[i].pos;
-	    tot += curves[i].cnt;
+	    ++tot;
 	}
 	result = test/tot;
     }

@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2011 by George Williams */
+/* Copyright (C) 2008-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -678,7 +678,8 @@ static int GRE_Save(GGadget *g, GEvent *e) {
 		"GradientBG", NULL };
 	static char *colornames[] = { "NormalForeground", "DisabledForeground", "NormalBackground",
 		"DisabledBackground", "PressedBackground", "GradientStartCol", "BorderBrightest",
-		"BorderBrighter", "BorderDarker", "BorderDarkest", "ActiveBorder",
+		"BorderBrighter", "BorderDarker", "BorderDarkest", "BorderInnerCol", "BorderOuterCol",
+		"ActiveBorder",
 		NULL };
 	static char *intnames[] = { "BorderWidth", "Padding", "Radius", NULL };
 	struct resed *extras;
@@ -815,7 +816,7 @@ return( true );
 		  } break;
 		  case rt_image: {
 		    GResImage *ri = *((GResImage **) (extras->val));
-		    if ( ri!=NULL ) {	/* No image if ri==NULL */
+		    if ( ri!=NULL && ri->filename!=NULL ) {
 			char **paths = _GGadget_GetImagePath();
 			int i;
 			for ( i=0; paths[i]!=NULL; ++i ) {
@@ -1020,7 +1021,7 @@ static void GResEditDlg(GResInfo *all,const char *def_res_file,void (*change_res
 	if ( res->initialcomment!=NULL )
 	    ++cnt;
 	if ( res->boxdata!=NULL )
-	    cnt += 3*16 + 8*2;
+	    cnt += 3*18 + 8*2;
 	if ( res->font )
 	    cnt+=3;
 	if ( res->inherits_from!=NULL )
@@ -1585,6 +1586,7 @@ static void GResEditDlg(GResInfo *all,const char *def_res_file,void (*change_res
 	    tofree[i].carray[l][7] = GCD_Glue;
 	    tofree[i].carray[l++][8] = NULL;
 
+
 /* GT: "I." is an abreviation for "Inherits" */
 	    lab[k].text = (unichar_t *) _("I.");
 	    lab[k].text_is_1byte = true;
@@ -1656,6 +1658,80 @@ static void GResEditDlg(GResInfo *all,const char *def_res_file,void (*change_res
 
 	    tofree[i].carray[l][7] = GCD_Glue;
 	    tofree[i].carray[l++][8] = NULL;
+
+
+/* GT: "I." is an abreviation for "Inherits" */
+	    lab[k].text = (unichar_t *) _("I.");
+	    lab[k].text_is_1byte = true;
+	    gcd[k].gd.label = &lab[k];
+	    gcd[k].gd.flags = gg_visible|gg_enabled|gg_utf8_popup;
+	    gcd[k].gd.popup_msg = (unichar_t *) _("Inherits for same field in parent");
+	    gcd[k].gd.cid = ++cid;
+	    gcd[k].gd.handle_controlevent = GRE_InheritColChange;
+	    gcd[k++].creator = GCheckBoxCreate;
+	    tofree[i].carray[l][0] = &gcd[k-1];
+
+	    lab[k].text = (unichar_t *) _("Inner Border:");
+	    lab[k].text_is_1byte = true;
+	    gcd[k].gd.label = &lab[k];
+	    gcd[k].gd.flags = gg_visible|gg_enabled;
+	    gcd[k].gd.cid = ++cid;
+	    gcd[k++].creator = GLabelCreate;
+	    tofree[i].carray[l][1] = &gcd[k-1];
+
+	    gcd[k].gd.u.col = res->boxdata->border_inner;
+	    gcd[k].gd.flags = gg_visible|gg_enabled;
+	    gcd[k].gd.cid = ++cid;
+	    gcd[k].gd.handle_controlevent = GRE_ColorChanged;
+	    gcd[k].data = &res->boxdata->border_inner;
+	    gcd[k++].creator = GColorButtonCreate;
+	    tofree[i].carray[l][2] = &gcd[k-1];
+	    tofree[i].carray[l][3] = GCD_Glue;
+	    if ( res->inherits_from==NULL )
+		gcd[k-3].gd.flags &= ~gg_enabled;
+	    else if ( res->inherits_from->boxdata->border_inner == res->boxdata->border_inner ) {
+		gcd[k-3].gd.flags |= gg_cb_on;
+		gcd[k-2].gd.flags &= ~gg_enabled;
+		gcd[k-1].gd.flags &= ~gg_enabled;
+	    }
+
+/* GT: "I." is an abreviation for "Inherits" */
+	    lab[k].text = (unichar_t *) _("I.");
+	    lab[k].text_is_1byte = true;
+	    gcd[k].gd.label = &lab[k];
+	    gcd[k].gd.flags = gg_visible|gg_enabled|gg_utf8_popup;
+	    gcd[k].gd.popup_msg = (unichar_t *) _("Inherits for same field in parent");
+	    gcd[k].gd.cid = ++cid;
+	    gcd[k].gd.handle_controlevent = GRE_InheritColChange;
+	    gcd[k++].creator = GCheckBoxCreate;
+	    tofree[i].carray[l][4] = &gcd[k-1];
+
+	    lab[k].text = (unichar_t *) _("Outer Border:");
+	    lab[k].text_is_1byte = true;
+	    gcd[k].gd.label = &lab[k];
+	    gcd[k].gd.flags = gg_visible|gg_enabled;
+	    gcd[k].gd.cid = ++cid;
+	    gcd[k++].creator = GLabelCreate;
+	    tofree[i].carray[l][5] = &gcd[k-1];
+
+	    gcd[k].gd.u.col = res->boxdata->border_outer;
+	    gcd[k].gd.flags = gg_visible|gg_enabled;
+	    gcd[k].gd.cid = ++cid;
+	    gcd[k].gd.handle_controlevent = GRE_ColorChanged;
+	    gcd[k].data = &res->boxdata->border_outer;
+	    gcd[k++].creator = GColorButtonCreate;
+	    tofree[i].carray[l][6] = &gcd[k-1];
+	    if ( res->inherits_from==NULL )
+		gcd[k-3].gd.flags &= ~gg_enabled;
+	    else if ( res->inherits_from->boxdata->border_outer == res->boxdata->border_outer ) {
+		gcd[k-3].gd.flags |= gg_cb_on;
+		gcd[k-2].gd.flags &= ~gg_enabled;
+		gcd[k-1].gd.flags &= ~gg_enabled;
+	    }
+
+	    tofree[i].carray[l][7] = GCD_Glue;
+	    tofree[i].carray[l++][8] = NULL;
+
 
 /* GT: "I." is an abreviation for "Inherits" */
 	    lab[k].text = (unichar_t *) _("I.");
@@ -1843,7 +1919,7 @@ static void GResEditDlg(GResInfo *all,const char *def_res_file,void (*change_res
 	    tofree[i].carray[l][6] = &gcd[k-1];
 	    if ( res->inherits_from==NULL )
 		gcd[k-3].gd.flags &= ~gg_enabled;
-	    else if ( res->inherits_from->boxdata->border_shape == res->boxdata->border_shape ) {
+	    else if ( res->inherits_from->boxdata->padding == res->boxdata->padding ) {
 		gcd[k-3].gd.flags |= gg_cb_on;
 		gcd[k-2].gd.flags &= ~gg_enabled;
 		gcd[k-1].gd.flags &= ~gg_enabled;

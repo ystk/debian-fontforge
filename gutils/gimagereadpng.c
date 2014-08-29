@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2011 by George Williams */
+/* Copyright (C) 2000-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -282,9 +282,9 @@ return( NULL );
 		    (trans_color->green>>8),
 		    (trans_color->blue>>8));
         else if ( base->image_type == it_mono )
-	    base->trans = trans_alpha[0];
+	    base->trans = trans_alpha ? trans_alpha[0] : 0;
 	else
-	    base->clut->trans_index = base->trans = trans_alpha[0];
+	    base->clut->trans_index = base->trans = trans_alpha ? trans_alpha[0] : 0;
     }
 
     row_pointers = galloc(_png_get_image_height(png_ptr,info_ptr)*sizeof(png_bytep));

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2011 by George Williams */
+/* Copyright (C) 2000-2012 by George Williams */
 /*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -1458,7 +1458,7 @@ void FVCorrectReferences(FontViewBase *fv) {
 		SCPreserveLayer(sc,layer,false);
 		rsc = RC_MakeNewGlyph(fv,sc,index++,
 		    _("%s had both contours and references, so the contours were moved "
-		      "into this glyph, and the a reference to it was added in the original."),
+		      "into this glyph, and a reference to it was added in the original."),
 		    "");
 		rsc->layers[layer].splines = sc->layers[layer].splines;
 		sc->layers[layer].splines  = NULL;

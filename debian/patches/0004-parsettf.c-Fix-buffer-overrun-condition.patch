@@ -1,0 +1,21 @@
+From 62b6433a81ee7ed6e0ac2d6b09ac85b885046ac3 Mon Sep 17 00:00:00 2001
+From: Jeremy Tan <jtanx@outlook.com>
+Date: Sun, 30 Jul 2017 10:27:17 +0800
+Subject: [PATCH 4/6] parsettf.c: Fix buffer overrun condition
+
+Closes #3090
+---
+ fontforge/parsettf.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- a/fontforge/parsettf.c
++++ b/fontforge/parsettf.c
+@@ -3504,7 +3504,7 @@
+ 	    for ( i = 1; i<len; ) {
+ 		first = dict->charset[i++] = getushort(ttf);
+ 		cnt = getc(ttf);
+-		for ( j=0; j<cnt; ++j )
++		for ( j=0; j<cnt && i<len; ++j )
+ 		    dict->charset[i++] = ++first;
+ 	    }
+ 	} else if ( format==2 ) {

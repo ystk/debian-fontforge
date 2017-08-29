@@ -1,3 +1,11 @@
+fontforge (20120731.b-5+deb8u1) jessie-security; urgency=high
+
+  * Import upstream patches fixing following CVE's
+    CVE-2017-11577, CVE-2017-11576, CVE-2017-11575, CVE-2017-11574,
+    CVE-2017-11572, CVE-2017-11571, CVE-2017-11569, CVE-2017-11568.
+
+ -- Vasudev Kamath <vasudev@copyninja.info>  Fri, 18 Aug 2017 21:23:10 +0530
+
 fontforge (20120731.b-5) unstable; urgency=low
 
   * Make packages Multi-Arch: foreign. Thanks to Dimitri John Ledkov.

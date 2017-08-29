@@ -1,0 +1,23 @@
+From df349365630344ef3004a3c7934c7e7496692fb1 Mon Sep 17 00:00:00 2001
+From: Jeremy Tan <jtanx@outlook.com>
+Date: Sun, 30 Jul 2017 09:38:56 +0800
+Subject: [PATCH 2/6] readcfftopdict: Prevent stack underflow condition
+
+Closes #3091
+---
+ fontforge/parsettf.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+--- a/fontforge/parsettf.c
++++ b/fontforge/parsettf.c
+@@ -3093,6 +3093,10 @@
+ 	  case (12<<8)+24:
+ 	    LogError( _("FontForge does not support type2 multiple master fonts\n") );
+ 	    info->bad_cff = true;
++	    if (sp < 4) {
++	        LogError(_("CFF dict stack underflow detected: %d < 4\n"), sp);
++	        break;
++	    }
+ 	    td->nMasters = stack[0];
+ 	    td->nAxes = sp-4;
+ 	    memcpy(td->weightvector,stack+1,(sp-4)*sizeof(real));

@@ -1,3 +1,9 @@
+0001-Fix-out-of-bounds-read-in-getsid.patch
+0002-readcfftopdict-Prevent-stack-underflow-condition.patch
+0003-Fix-out-of-bounds-read-condition-and-buffer-overflow.patch
+0004-parsettf.c-Fix-buffer-overrun-condition.patch
+0005-parsettf.c-Fix-buffer-overflow-condition-when-readin.patch
+0006-parsettf.c-Fix-out-of-bounds-read-condition-on-buffe.patch
 008_libgif.diff
 020_fix_pyext_path.diff
 024_def_background.diff
